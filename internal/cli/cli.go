@@ -38,6 +38,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdRun(args[1:], stdin, stdout, stderr)
 	case "identity":
 		return cmdIdentity(args[1:], stdout, stderr, getenv)
+	case "commit":
+		return cmdCommit(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 1
@@ -637,4 +639,58 @@ func ageRecipientFromEnv(getenv func(string) string) (string, error) {
 		return "", fmt.Errorf("first identity is not an age X25519 key")
 	}
 	return id.Recipient().String(), nil
+}
+
+func cmdCommit(args []string, stdout, stderr io.Writer) int {
+	_ = stdout
+	var message, file string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-m":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "commit: -m requires a message")
+				return 1
+			}
+			message = args[i]
+		case "-f":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "commit: -f requires a file")
+				return 1
+			}
+			file = args[i]
+		default:
+			fmt.Fprintln(stderr, "usage: sopsdeck commit -m MESSAGE -f FILE")
+			return 1
+		}
+	}
+	if message == "" || file == "" {
+		fmt.Fprintln(stderr, "usage: sopsdeck commit -m MESSAGE -f FILE")
+		return 1
+	}
+	dir := filepath.Dir(file)
+	if err := runGitCmd(dir, "add", "--", file); err != nil {
+		fmt.Fprintf(stderr, "commit: %v\n", err)
+		return 1
+	}
+	if err := runGitCmd(dir, "commit", "-m", message, "--", file); err != nil {
+		fmt.Fprintf(stderr, "commit: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runGitCmd(dir string, args ...string) error {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			return err
+		}
+		return fmt.Errorf("%s", msg)
+	}
+	return nil
 }
