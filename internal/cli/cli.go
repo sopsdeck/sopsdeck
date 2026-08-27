@@ -1,0 +1,640 @@
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"filippo.io/age"
+	"github.com/getsops/sops/v3"
+	"github.com/getsops/sops/v3/aes"
+	sopsage "github.com/getsops/sops/v3/age"
+	"github.com/getsops/sops/v3/cmd/sops/common"
+	"github.com/getsops/sops/v3/cmd/sops/formats"
+	"github.com/getsops/sops/v3/config"
+	"github.com/getsops/sops/v3/decrypt"
+	"github.com/getsops/sops/v3/keyservice"
+	"github.com/getsops/sops/v3/version"
+	"go.yaml.in/yaml/v3"
+)
+
+func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set> ...")
+		return 1
+	}
+	switch args[0] {
+	case "get":
+		return cmdGet(args[1:], stdout, stderr)
+	case "set":
+		return cmdSet(args[1:], stdout, stderr, getenv)
+	case "del":
+		return cmdDel(args[1:], stdout, stderr)
+	case "run":
+		return cmdRun(args[1:], stdin, stdout, stderr)
+	case "identity":
+		return cmdIdentity(args[1:], stdout, stderr, getenv)
+	default:
+		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
+		return 1
+	}
+}
+
+func cmdGet(args []string, stdout, stderr io.Writer) int {
+	var key, file, output string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-f", "--env-file":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "get: -f requires a file")
+				return 1
+			}
+			file = args[i]
+		case "--output":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "get: --output requires a format")
+				return 1
+			}
+			output = args[i]
+		default:
+			if strings.HasPrefix(args[i], "-") {
+				fmt.Fprintf(stderr, "get: unknown flag %s\n", args[i])
+				return 1
+			}
+			if key != "" {
+				fmt.Fprintln(stderr, "get: extra argument")
+				return 1
+			}
+			key = args[i]
+		}
+	}
+	if file == "" {
+		fmt.Fprintln(stderr, "usage: sopsdeck get [KEY] -f FILE")
+		return 1
+	}
+	if output != "" && output != "json" {
+		fmt.Fprintf(stderr, "get: unknown --output %s\n", output)
+		return 1
+	}
+	format := fileFormat(file)
+	plain, err := decrypt.File(file, formatName(format))
+	if err != nil {
+		fmt.Fprintf(stderr, "get: %v\n", err)
+		return 1
+	}
+	if key == "" {
+		if output == "json" {
+			pairs, err := plainEnv(plain, format)
+			if err != nil {
+				fmt.Fprintf(stderr, "get: %v\n", err)
+				return 1
+			}
+			enc, err := json.Marshal(pairs)
+			if err != nil {
+				fmt.Fprintf(stderr, "get: %v\n", err)
+				return 1
+			}
+			fmt.Fprintln(stdout, string(enc))
+			return 0
+		}
+		if _, err := stdout.Write(plain); err != nil {
+			fmt.Fprintf(stderr, "get: %v\n", err)
+			return 1
+		}
+		if len(plain) > 0 && plain[len(plain)-1] != '\n' {
+			fmt.Fprintln(stdout)
+		}
+		return 0
+	}
+	value, ok, err := lookupValue(plain, format, key)
+	if err != nil {
+		fmt.Fprintf(stderr, "get: %v\n", err)
+		return 1
+	}
+	if !ok {
+		fmt.Fprintf(stderr, "get: missing key %s\n", key)
+		return 1
+	}
+	fmt.Fprintln(stdout, value)
+	return 0
+}
+
+func cmdSet(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+	_ = stdout
+	var key, value, file string
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-f", "--env-file":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "set: -f requires a file")
+				return 1
+			}
+			file = args[i]
+		default:
+			if strings.HasPrefix(args[i], "-") {
+				fmt.Fprintf(stderr, "set: unknown flag %s\n", args[i])
+				return 1
+			}
+			positionals = append(positionals, args[i])
+		}
+	}
+	if len(positionals) != 2 || file == "" {
+		fmt.Fprintln(stderr, "usage: sopsdeck set KEY VALUE -f FILE")
+		return 1
+	}
+	key, value = positionals[0], positionals[1]
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		return setCreate(file, key, value, stderr, getenv)
+	}
+
+	format := fileFormat(file)
+	store := common.StoreForFormat(format, config.NewStoresConfig())
+	tree, err := common.LoadEncryptedFile(store, file)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	cipher := aes.NewCipher()
+	dataKey, err := common.DecryptTree(common.DecryptTreeOpts{
+		Tree:        tree,
+		Cipher:      cipher,
+		KeyServices: []keyservice.KeyServiceClient{keyservice.NewLocalClient()},
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	tree.Branches[0], _ = tree.Branches[0].Set([]interface{}{key}, value)
+	if err := common.EncryptTree(common.EncryptTreeOpts{DataKey: dataKey, Tree: tree, Cipher: cipher}); err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	out, err := store.EmitEncryptedFile(*tree)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	if err := writeAtomic(file, out); err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func writeAtomic(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".sopsdeck-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
+}
+
+func cmdDel(args []string, stdout, stderr io.Writer) int {
+	_ = stdout
+	var key, file string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-f", "--env-file":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "del: -f requires a file")
+				return 1
+			}
+			file = args[i]
+		default:
+			if strings.HasPrefix(args[i], "-") {
+				fmt.Fprintf(stderr, "del: unknown flag %s\n", args[i])
+				return 1
+			}
+			if key != "" {
+				fmt.Fprintln(stderr, "del: extra argument")
+				return 1
+			}
+			key = args[i]
+		}
+	}
+	if key == "" || file == "" {
+		fmt.Fprintln(stderr, "usage: sopsdeck del KEY -f FILE")
+		return 1
+	}
+
+	format := fileFormat(file)
+	store := common.StoreForFormat(format, config.NewStoresConfig())
+	tree, err := common.LoadEncryptedFile(store, file)
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	cipher := aes.NewCipher()
+	dataKey, err := common.DecryptTree(common.DecryptTreeOpts{
+		Tree:        tree,
+		Cipher:      cipher,
+		KeyServices: []keyservice.KeyServiceClient{keyservice.NewLocalClient()},
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	branch, err := tree.Branches[0].Unset([]interface{}{key})
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	tree.Branches[0] = branch
+	if err := common.EncryptTree(common.EncryptTreeOpts{DataKey: dataKey, Tree: tree, Cipher: cipher}); err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	out, err := store.EmitEncryptedFile(*tree)
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	if err := writeAtomic(file, out); err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	var file string
+	dash := -1
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--" {
+			dash = i
+			break
+		}
+		switch args[i] {
+		case "-f", "--env-file":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "run: -f requires a file")
+				return 1
+			}
+			file = args[i]
+		default:
+			fmt.Fprintln(stderr, "usage: sopsdeck run -f FILE -- CMD [ARG...]")
+			return 1
+		}
+	}
+	if dash < 0 || file == "" || dash+1 >= len(args) {
+		fmt.Fprintln(stderr, "usage: sopsdeck run -f FILE -- CMD [ARG...]")
+		return 1
+	}
+	argv := args[dash+1:]
+	format := fileFormat(file)
+	plain, err := decrypt.File(file, formatName(format))
+	if err != nil {
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return 1
+	}
+	fileEnv, err := plainEnv(plain, format)
+	if err != nil {
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return 1
+	}
+	childEnv := os.Environ()
+	have := map[string]bool{}
+	for _, kv := range childEnv {
+		k, _, _ := strings.Cut(kv, "=")
+		have[k] = true
+	}
+	for k, v := range fileEnv {
+		if have[k] {
+			continue
+		}
+		childEnv = append(childEnv, k+"="+v)
+	}
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	cmd.Env = childEnv
+	err = cmd.Run()
+	if err == nil {
+		return 0
+	}
+	if ee, ok := err.(*exec.ExitError); ok {
+		return ee.ExitCode()
+	}
+	fmt.Fprintf(stderr, "run: %v\n", err)
+	return 1
+}
+
+func plainEnv(plain []byte, format formats.Format) (map[string]string, error) {
+	if format == formats.Dotenv {
+		return dotenvMap(plain), nil
+	}
+	var doc map[string]any
+	var err error
+	switch format {
+	case formats.Json:
+		err = json.Unmarshal(plain, &doc)
+	case formats.Yaml:
+		err = yaml.Unmarshal(plain, &doc)
+	default:
+		return nil, fmt.Errorf("unsupported format")
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for k, raw := range doc {
+		if s, ok := raw.(string); ok {
+			out[k] = s
+			continue
+		}
+		out[k] = fmt.Sprint(raw)
+	}
+	return out, nil
+}
+
+func dotenvMap(plain []byte) map[string]string {
+	out := map[string]string{}
+	for line := range strings.SplitSeq(string(plain), "\n") {
+		k, v, ok := strings.Cut(line, "=")
+		if ok && k != "" {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func fileFormat(path string) formats.Format {
+	base := filepath.Base(path)
+	switch {
+	case base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(strings.ToLower(base), ".env"):
+		return formats.Dotenv
+	case strings.HasSuffix(strings.ToLower(base), ".json"):
+		return formats.Json
+	case strings.HasSuffix(strings.ToLower(base), ".yaml"), strings.HasSuffix(strings.ToLower(base), ".yml"):
+		return formats.Yaml
+	default:
+		return formats.FormatForPath(path)
+	}
+}
+
+func formatName(format formats.Format) string {
+	switch format {
+	case formats.Json:
+		return "json"
+	case formats.Yaml:
+		return "yaml"
+	case formats.Dotenv:
+		return "dotenv"
+	default:
+		return "binary"
+	}
+}
+
+func lookupValue(plain []byte, format formats.Format, key string) (string, bool, error) {
+	if format == formats.Dotenv {
+		v, ok := dotenvValue(plain, key)
+		return v, ok, nil
+	}
+	var doc map[string]any
+	var err error
+	switch format {
+	case formats.Json:
+		err = json.Unmarshal(plain, &doc)
+	case formats.Yaml:
+		err = yaml.Unmarshal(plain, &doc)
+	default:
+		return "", false, fmt.Errorf("unsupported format")
+	}
+	if err != nil {
+		return "", false, err
+	}
+	raw, ok := doc[key]
+	if !ok {
+		return "", false, nil
+	}
+	if s, ok := raw.(string); ok {
+		return s, true, nil
+	}
+	return fmt.Sprint(raw), true, nil
+}
+
+func dotenvValue(plain []byte, key string) (string, bool) {
+	v, ok := dotenvMap(plain)[key]
+	return v, ok
+}
+
+func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import [--confirmed-backup]")
+		return 1
+	}
+	switch args[0] {
+	case "create":
+		return identityCreate(args[1:], stdout, stderr, getenv)
+	case "import":
+		return identityImport(args[1:], stdout, stderr, getenv)
+	default:
+		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import [--confirmed-backup]")
+		return 1
+	}
+}
+
+func identityStateDir(getenv func(string) string, stderr io.Writer) (string, bool) {
+	dir := getenv("SOPSDECK_STATE_DIR")
+	if dir == "" {
+		fmt.Fprintln(stderr, "identity: SOPSDECK_STATE_DIR is required")
+		return "", false
+	}
+	return dir, true
+}
+
+func identityCreate(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+	if !identityConfirmed(args) {
+		fmt.Fprintln(stderr, "identity create: save the private key in your password manager, then rerun with --confirmed-backup")
+		return 1
+	}
+	dir, ok := identityStateDir(getenv, stderr)
+	if !ok {
+		return 1
+	}
+	id, err := age.GenerateX25519Identity()
+	if err != nil {
+		fmt.Fprintf(stderr, "identity create: %v\n", err)
+		return 1
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		fmt.Fprintf(stderr, "identity create: %v\n", err)
+		return 1
+	}
+	path := filepath.Join(dir, "age.txt")
+	body := "# public key: " + id.Recipient().String() + "\n" + id.String() + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		fmt.Fprintf(stderr, "identity create: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, id.Recipient().String())
+	return 0
+}
+
+func identityImport(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+	_ = stdout
+	var file string
+	rest := []string{}
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-f":
+			i++
+			if i >= len(args) {
+				fmt.Fprintln(stderr, "identity import: -f requires a file")
+				return 1
+			}
+			file = args[i]
+		default:
+			rest = append(rest, args[i])
+		}
+	}
+	if file == "" {
+		fmt.Fprintln(stderr, "usage: sopsdeck identity import -f FILE --confirmed-backup")
+		return 1
+	}
+	if !identityConfirmed(rest) {
+		fmt.Fprintln(stderr, "identity import: confirm the private key is in your password manager with --confirmed-backup")
+		return 1
+	}
+	dir, ok := identityStateDir(getenv, stderr)
+	if !ok {
+		return 1
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Fprintf(stderr, "identity import: %v\n", err)
+		return 1
+	}
+	if _, err := age.ParseIdentities(strings.NewReader(string(data))); err != nil {
+		fmt.Fprintf(stderr, "identity import: %v\n", err)
+		return 1
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		fmt.Fprintf(stderr, "identity import: %v\n", err)
+		return 1
+	}
+	if err := os.WriteFile(filepath.Join(dir, "age.txt"), data, 0o600); err != nil {
+		fmt.Fprintf(stderr, "identity import: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func identityConfirmed(args []string) bool {
+	for _, a := range args {
+		if a == "--confirmed-backup" {
+			return true
+		}
+	}
+	return false
+}
+
+func setCreate(file, key, value string, stderr io.Writer, getenv func(string) string) int {
+	pub, err := ageRecipientFromEnv(getenv)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	mk, err := sopsage.MasterKeyFromRecipient(pub)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	tree := sops.Tree{
+		FilePath: file,
+		Metadata: sops.Metadata{
+			Version:           version.Version,
+			UnencryptedSuffix: sops.DefaultUnencryptedSuffix,
+			KeyGroups:         []sops.KeyGroup{{mk}},
+		},
+		Branches: sops.TreeBranches{
+			sops.TreeBranch{
+				{Key: key, Value: value},
+			},
+		},
+	}
+	svcs := []keyservice.KeyServiceClient{keyservice.NewLocalClient()}
+	dataKey, errs := tree.GenerateDataKeyWithKeyServices(svcs)
+	if len(errs) > 0 {
+		fmt.Fprintf(stderr, "set: %v\n", errs)
+		return 1
+	}
+	if err := common.EncryptTree(common.EncryptTreeOpts{
+		DataKey: dataKey,
+		Tree:    &tree,
+		Cipher:  aes.NewCipher(),
+	}); err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	format := fileFormat(file)
+	store := common.StoreForFormat(format, config.NewStoresConfig())
+	out, err := store.EmitEncryptedFile(tree)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	if err := writeAtomic(file, out); err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func ageRecipientFromEnv(getenv func(string) string) (string, error) {
+	path := getenv("SOPS_AGE_KEY_FILE")
+	if path == "" {
+		if dir := getenv("SOPSDECK_STATE_DIR"); dir != "" {
+			path = filepath.Join(dir, "age.txt")
+		}
+	}
+	if path == "" {
+		return "", fmt.Errorf("no age identity (set SOPS_AGE_KEY_FILE or SOPSDECK_STATE_DIR)")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	ids, err := age.ParseIdentities(f)
+	if err != nil {
+		return "", err
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("no age identities in %s", path)
+	}
+	id, ok := ids[0].(*age.X25519Identity)
+	if !ok {
+		return "", fmt.Errorf("first identity is not an age X25519 key")
+	}
+	return id.Recipient().String(), nil
+}
