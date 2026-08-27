@@ -40,6 +40,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdIdentity(args[1:], stdout, stderr, getenv)
 	case "commit":
 		return cmdCommit(args[1:], stdout, stderr)
+	case "sync":
+		return cmdSync(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 1
@@ -693,4 +695,25 @@ func runGitCmd(dir string, args ...string) error {
 		return fmt.Errorf("%s", msg)
 	}
 	return nil
+}
+
+func cmdSync(args []string, stdout, stderr io.Writer) int {
+	_ = stdout
+	if len(args) != 0 {
+		fmt.Fprintln(stderr, "usage: sopsdeck sync")
+		return 1
+	}
+	if err := runGitCmd(".", "fetch"); err != nil {
+		fmt.Fprintf(stderr, "sync: %v\n", err)
+		return 1
+	}
+	if err := runGitCmd(".", "pull", "--ff-only"); err != nil {
+		fmt.Fprintf(stderr, "sync: %v\n", err)
+		return 1
+	}
+	if err := runGitCmd(".", "push"); err != nil {
+		fmt.Fprintf(stderr, "sync: %v\n", err)
+		return 1
+	}
+	return 0
 }
