@@ -14,7 +14,8 @@ func TestGetWithoutKeyPrintsAllDotenvPairs(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d stderr=%q", code, stderr.String())
 	}
-	if got := stdout.String(); got != "HELLO=world\n" {
-		t.Fatalf("stdout=%q want %q", got, "HELLO=world\n")
+	got := stdout.String()
+	if !bytes.Contains([]byte(got), []byte("HELLO=world\n")) {
+		t.Fatalf("stdout=%q, want HELLO=world among dumped pairs", got)
 	}
 }

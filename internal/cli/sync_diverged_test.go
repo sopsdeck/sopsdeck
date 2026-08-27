@@ -45,6 +45,13 @@ func TestSyncRefusesWhenBranchHasDiverged(t *testing.T) {
 	if !strings.Contains(remoteLog, "on-a") {
 		t.Fatalf("remote log=%q, want on-a", remoteLog)
 	}
+	got := stderr.String()
+	if strings.Contains(got, "git-pull(1)") || strings.Contains(got, "Not possible to fast-forward") {
+		t.Fatalf("raw git leaked: %q", got)
+	}
+	if !strings.Contains(got, "diverged") {
+		t.Fatalf("stderr=%q, want diverged", got)
+	}
 }
 
 func setupWork(t *testing.T, dir, bare string) {

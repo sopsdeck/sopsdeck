@@ -11,8 +11,7 @@ import (
 func TestSetCreatesEncryptedFileWhenMissing(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
-	os.Unsetenv("SOPS_AGE_KEY")
-	os.Unsetenv("SOPS_AGE_KEY_FILE")
+	mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE")
 
 	var stdout, stderr bytes.Buffer
 	code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv)

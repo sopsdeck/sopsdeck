@@ -29,8 +29,7 @@ func TestIdentityCreateWithoutBackupConfirmDoesNotPersist(t *testing.T) {
 func TestIdentityCreateWithBackupConfirmCanDecrypt(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
-	os.Unsetenv("SOPS_AGE_KEY_FILE")
-	os.Unsetenv("SOPS_AGE_KEY")
+	mustUnsetenv(t, "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY")
 
 	var stdout, stderr bytes.Buffer
 	code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv)
@@ -75,7 +74,7 @@ func TestIdentityCreateWithBackupConfirmCanDecrypt(t *testing.T) {
 func TestIdentityImportWithBackupConfirmRestoresAccess(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
-	os.Unsetenv("SOPS_AGE_KEY")
+	mustUnsetenv(t, "SOPS_AGE_KEY")
 
 	var stdout, stderr bytes.Buffer
 	code := Main([]string{"identity", "import", "-f", testdata(t, "age.txt"), "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv)

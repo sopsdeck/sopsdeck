@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,7 +25,7 @@ import (
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|recipient|publish|files|drive> ...")
 		return 1
 	}
 	switch args[0] {
@@ -42,54 +43,72 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdCommit(args[1:], stdout, stderr)
 	case "sync":
 		return cmdSync(args[1:], stdout, stderr)
+	case "recipient":
+		return cmdRecipient(args[1:], stdout, stderr, getenv)
+	case "publish":
+		return cmdPublish(args[1:], stdout, stderr, getenv)
+	case "files":
+		return cmdFiles(args[1:], stdout, stderr)
+	case "drive":
+		return cmdDrive(args[1:], stdout, stderr, getenv)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 1
 	}
 }
 
-func cmdGet(args []string, stdout, stderr io.Writer) int {
-	var key, file, output string
+type getFlags struct {
+	key    string
+	file   string
+	output string
+}
+
+func parseGetFlags(args []string) (getFlags, string) {
+	var flags getFlags
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-f", "--env-file":
 			i++
 			if i >= len(args) {
-				fmt.Fprintln(stderr, "get: -f requires a file")
-				return 1
+				return getFlags{}, "get: -f requires a file"
 			}
-			file = args[i]
+			flags.file = args[i]
 		case "--output":
 			i++
 			if i >= len(args) {
-				fmt.Fprintln(stderr, "get: --output requires a format")
-				return 1
+				return getFlags{}, "get: --output requires a format"
 			}
-			output = args[i]
+			flags.output = args[i]
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				fmt.Fprintf(stderr, "get: unknown flag %s\n", args[i])
-				return 1
+				return getFlags{}, fmt.Sprintf("get: unknown flag %s", args[i])
 			}
-			if key != "" {
-				fmt.Fprintln(stderr, "get: extra argument")
-				return 1
+			if flags.key != "" {
+				return getFlags{}, "get: extra argument"
 			}
-			key = args[i]
+			flags.key = args[i]
 		}
 	}
-	if file == "" {
-		fmt.Fprintln(stderr, "usage: sopsdeck get [KEY] -f FILE")
+	if flags.file == "" {
+		return getFlags{}, "usage: sopsdeck get [KEY] -f FILE"
+	}
+	if flags.output != "" && flags.output != "json" {
+		return getFlags{}, fmt.Sprintf("get: unknown --output %s", flags.output)
+	}
+	return flags, ""
+}
+
+func cmdGet(args []string, stdout, stderr io.Writer) int {
+	flags, usage := parseGetFlags(args)
+	if usage != "" {
+		fmt.Fprintln(stderr, usage)
 		return 1
 	}
-	if output != "" && output != "json" {
-		fmt.Fprintf(stderr, "get: unknown --output %s\n", output)
-		return 1
-	}
+	key, file, output := flags.key, flags.file, flags.output
 	format := fileFormat(file)
 	plain, err := decrypt.File(file, formatName(format))
 	if err != nil {
-		fmt.Fprintf(stderr, "get: %v\n", err)
+		fmt.Fprintln(stderr, explainGet(err))
 		return 1
 	}
 	if key == "" {
@@ -200,17 +219,17 @@ func writeAtomic(path string, data []byte) error {
 		return err
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer func() { _ = os.Remove(tmpName) }()
 	if err := tmp.Chmod(0o600); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Close(); err != nil {
@@ -345,7 +364,8 @@ func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err == nil {
 		return 0
 	}
-	if ee, ok := err.(*exec.ExitError); ok {
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
 		return ee.ExitCode()
 	}
 	fmt.Fprintf(stderr, "run: %v\n", err)
@@ -628,7 +648,7 @@ func ageRecipientFromEnv(getenv func(string) string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	ids, err := age.ParseIdentities(f)
 	if err != nil {
 		return "", err
@@ -703,17 +723,29 @@ func cmdSync(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: sopsdeck sync")
 		return 1
 	}
-	if err := runGitCmd(".", "fetch"); err != nil {
-		fmt.Fprintf(stderr, "sync: %v\n", err)
-		return 1
-	}
-	if err := runGitCmd(".", "pull", "--ff-only"); err != nil {
-		fmt.Fprintf(stderr, "sync: %v\n", err)
-		return 1
-	}
-	if err := runGitCmd(".", "push"); err != nil {
-		fmt.Fprintf(stderr, "sync: %v\n", err)
+	if err := syncAt("."); err != nil {
+		fmt.Fprintln(stderr, err.Error())
 		return 1
 	}
 	return 0
+}
+
+func syncAt(dir string) error {
+	dirty, err := gitWorktreeDirtyAt(dir)
+	if err != nil {
+		return errors.New(explainSync(err))
+	}
+	if dirty {
+		return errors.New("sync: commit local Managed File changes before Sync")
+	}
+	if err := runGitCmd(dir, "fetch"); err != nil {
+		return errors.New(explainSync(err))
+	}
+	if err := runGitCmd(dir, "pull", "--ff-only"); err != nil {
+		return errors.New(explainSync(err))
+	}
+	if err := runGitCmd(dir, "push"); err != nil {
+		return errors.New(explainSync(err))
+	}
+	return nil
 }

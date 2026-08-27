@@ -1,0 +1,44 @@
+package managed
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".env.production", "HELLO=world\n")
+	write("plain.json", `{"HELLO":"world"}`+"\n")
+	write("secrets.json", "{\n  \"HELLO\": \"world\",\n  \"sops\": {}\n}\n")
+	write("nested/app.yaml", "sops:\n  kms: []\n")
+	write("node_modules/skip.env", "NO=pe\n")
+
+	files, err := List(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(files))
+	for i, f := range files {
+		got[i] = f.Rel
+	}
+	want := []string{".env.production", filepath.Join("nested", "app.yaml"), "secrets.json"}
+	if len(got) != len(want) {
+		t.Fatalf("files=%v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("files=%v want %v", got, want)
+		}
+	}
+}

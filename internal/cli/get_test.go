@@ -30,3 +30,12 @@ func testdata(t *testing.T, name string) string {
 	}
 	return p
 }
+
+func mustUnsetenv(t *testing.T, keys ...string) {
+	t.Helper()
+	for _, key := range keys {
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
