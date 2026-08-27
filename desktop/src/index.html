@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sopsdeck</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="side-head">
+          <span class="kicker">Projects</span>
+        </div>
+        <nav id="tree" class="tree" aria-label="Local projects"></nav>
+        <div class="side-foot">
+          <button id="add-project" class="add-project" type="button">Add folder from disk</button>
+        </div>
+      </aside>
+      <section class="editor">
+        <header class="editor-head">
+          <p id="breadcrumb" class="breadcrumb">Add a project folder to begin</p>
+          <div class="headline">
+            <div>
+              <h1 id="headline">Sopsdeck</h1>
+              <p id="subline" class="subline">Encrypted files stay on this machine</p>
+            </div>
+            <span id="badge" class="encrypted" hidden>SOPS encrypted</span>
+          </div>
+        </header>
+        <div id="toolbar" class="toolbar" hidden>
+          <button id="add-secret" class="tool primary" type="button">Add secret</button>
+          <button id="reveal" class="tool" type="button">Reveal values</button>
+        </div>
+        <p id="error" class="error" hidden></p>
+        <div id="keys" class="keys"></div>
+      </section>
+      <aside class="inspector">
+        <div class="inspect-head">
+          <span class="kicker">Environment</span>
+        </div>
+        <section class="inspect-section">
+          <h2>File</h2>
+          <div class="meta">
+            <span>Path</span><strong id="meta-path">—</strong>
+            <span>Format</span><strong id="meta-format">—</strong>
+            <span>Encryption</span><strong id="meta-enc">—</strong>
+          </div>
+        </section>
+        <div class="save-zone">
+          <button id="save" class="save" type="button" disabled>Encrypt &amp; save</button>
+          <div class="save-note">Writes only to your local file</div>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>
