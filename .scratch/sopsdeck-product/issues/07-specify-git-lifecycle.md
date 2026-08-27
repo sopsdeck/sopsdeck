@@ -17,3 +17,8 @@ The Git action is named **Sync**. A Sync Target publish is named **Publish** (e.
 **Secret History** is `git log` on the file. Decrypt a revision only when opened; do not keep a plaintext audit store. **Restore** copies those values into the current editor and requires a new save/commit.
 
 Conflicts: if base, ours, and theirs all decrypt and parse, show a secret-aware three-way for those keys. Otherwise leave it to Git and refuse to invent a resolution.
+
+## Implementation (2026-08-28)
+
+`sopsdeck commit -m … -f` and `sopsdeck sync` (fetch, `pull --ff-only`, push) are tested, including diverge refusal. Desktop Commit/Sync invoke those commands. Sync still forwards raw Git stderr (build [20](20-contextual-failure-ux.md)). Commit message is user-supplied; prefill is [21](21-desktop-chrome-polish.md). Not done: Review, Secret History, Restore, dirty-worktree stop, three-way.
+

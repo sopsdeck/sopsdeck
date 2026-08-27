@@ -33,3 +33,8 @@ Lost keychain + lost PM backup: Access is gone. Lost device with PM backup intac
 - Backup is the same Age identity, not a second Recipient. Creation is blocked until the user confirms the private key is saved in their password manager (copy/download in v1, not a PM API). Restore imports that identity into the keychain.
 - CI is a User with its own Age keypair. Public key is a Recipient; private key lives only in GitHub Secrets / `SOPS_AGE_KEY`, never in Git and never as a shared team key. Adding CI is the re-encrypt-PR path.
 - Stolen device with PM backup intact: Replace my key (new identity, backup, add Recipient, remove old with data-key rotate).
+
+## Implementation (2026-08-28)
+
+Identity create/import persists `age.txt` under `SOPSDECK_STATE_DIR` after `--confirmed-backup`. Studio Users are throwaway files, not keychain. `recipient add` re-wraps the data key so a second Age identity can decrypt (tests in `recipient_test.go` and studio teammate test). Not done: `SOPS_AGE_KEY_CMD` / OS keychain, remove + rotate, request PR, re-encrypt PR.
+
