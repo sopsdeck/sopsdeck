@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sopsdeck — secrets stay local</title>
+  <meta name="description" content="Local-first desktop and CLI for SOPS-encrypted environments. Edit secrets, grant access with public keys, and ship encrypted Git changes—without a hosted vault.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #101828;
+      --blue: #3157F6;
+      --mint: #46D6A8;
+      --paper: #F7F9FC;
+      --slate: #475467;
+      --signal: #FF6B57;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-font-smoothing: antialiased; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 15px/1.5 Manrope, sans-serif;
+    }
+    a { color: inherit; }
+    h1, h2, h3 { text-wrap: balance; }
+    p { text-wrap: pretty; }
+    .kicker, code, .mono {
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    .kicker {
+      color: var(--mint);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 0;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      text-decoration: none;
+    }
+    .mark { width: 28px; height: 28px; }
+    nav { display: flex; gap: 22px; color: var(--slate); font-size: 13px; font-weight: 600; }
+    nav a { text-decoration: none; }
+    nav a:hover { color: var(--ink); }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 72px 56px 80px;
+      color: var(--paper);
+      border-radius: 28px;
+      background: var(--ink);
+    }
+    .hero:after {
+      content: "";
+      position: absolute;
+      width: 340px;
+      height: 340px;
+      right: -120px;
+      top: -140px;
+      border: 72px solid var(--blue);
+      border-radius: 50%;
+      opacity: .55;
+      pointer-events: none;
+    }
+    .hero h1 {
+      max-width: 14ch;
+      margin: 18px 0 16px;
+      font-size: clamp(40px, 7vw, 72px);
+      line-height: .96;
+      letter-spacing: -.06em;
+    }
+    .hero p { max-width: 540px; color: rgba(247,249,252,.72); font-size: 17px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform .15s cubic-bezier(.2,0,0,1);
+    }
+    .button:active { transform: scale(.96); }
+    .button.primary { color: var(--ink); background: var(--mint); }
+    .button.ghost { color: var(--paper); border: 1px solid rgba(247,249,252,.26); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 28px 0 64px;
+    }
+    .card {
+      padding: 22px;
+      border: 1px solid rgba(16,24,40,.1);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 1px 0 rgba(16,24,40,.04);
+    }
+    .card h2 { margin: 8px 0 10px; font-size: 22px; letter-spacing: -.03em; }
+    .card p { margin: 0; color: var(--slate); }
+    .split {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 28px;
+      align-items: center;
+      margin-bottom: 72px;
+    }
+    .split h2 { margin: 10px 0 12px; font-size: 32px; letter-spacing: -.04em; }
+    .split p { color: var(--slate); }
+    .browser {
+      overflow: hidden;
+      border-radius: 16px;
+      background: var(--ink);
+      color: var(--paper);
+      outline: 1px solid rgba(0,0,0,.1);
+    }
+    .browser-bar {
+      display: flex;
+      gap: 6px;
+      height: 32px;
+      padding: 0 12px;
+      align-items: center;
+      background: #1d2939;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #667085; }
+    .app-shell { display: grid; grid-template-columns: 168px 1fr; min-height: 250px; }
+    .sidebar { padding: 16px 12px; border-right: 1px solid rgba(247,249,252,.1); font-size: 11px; }
+    .nav-row { padding: 6px 8px; margin-top: 4px; color: rgba(247,249,252,.5); border-radius: 6px; }
+    .nav-row.active { color: var(--paper); background: rgba(70,214,168,.12); }
+    .content { padding: 18px 20px; }
+    .env-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(247,249,252,.1);
+      font-size: 12px;
+    }
+    .status {
+      padding: 3px 8px;
+      color: var(--mint);
+      border-radius: 99px;
+      background: rgba(70,214,168,.12);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .start {
+      padding: 36px;
+      border-radius: 24px;
+      background: #fff;
+      border: 1px solid rgba(16,24,40,.1);
+      margin-bottom: 72px;
+    }
+    .start h2 { margin: 8px 0 8px; font-size: 30px; letter-spacing: -.04em; }
+    pre {
+      overflow: auto;
+      padding: 18px 20px;
+      color: var(--paper);
+      background: var(--ink);
+      border-radius: 14px;
+      font: 13px/1.55 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 28px 0 48px;
+      color: var(--slate);
+      border-top: 1px solid rgba(16,24,40,.1);
+      font-size: 13px;
+    }
+    @media (max-width: 800px) {
+      .grid, .split, .app-shell { grid-template-columns: 1fr; }
+      .hero { padding: 40px 24px 48px; }
+      nav { display: none; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="logo" href="/">
+        <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>
+          <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+        sopsdeck
+      </a>
+      <nav>
+        <a href="#product">Product</a>
+        <a href="#start">Start</a>
+        <a href="#trust">Trust</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="kicker">sopsdeck.com</div>
+      <h1>Secrets stay local. Clarity travels.</h1>
+      <p>Edit SOPS-encrypted environments, grant access with public keys, and ship safe Git changes from one calm desktop workspace. No hosted vault. No shared private key.</p>
+      <div class="actions">
+        <a class="button primary" href="#start">Get the macOS build path</a>
+        <a class="button ghost" href="#product">See how it works</a>
+      </div>
+    </section>
+
+    <section class="grid" id="product">
+      <article class="card">
+        <div class="kicker">Source of truth</div>
+        <h2>Your files, on disk</h2>
+        <p>Projects are folders. Managed Files are dotenv, JSON, and YAML encrypted with SOPS. GitHub and CI are destinations, not a second vault.</p>
+      </article>
+      <article class="card">
+        <div class="kicker">Access</div>
+        <h2>Public keys only</h2>
+        <p>Teammates and CI receive Age public keys. Private keys never go in Git, chat, or a shared <code class="mono">.env.keys</code> file.</p>
+      </article>
+      <article class="card">
+        <div class="kicker">Git</div>
+        <h2>Sync, never force</h2>
+        <p>Commit ciphertext, then Sync: fetch, fast-forward only, push. Diverged branches stop. History stays encrypted until you open it.</p>
+      </article>
+    </section>
+
+    <section class="split" id="trust">
+      <div>
+        <div class="kicker">Workspace</div>
+        <h2>Folder-first, like a focused editor.</h2>
+        <p>One sidebar of project folders, files as leaves, values masked until you reveal them. Encrypt &amp; save writes only to the local file. The WebView never holds keys on disk.</p>
+      </div>
+      <div class="browser" aria-hidden="true">
+        <div class="browser-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="kicker">Projects</div>
+            <div class="nav-row">▾ acme-api</div>
+            <div class="nav-row">&nbsp;&nbsp;.env.local</div>
+            <div class="nav-row active">&nbsp;&nbsp;.env.production</div>
+            <div class="nav-row">▾ atlas-web</div>
+            <div class="nav-row">&nbsp;&nbsp;eas.json</div>
+          </aside>
+          <div class="content">
+            <div class="kicker">~/code/acme-api</div>
+            <h3 style="margin:6px 0 12px;font-size:22px">Production</h3>
+            <div class="env-row"><span class="mono">DATABASE_URL</span><span class="status">encrypted</span><span>••••••••</span></div>
+            <div class="env-row"><span class="mono">STRIPE_KEY</span><span class="status">encrypted</span><span>••••••••</span></div>
+            <div class="env-row"><span class="mono">SENTRY_DSN</span><span class="status">encrypted</span><span>••••••••</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="start" id="start">
+      <div class="kicker">From source · macOS first</div>
+      <h2>Build the CLI, then the app.</h2>
+      <p>Signed downloads come later. Until then, Sopsdeck is a Go binary the desktop app invokes as a sidecar.</p>
+      <pre>go test ./internal/cli/
+go build -o sopsdeck ./cmd/sopsdeck
+
+cd desktop && npm install
+SOPSDECK_BIN="$PWD/../sopsdeck" npm run tauri -- dev</pre>
+    </section>
+
+    <footer>
+      <div>Apache-2.0 · no hosted backend · Age + SOPS</div>
+      <div>sopsdeck.com</div>
+    </footer>
+  </div>
+</body>
+</html>
