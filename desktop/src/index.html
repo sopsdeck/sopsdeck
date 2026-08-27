@@ -54,6 +54,16 @@
             <span>Encryption</span><strong id="meta-enc">—</strong>
           </div>
         </section>
+        <section class="inspect-section">
+          <h2>Git</h2>
+          <label class="commit-label">
+            Message
+            <input id="commit-message" type="text" placeholder="What changed" />
+          </label>
+          <button id="commit" class="tool git-action" type="button">Commit</button>
+          <button id="sync" class="tool git-action" type="button">Sync</button>
+          <p class="save-note">Sync is fetch, ff-only pull, then push</p>
+        </section>
         <div class="save-zone">
           <button id="save" class="save" type="button" disabled>Encrypt &amp; save</button>
           <div class="save-note">Writes only to your local file</div>

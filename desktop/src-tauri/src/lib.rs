@@ -30,14 +30,35 @@ fn sopsdeck_bin() -> PathBuf {
 }
 
 fn run_sopsdeck(args: &[&str]) -> Result<String, String> {
+    run_sopsdeck_in(Path::new("."), args)
+}
+
+fn run_sopsdeck_in(dir: &Path, args: &[&str]) -> Result<String, String> {
     let out = Command::new(sopsdeck_bin())
         .args(args)
+        .current_dir(dir)
         .output()
         .map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+fn git_root(path: &str) -> Result<PathBuf, String> {
+    let dir = Path::new(path)
+        .parent()
+        .filter(|p| p.as_os_str() != "")
+        .unwrap_or_else(|| Path::new("."));
+    let out = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(dir)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(PathBuf::from(String::from_utf8_lossy(&out.stdout).trim()))
 }
 
 fn is_dotenv_name(name: &str) -> bool {
@@ -133,6 +154,21 @@ fn set_managed_key(path: String, key: String, value: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+fn commit_managed_file(path: String, message: String) -> Result<(), String> {
+    let message = message.trim();
+    if message.is_empty() {
+        return Err("commit message is required".into());
+    }
+    run_sopsdeck(&["commit", "-m", message, "-f", &path]).map(|_| ())
+}
+
+#[tauri::command]
+fn sync_project(path: String) -> Result<(), String> {
+    let root = git_root(&path)?;
+    run_sopsdeck_in(&root, &["sync"]).map(|_| ())
+}
+
+#[tauri::command]
 async fn pick_project_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let folder = app
         .dialog()
@@ -156,6 +192,8 @@ pub fn run() {
             list_managed_files,
             get_managed_file,
             set_managed_key,
+            commit_managed_file,
+            sync_project,
             pick_project_folder,
             boot_project
         ])

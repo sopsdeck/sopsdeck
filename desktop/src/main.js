@@ -220,6 +220,30 @@ window.addEventListener("DOMContentLoaded", async () => {
     renderKeys();
   });
   saveEl().addEventListener("click", saveFile);
+  document.getElementById("commit").addEventListener("click", async () => {
+    if (!selected) return;
+    if (dirtyCount()) {
+      showError("Encrypt & save before commit");
+      return;
+    }
+    showError("");
+    try {
+      const message = document.getElementById("commit-message").value;
+      await invoke("commit_managed_file", { path: selected.path, message });
+      document.getElementById("commit-message").value = "";
+    } catch (err) {
+      showError(String(err));
+    }
+  });
+  document.getElementById("sync").addEventListener("click", async () => {
+    if (!selected) return;
+    showError("");
+    try {
+      await invoke("sync_project", { path: selected.path });
+    } catch (err) {
+      showError(String(err));
+    }
+  });
   try {
     const boot = await invoke("boot_project");
     if (boot) await addProjectFromPath(boot);
