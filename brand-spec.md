@@ -14,14 +14,14 @@ Recommended direction: **Quiet Cipher**. Structured geometry and a bright encryp
 
 ## Color
 
-| Color | HEX | Job |
-|---|---|---|
-| Vault Ink | `#101828` | Core identity, dark UI, primary text |
-| Commit Blue | `#3157F6` | Brand recognition and primary actions |
-| Decrypt Mint | `#46D6A8` | Safe, synced, and successful states |
-| Local Paper | `#F7F9FC` | Main light canvas and inverse text |
-| Diff Slate | `#475467` | Body text and secondary information |
-| Drift Signal | `#FF6B57` | Warnings and changed-state emphasis |
+| Color        | HEX       | Job                                   |
+| ------------ | --------- | ------------------------------------- |
+| Vault Ink    | `#101828` | Core identity, dark UI, primary text  |
+| Commit Blue  | `#3157F6` | Brand recognition and primary actions |
+| Decrypt Mint | `#46D6A8` | Safe, synced, and successful states   |
+| Local Paper  | `#F7F9FC` | Main light canvas and inverse text    |
+| Diff Slate   | `#475467` | Body text and secondary information   |
+| Drift Signal | `#FF6B57` | Warnings and changed-state emphasis   |
 
 Verified contrast: Ink/Paper 16.83:1, Slate/Paper 7.29:1, Paper/Blue 5.21:1, and Ink/Mint 9.67:1. These pairs exceed WCAG AA for body text.
 
