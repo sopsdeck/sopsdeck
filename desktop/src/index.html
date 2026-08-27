@@ -19,9 +19,11 @@
         <div class="side-head">
           <span class="kicker">Projects</span>
         </div>
-        <nav id="tree" class="tree" aria-label="Local projects"></nav>
+        <nav id="tree" class="tree" aria-label="Local projects" data-testid="tree"></nav>
         <div class="side-foot">
-          <button id="add-project" class="add-project" type="button">Add folder from disk</button>
+          <button id="add-project" class="add-project" type="button" data-testid="add-project">
+            Add folder from disk
+          </button>
         </div>
       </aside>
       <section class="editor">
@@ -29,18 +31,20 @@
           <p id="breadcrumb" class="breadcrumb">Add a project folder to begin</p>
           <div class="headline">
             <div>
-              <h1 id="headline">Sopsdeck</h1>
+              <h1 id="headline" data-testid="headline">Sopsdeck</h1>
               <p id="subline" class="subline">Encrypted files stay on this machine</p>
             </div>
             <span id="badge" class="encrypted" hidden>SOPS encrypted</span>
           </div>
         </header>
         <div id="toolbar" class="toolbar" hidden>
-          <button id="add-secret" class="tool primary" type="button">Add secret</button>
-          <button id="reveal" class="tool" type="button">Reveal values</button>
+          <button id="add-secret" class="tool primary" type="button" data-testid="add-secret">
+            Add secret
+          </button>
+          <button id="reveal" class="tool" type="button" data-testid="reveal">Reveal values</button>
         </div>
-        <p id="error" class="error" hidden></p>
-        <div id="keys" class="keys"></div>
+        <p id="error" class="error" hidden data-testid="editor-error"></p>
+        <div id="keys" class="keys" data-testid="keys"></div>
       </section>
       <aside class="inspector">
         <div class="inspect-head">
@@ -49,23 +53,34 @@
         <section class="inspect-section">
           <h2>File</h2>
           <div class="meta">
-            <span>Path</span><strong id="meta-path">—</strong>
-            <span>Format</span><strong id="meta-format">—</strong>
-            <span>Encryption</span><strong id="meta-enc">—</strong>
+            <span>Path</span><strong id="meta-path">—</strong> <span>Format</span
+            ><strong id="meta-format">—</strong> <span>Encryption</span
+            ><strong id="meta-enc">—</strong>
           </div>
         </section>
         <section class="inspect-section">
           <h2>Git</h2>
           <label class="commit-label">
             Message
-            <input id="commit-message" type="text" placeholder="What changed" />
+            <input
+              id="commit-message"
+              type="text"
+              placeholder="What changed"
+              data-testid="commit-message"
+            />
           </label>
-          <button id="commit" class="tool git-action" type="button">Commit</button>
-          <button id="sync" class="tool git-action" type="button">Sync</button>
+          <button id="commit" class="tool git-action" type="button" data-testid="commit">
+            Commit
+          </button>
+          <button id="sync" class="tool git-action" type="button" data-testid="sync">Sync</button>
+          <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
           <p class="save-note">Sync is fetch, ff-only pull, then push</p>
         </section>
         <div class="save-zone">
-          <button id="save" class="save" type="button" disabled>Encrypt &amp; save</button>
+          <button id="save" class="save" type="button" disabled data-testid="save">
+            Encrypt &amp; save
+          </button>
+          <p id="save-error" class="control-error" hidden data-testid="save-error"></p>
           <div class="save-note">Writes only to your local file</div>
         </div>
       </aside>

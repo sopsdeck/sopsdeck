@@ -1,7 +1,10 @@
-# Tauri + Vanilla
+# Desktop
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Javascript.
+Tauri 2 app. Build the CLI first, then from this directory:
 
-## Recommended IDE Setup
+```bash
+bun install
+SOPSDECK_BIN="$(pwd)/../sopsdeck" bun run tauri -- dev
+```
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Use bun, not npm. Full instructions are in the repo-root README.

@@ -6,13 +6,21 @@
   --slate: #475467;
   --signal: #ff6b57;
 }
-* { box-sizing: border-box; }
-html, body { height: 100%; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
 body {
   margin: 0;
   color: var(--ink);
   background: var(--paper);
-  font: 13px/1.4 Manrope, system-ui, sans-serif;
+  font:
+    13px/1.4 Manrope,
+    system-ui,
+    sans-serif;
 }
 .app {
   display: grid;
@@ -26,14 +34,23 @@ body {
   border-right: 1px solid #d8dee8;
   background: #f0f3f7;
 }
-.side-head { padding: 16px 14px 8px; }
+.side-head {
+  padding: 16px 14px 8px;
+}
 .kicker {
   color: #667085;
-  font: 600 10px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    600 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.tree { flex: 1; overflow: auto; padding: 8px; }
+.tree {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
 .project {
   display: flex;
   align-items: center;
@@ -44,7 +61,10 @@ body {
 .project-path {
   margin-left: auto;
   color: #98a2b3;
-  font: 400 9px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    400 9px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
 }
 .files {
   position: relative;
@@ -52,7 +72,7 @@ body {
   padding-left: 11px;
 }
 .files::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   top: 0;
@@ -70,7 +90,10 @@ body {
   border-radius: 6px;
   background: transparent;
   color: var(--slate);
-  font: 500 11px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    500 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
   cursor: pointer;
 }
 .file.selected {
@@ -78,7 +101,10 @@ body {
   background: #dde4ff;
   box-shadow: inset 2px 0 var(--blue);
 }
-.side-foot { padding: 10px; border-top: 1px solid #d8dee8; }
+.side-foot {
+  padding: 10px;
+  border-top: 1px solid #d8dee8;
+}
 .add-project {
   width: 100%;
   padding: 10px;
@@ -89,15 +115,28 @@ body {
   color: var(--slate);
   cursor: pointer;
 }
-.add-project:hover { background: #e3e8ef; color: var(--ink); }
+.add-project:hover {
+  background: #e3e8ef;
+  color: var(--ink);
+}
 .editor {
   display: flex;
   flex-direction: column;
   background: #fff;
   min-width: 0;
 }
-.editor-head { padding: 20px 24px 16px; border-bottom: 1px solid #e1e6ed; }
-.breadcrumb { margin: 0; color: #7b8798; font: 500 10px "IBM Plex Mono", ui-monospace, monospace; }
+.editor-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e1e6ed;
+}
+.breadcrumb {
+  margin: 0;
+  color: #7b8798;
+  font:
+    500 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
 .headline {
   display: flex;
   align-items: flex-end;
@@ -105,8 +144,16 @@ body {
   gap: 20px;
   margin-top: 16px;
 }
-h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
-.subline { margin: 7px 0 0; color: var(--slate); font-size: 12px; }
+h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+}
+.subline {
+  margin: 7px 0 0;
+  color: var(--slate);
+  font-size: 12px;
+}
 .encrypted {
   display: flex;
   align-items: center;
@@ -142,8 +189,22 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   border-color: var(--blue);
   background: var(--blue);
 }
-.error { margin: 12px 24px 0; color: var(--signal); }
-.keys { flex: 1; min-height: 0; overflow: auto; padding: 13px 24px 30px; }
+.error {
+  margin: 12px 24px 0;
+  color: var(--signal);
+}
+.control-error {
+  margin: 0 0 8px;
+  color: var(--signal);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.keys {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 13px 24px 30px;
+}
 .key-head,
 .key-row {
   display: grid;
@@ -156,7 +217,10 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   padding: 0 10px;
   color: #7b8798;
   border-bottom: 1px solid #e6eaf0;
-  font: 600 9px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    600 9px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -173,16 +237,24 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   width: 100%;
   border: 0;
   background: transparent;
-  font: 600 11px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    600 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
   color: inherit;
 }
-.key-name[readonly] { outline: none; }
+.key-name[readonly] {
+  outline: none;
+}
 .value {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #d9dfe7;
   border-radius: 6px;
-  font: 400 11px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    400 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
   color: #344054;
 }
 .masked {
@@ -195,7 +267,10 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   color: #667085;
   border: 1px solid #e1e6ed;
   border-radius: 4px;
-  font: 500 9px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    500 9px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
 }
 .key-row.changed .kind {
   color: #b42318;
@@ -208,9 +283,17 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   border-left: 1px solid #d8dee8;
   background: #f8fafc;
 }
-.inspect-head { padding: 17px 16px 12px; }
-.inspect-section { padding: 15px 16px; border-top: 1px solid #e1e6ed; }
-.inspect-section h2 { margin: 0 0 11px; font-size: 11px; }
+.inspect-head {
+  padding: 17px 16px 12px;
+}
+.inspect-section {
+  padding: 15px 16px;
+  border-top: 1px solid #e1e6ed;
+}
+.inspect-section h2 {
+  margin: 0 0 11px;
+  font-size: 11px;
+}
 .meta {
   display: grid;
   grid-template-columns: 66px 1fr;
@@ -222,7 +305,10 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink);
-  font: 500 10px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    500 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
 }
 .commit-label {
   display: flex;
@@ -237,7 +323,10 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   padding: 0 9px;
   border: 1px solid #d4dae4;
   border-radius: 6px;
-  font: 400 11px "IBM Plex Mono", ui-monospace, monospace;
+  font:
+    400 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
 }
 .git-action {
   width: 100%;
@@ -258,7 +347,10 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.04em; }
   font-weight: 700;
   cursor: pointer;
 }
-.save:disabled { opacity: 0.45; cursor: default; }
+.save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .save-note {
   margin-top: 8px;
   color: #7b8798;
