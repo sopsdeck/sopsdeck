@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+
+GO_MIN="${GO_COVER_MIN:-64}"
+
+printf '== go coverage (min %s%%) ==\n' "$GO_MIN"
+go test -covermode=atomic -coverprofile=coverage.out ./internal/cli/
+total="$(go tool cover -func=coverage.out | awk '/^total:/{gsub(/%/, "", $3); print $3}')"
+awk -v total="$total" -v min="$GO_MIN" 'BEGIN {
+  if (total + 0 < min + 0) {
+    printf "go coverage %s%% is below %s%%\n", total, min > "/dev/stderr"
+    exit 1
+  }
+  printf "go coverage %s%%\n", total
+}'
+
+if command -v cargo-llvm-cov >/dev/null 2>&1; then
+  printf '== rust coverage ==\n'
+  (cd desktop/src-tauri && cargo llvm-cov --all-targets --summary-only)
+else
+  printf 'cargo-llvm-cov not on PATH; skip rust coverage\n'
+  printf 'install: cargo install cargo-llvm-cov --locked\n'
+fi

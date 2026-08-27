@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+
+printf '== product screenshots ==\n'
+export CI=1
+bunx playwright install chromium
+bunx playwright test --project=demo
+printf 'wrote docs/assets/editor.png and docs/assets/editor-revealed.png\n'

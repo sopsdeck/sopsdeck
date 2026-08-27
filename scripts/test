@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+export PATH="$(go env GOPATH)/bin:${PATH}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'missing %s — %s\n' "$1" "$2" >&2
+    exit 1
+  fi
+}
+
+need go "https://go.dev/dl/"
+need cargo "https://rustup.rs"
+
+printf '== go test ==\n'
+go test ./cmd/... ./internal/...
+
+printf '== rust test ==\n'
+(
+  cd desktop/src-tauri
+  if command -v cargo-nextest >/dev/null 2>&1; then
+    cargo nextest run --all-targets
+  else
+    printf 'cargo-nextest not on PATH; using cargo test\n'
+    printf 'install: cargo install cargo-nextest --locked\n'
+    cargo test --all-targets
+  fi
+)

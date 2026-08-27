@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+
+printf '== local teammates (no extra machine or GitHub account) ==\n'
+go test ./internal/studio/ ./internal/cli/ -count=1 \
+  -run 'TestTeammate|TestPublish|TestRecipient|TestDrive|TestFiles'
+
+printf '== UI smoke ==\n'
+export CI=1
+bunx playwright install chromium
+bunx playwright test --project=smoke

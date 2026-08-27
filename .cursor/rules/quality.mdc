@@ -1,0 +1,12 @@
+---
+description: Run quality scripts instead of eyeballing style.
+alwaysApply: true
+---
+
+After changing Go, Rust, JS, HTML, or CSS, run `./scripts/check` from the repo root and fix what it reports. Do not substitute reading the code for those checks. Run `./scripts/fmt` to apply formatters. Run `./scripts/docs` when tests are added or renamed.
+
+- JS/HTML/CSS: prettier + xo (bun, not npm)
+- Go: gofumpt + golangci-lint + `go test` + coverage floor
+- Rust: rustfmt + clippy (no panic/unwrap/expect/indexing in production) + tests
+- Living docs: `docs/features.md` and `docs/seams.md` are generated from tests
+- Mutation testing is `./scripts/mutate`, not part of `./scripts/check`

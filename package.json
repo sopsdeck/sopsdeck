@@ -1,0 +1,27 @@
+{
+  "name": "sopsdeck",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.21",
+  "scripts": {
+    "fmt": "./scripts/fmt",
+    "lint": "./scripts/lint",
+    "test": "./scripts/test",
+    "cover": "./scripts/cover",
+    "docs": "./scripts/docs",
+    "mutate": "./scripts/mutate",
+    "check": "./scripts/check",
+    "smoke": "./scripts/smoke",
+    "demo": "./scripts/demo"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "globals": "^16",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.2",
+    "xo": "^1.2.2"
+  },
+  "overrides": {
+    "typescript": "~5.9.2"
+  }
+}

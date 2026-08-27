@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'missing %s — %s\n' "$1" "$2" >&2
+    exit 1
+  fi
+}
+
+need bun "https://bun.sh"
+bun scripts/docs.mjs "$@"
