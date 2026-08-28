@@ -43,6 +43,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Recipient Remove Revokes Access And Rotates Data Key (`TestRecipientRemoveRevokesAccessAndRotatesDataKey`)
 - Recipient Remove Refuses Last Recipient (`TestRecipientRemoveRefusesLastRecipient`)
 - Recipient Remove Unknown Is No Op (`TestRecipientRemoveUnknownIsNoOp`)
+- Restore Copies Historical Values Without Committing (`TestRestoreCopiesHistoricalValuesWithoutCommitting`)
 - Review Shows Plaintext Semantic Diff Of Uncommitted Managed File (`TestReviewShowsPlaintextSemanticDiffOfUncommittedManagedFile`)
 - Run Injects JSON Secrets (`TestRunInjectsJSONSecrets`)
 - Run Injects Secrets Into Child Env (`TestRunInjectsSecretsIntoChildEnv`)

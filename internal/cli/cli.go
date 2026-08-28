@@ -27,7 +27,7 @@ import (
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|recipient|publish|files|drive> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive> ...")
 		return 1
 	}
 	switch args[0] {
@@ -52,6 +52,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdReview(args[1:], stdout, stderr)
 	case "history":
 		return cmdHistory(args[1:], stdout, stderr)
+	case "restore":
+		return cmdRestore(args[1:], stdout, stderr)
 	case "recipient":
 		return cmdRecipient(args[1:], stdout, stderr, getenv)
 	case "publish":
