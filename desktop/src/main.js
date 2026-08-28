@@ -94,6 +94,49 @@ function icon(kind) {
       svgEl('path', { d: 'M9 7V4h6v3', ...stroke }),
     ],
     plus: [svgEl('path', { d: 'M12 5v14M5 12h14', ...stroke })],
+    folder: [
+      svgEl('path', { d: 'M3 7h6l2 2h10v10H3z', ...stroke }),
+      svgEl('path', { d: 'M3 7V5h5l2 2', ...stroke }),
+    ],
+    file: [
+      svgEl('path', { d: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z', ...stroke }),
+      svgEl('path', { d: 'M14 3v6h6', ...stroke }),
+    ],
+    spark: [
+      svgEl('path', { d: 'M12 3v4M12 17v4M3 12h4M17 12h4', ...stroke }),
+      svgEl('circle', { cx: '12', cy: '12', r: '3', ...stroke }),
+    ],
+    save: [
+      svgEl('path', { d: 'M5 5h10l4 4v10H5z', ...stroke }),
+      svgEl('path', { d: 'M8 5v5h8', ...stroke }),
+    ],
+    commit: [
+      svgEl('circle', { cx: '12', cy: '12', r: '3', ...stroke }),
+      svgEl('path', { d: 'M12 5v4M12 15v4', ...stroke }),
+    ],
+    sync: [
+      svgEl('path', { d: 'M4 12a8 8 0 0 1 13-5.5L19 9', ...stroke }),
+      svgEl('path', { d: 'M20 12a8 8 0 0 1-13 5.5L5 15', ...stroke }),
+    ],
+    review: [svgEl('path', { d: 'M4 6h16M4 12h10M4 18h13', ...stroke })],
+    history: [
+      svgEl('circle', { cx: '12', cy: '12', r: '9', ...stroke }),
+      svgEl('path', { d: 'M12 7v5l3 2', ...stroke }),
+    ],
+    restore: [
+      svgEl('path', { d: 'M3 12a9 9 0 1 0 3-6.7', ...stroke }),
+      svgEl('path', { d: 'M3 4v5h5', ...stroke }),
+    ],
+    grant: [
+      svgEl('circle', { cx: '9', cy: '8', r: '3', ...stroke }),
+      svgEl('path', { d: 'M3 19c1-4 4-6 6-6s5 2 6 6', ...stroke }),
+      svgEl('path', { d: 'M19 8v6M16 11h6', ...stroke }),
+    ],
+    drop: [
+      svgEl('circle', { cx: '9', cy: '8', r: '3', ...stroke }),
+      svgEl('path', { d: 'M3 19c1-4 4-6 6-6s5 2 6 6M16 11h6', ...stroke }),
+    ],
+    publish: [svgEl('path', { d: 'M12 19V5M6 11l6-6 6 6', ...stroke })],
     sun: [
       svgEl('circle', { cx: '12', cy: '12', r: '4', ...stroke }),
       svgEl('path', {
@@ -305,6 +348,13 @@ function syncCommitMessage() {
   commitEl().value = lastAuto;
 }
 
+function setFileNote(text) {
+  const el = document.getElementById('file-note');
+  if (!el) return;
+  el.hidden = !text;
+  el.textContent = text || '';
+}
+
 function showEmpty(message) {
   const empty = emptyEl();
   empty.hidden = !message;
@@ -323,6 +373,7 @@ function resetEditorChrome() {
   document.getElementById('meta-format').textContent = '—';
   document.getElementById('meta-enc').textContent = '—';
   saveEl().disabled = true;
+  setFileNote('');
 }
 
 function renderWorkspace() {
@@ -395,7 +446,7 @@ async function openFile(project, file) {
   commitAuto = true;
   lastAuto = '';
   commitEl().value = '';
-  revealEl().textContent = 'Reveal values';
+  buttonLabel(revealEl()).textContent = 'Reveal values';
   renderTree();
   crumbEl().textContent = displayPath(project, file);
   headlineEl().textContent = titleOf(file.name);
@@ -417,6 +468,7 @@ async function openFile(project, file) {
       revealed: false,
     }));
     sublineEl().textContent = `${rows.length} secrets · never uploaded`;
+    setFileNote(file.name === 'eas.json' ? 'eas.json: EAS CLI will not read SOPS ciphertext' : '');
     renderKeys();
   } catch (err) {
     rows = [];
@@ -596,17 +648,50 @@ async function addProject() {
   }
 }
 
+function buttonLabel(el) {
+  return el.querySelector('.btn-label') || el;
+}
+
+function decorateButton(id, kind) {
+  const el = document.getElementById(id);
+  if (!el || el.querySelector('.btn-label')) return;
+  const label = document.createElement('span');
+  label.className = 'btn-label';
+  label.textContent = el.textContent.trim();
+  el.replaceChildren(icon(kind), label);
+  el.classList.add('has-icon');
+}
+
+function decorateChrome() {
+  decorateButton('add-file', 'file');
+  decorateButton('whats-new', 'spark');
+  decorateButton('add-project', 'folder');
+  decorateButton('add-secret', 'plus');
+  decorateButton('reveal', 'eye');
+  decorateButton('grant-access', 'grant');
+  decorateButton('remove-access', 'drop');
+  decorateButton('publish', 'review');
+  decorateButton('publish-yes', 'publish');
+  decorateButton('commit', 'commit');
+  decorateButton('sync', 'sync');
+  decorateButton('review', 'review');
+  decorateButton('history', 'history');
+  decorateButton('restore', 'restore');
+  decorateButton('save', 'save');
+}
+
 async function withBusy(el, label, fn) {
-  const origText = el.textContent;
+  const textEl = buttonLabel(el);
+  const origText = textEl.textContent;
   const origDisabled = el.disabled;
   el.setAttribute('aria-busy', 'true');
   el.disabled = true;
-  if (label) el.textContent = label;
+  if (label) textEl.textContent = label;
   try {
     return await fn();
   } finally {
     el.removeAttribute('aria-busy');
-    el.textContent = origText;
+    textEl.textContent = origText;
     el.disabled = origDisabled;
   }
 }
@@ -740,6 +825,7 @@ async function showWhatsNew() {
     list.replaceChildren();
     for (const note of payload.notes || []) {
       const item = document.createElement('li');
+      item.className = 'whats-new-item';
       item.textContent = note;
       list.append(item);
     }
@@ -751,6 +837,7 @@ async function showWhatsNew() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  decorateChrome();
   applyTheme(currentTheme());
   document.getElementById('whats-new').addEventListener('click', () => {
     showWhatsNew();
@@ -779,7 +866,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
   revealEl().addEventListener('click', () => {
     revealed = !revealed;
-    revealEl().textContent = revealed ? 'Hide values' : 'Reveal values';
+    buttonLabel(revealEl()).textContent = revealed ? 'Hide values' : 'Reveal values';
     for (const row of rows) row.revealed = revealed;
     renderKeys();
   });

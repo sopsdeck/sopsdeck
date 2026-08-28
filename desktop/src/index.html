@@ -76,6 +76,7 @@
         </div>
         <p id="error" class="error" hidden data-testid="editor-error"></p>
         <p id="empty-state" class="empty-state" hidden data-testid="empty-state"></p>
+        <p id="file-note" class="file-note" hidden data-testid="file-note"></p>
         <div id="keys" class="keys" data-testid="keys"></div>
       </section>
       <aside class="inspector">
@@ -183,10 +184,16 @@
       </aside>
     </div>
     <dialog id="whats-new-dialog" class="whats-new-dialog" data-testid="whats-new-dialog">
+      <p class="kicker">Release notes</p>
       <h2 id="whats-new-heading">What's new</h2>
       <p id="whats-new-version" class="save-note" data-testid="whats-new-version"></p>
-      <ul id="whats-new-list" data-testid="whats-new-list"></ul>
-      <button id="whats-new-close" class="tool" type="button" data-testid="whats-new-close">
+      <ul id="whats-new-list" class="whats-new-list" data-testid="whats-new-list"></ul>
+      <button
+        id="whats-new-close"
+        class="tool has-icon"
+        type="button"
+        data-testid="whats-new-close"
+      >
         Close
       </button>
     </dialog>

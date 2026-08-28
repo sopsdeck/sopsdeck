@@ -293,14 +293,16 @@ function changelogPage(md) {
     const items = changelogBullets(md, heading);
     const bullets =
       items.length === 0
-        ? '        <li>No notes.</li>'
-        : items.map((item) => `        <li>${escapeHtml(item)}</li>`).join('\n');
-    const title = heading === 'Unreleased' ? 'Unreleased (in development)' : heading;
-    return `      <section>
+        ? '          <li>No notes.</li>'
+        : items.map((item) => `          <li>${escapeHtml(item)}</li>`).join('\n');
+    const kicker = heading === 'Unreleased' ? 'In development' : 'Release';
+    const title = heading === 'Unreleased' ? 'Unreleased' : heading;
+    return `      <section class="release">
+        <p class="kicker">${escapeHtml(kicker)}</p>
         <h2>${escapeHtml(title)}</h2>
-        <ul>
+        <ol class="notes">
 ${bullets}
-        </ul>
+        </ol>
       </section>`;
   });
   return `<!doctype html>
@@ -316,29 +318,70 @@ ${bullets}
       rel="stylesheet"
     />
     <style>
+      :root {
+        --ink: #101828;
+        --blue: #3157f6;
+        --mint: #46d6a8;
+        --paper: #f7f9fc;
+        --slate: #475467;
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
-        margin: 0 auto;
-        max-width: 720px;
-        padding: 48px 24px 72px;
-        color: #101828;
-        background: #f7f9fc;
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
         font:
           15px/1.5 Manrope,
           system-ui,
           sans-serif;
       }
       a {
-        color: #3157f6;
+        color: inherit;
+        text-decoration: none;
       }
-      h1 {
+      a:hover {
+        color: var(--ink);
+      }
+      .wrap {
+        width: min(720px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 22px 0;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
         letter-spacing: -0.04em;
       }
-      h2 {
-        margin-top: 2em;
-        font-size: 18px;
+      .mark {
+        width: 28px;
+        height: 28px;
+      }
+      nav {
+        display: flex;
+        gap: 22px;
+        color: var(--slate);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .hero {
+        padding: 36px 40px 40px;
+        color: var(--paper);
+        border-radius: 24px;
+        background: var(--ink);
       }
       .kicker {
-        color: #475467;
+        color: var(--mint);
         font:
           600 11px 'IBM Plex Mono',
           ui-monospace,
@@ -346,16 +389,96 @@ ${bullets}
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .hero h1 {
+        margin: 10px 0 8px;
+        font-size: clamp(32px, 6vw, 48px);
+        letter-spacing: -0.05em;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 46ch;
+        color: rgba(247, 249, 252, 0.72);
+      }
+      .hero a {
+        color: var(--mint);
+      }
+      .release {
+        margin: 36px 0 48px;
+      }
+      .release h2 {
+        margin: 6px 0 18px;
+        font-size: 28px;
+        letter-spacing: -0.04em;
+      }
+      .release > .kicker {
+        color: var(--slate);
+      }
+      .notes {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: note;
+      }
+      .notes li {
+        counter-increment: note;
+        display: grid;
+        grid-template-columns: 2.2em 1fr;
+        gap: 12px;
+        margin: 0 0 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(16, 24, 40, 0.08);
+        border-radius: 14px;
+        background: #fff;
+        color: var(--slate);
+        line-height: 1.45;
+      }
+      .notes li:before {
+        content: counter(note, decimal-leading-zero);
+        color: var(--blue);
+        font:
+          600 11px 'IBM Plex Mono',
+          ui-monospace,
+          monospace;
+      }
+      footer {
+        padding: 8px 0 48px;
+        color: var(--slate);
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
-    <p class="kicker"><a href="index.html">sopsdeck.com</a></p>
-    <h1>Notes</h1>
-    <p>
-      From <code>CHANGELOG.md</code>. Versioning is
-      <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>.
-    </p>
+    <div class="wrap">
+      <header>
+        <a class="logo" href="index.html">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path
+              d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="6"
+              stroke-linejoin="round"
+            />
+            <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
+          </svg>
+          sopsdeck
+        </a>
+        <nav>
+          <a href="index.html">Product</a>
+          <a href="changelog.html">Notes</a>
+        </nav>
+      </header>
+      <section class="hero">
+        <p class="kicker">Changelog</p>
+        <h1>What's new</h1>
+        <p>
+          From <code>CHANGELOG.md</code>. Versioning is
+          <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>.
+        </p>
+      </section>
 ${sections.join('\n')}
+      <footer>Canonical source stays CHANGELOG.md. This page is generated.</footer>
+    </div>
   </body>
 </html>
 `;

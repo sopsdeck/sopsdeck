@@ -11,29 +11,70 @@
       rel="stylesheet"
     />
     <style>
+      :root {
+        --ink: #101828;
+        --blue: #3157f6;
+        --mint: #46d6a8;
+        --paper: #f7f9fc;
+        --slate: #475467;
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
-        margin: 0 auto;
-        max-width: 720px;
-        padding: 48px 24px 72px;
-        color: #101828;
-        background: #f7f9fc;
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
         font:
           15px/1.5 Manrope,
           system-ui,
           sans-serif;
       }
       a {
-        color: #3157f6;
+        color: inherit;
+        text-decoration: none;
       }
-      h1 {
+      a:hover {
+        color: var(--ink);
+      }
+      .wrap {
+        width: min(720px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 22px 0;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
         letter-spacing: -0.04em;
       }
-      h2 {
-        margin-top: 2em;
-        font-size: 18px;
+      .mark {
+        width: 28px;
+        height: 28px;
+      }
+      nav {
+        display: flex;
+        gap: 22px;
+        color: var(--slate);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .hero {
+        padding: 36px 40px 40px;
+        color: var(--paper);
+        border-radius: 24px;
+        background: var(--ink);
       }
       .kicker {
-        color: #475467;
+        color: var(--mint);
         font:
           600 11px 'IBM Plex Mono',
           ui-monospace,
@@ -41,36 +82,119 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .hero h1 {
+        margin: 10px 0 8px;
+        font-size: clamp(32px, 6vw, 48px);
+        letter-spacing: -0.05em;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 46ch;
+        color: rgba(247, 249, 252, 0.72);
+      }
+      .hero a {
+        color: var(--mint);
+      }
+      .release {
+        margin: 36px 0 48px;
+      }
+      .release h2 {
+        margin: 6px 0 18px;
+        font-size: 28px;
+        letter-spacing: -0.04em;
+      }
+      .release > .kicker {
+        color: var(--slate);
+      }
+      .notes {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: note;
+      }
+      .notes li {
+        counter-increment: note;
+        display: grid;
+        grid-template-columns: 2.2em 1fr;
+        gap: 12px;
+        margin: 0 0 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(16, 24, 40, 0.08);
+        border-radius: 14px;
+        background: #fff;
+        color: var(--slate);
+        line-height: 1.45;
+      }
+      .notes li:before {
+        content: counter(note, decimal-leading-zero);
+        color: var(--blue);
+        font:
+          600 11px 'IBM Plex Mono',
+          ui-monospace,
+          monospace;
+      }
+      footer {
+        padding: 8px 0 48px;
+        color: var(--slate);
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
-    <p class="kicker"><a href="index.html">sopsdeck.com</a></p>
-    <h1>Notes</h1>
-    <p>
-      From <code>CHANGELOG.md</code>. Versioning is
-      <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>.
-    </p>
-      <section>
-        <h2>Unreleased (in development)</h2>
-        <ul>
-        <li>Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.</li>
-        <li>`sopsdeck set -f FILE` with no KEY creates an empty encrypted Managed File.</li>
-        <li>Editor key rows reveal, copy, rename, and delete from icons; a composer adds `KEY` or `KEY=value`.</li>
-        <li>The sidebar can add a Managed File; theme is an icon; panes scroll inside the window.</li>
-        <li>Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.</li>
-        <li>Desktop shows Sync, commit, and save failures next to those controls, not as a toast.</li>
-        <li>Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.</li>
-        <li>Empty Project / Managed File / key states, Sync and save loading, dark mode, and a commit message prefilled from dirty keys.</li>
-        <li>Inspector can Grant Access and dry-run or Publish to a Sync Target.</li>
-        <li>`recipient remove` drops Access, rotates the data key, and warns that Git history still decrypts.</li>
-        <li>Review shows a plaintext semantic diff of uncommitted Managed File keys.</li>
-        <li>Secret History lists commits on a Managed File; `get --at` decrypts a revision.</li>
-        <li>Restore copies a revision’s values into the worktree and leaves them uncommitted.</li>
-        <li>Review of a decryptable merge conflict shows base / ours / theirs for each key.</li>
-        <li>Inspector Review, History, and Restore call those CLI commands.</li>
-        <li>Product stills, clips, and a studio walkthrough are generated by `./scripts/demo`.</li>
-        <li>`sopsdeck --version` matches the desktop app; What’s new is bundled from this file.</li>
-        </ul>
+    <div class="wrap">
+      <header>
+        <a class="logo" href="index.html">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path
+              d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="6"
+              stroke-linejoin="round"
+            />
+            <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
+          </svg>
+          sopsdeck
+        </a>
+        <nav>
+          <a href="index.html">Product</a>
+          <a href="changelog.html">Notes</a>
+        </nav>
+      </header>
+      <section class="hero">
+        <p class="kicker">Changelog</p>
+        <h1>What's new</h1>
+        <p>
+          From <code>CHANGELOG.md</code>. Versioning is
+          <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>.
+        </p>
       </section>
+      <section class="release">
+        <p class="kicker">In development</p>
+        <h2>Unreleased</h2>
+        <ol class="notes">
+          <li>`get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.</li>
+          <li>Changelog and What’s new use the product layout; primary actions have icons.</li>
+          <li>Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.</li>
+          <li>`sopsdeck set -f FILE` with no KEY creates an empty encrypted Managed File.</li>
+          <li>Editor key rows reveal, copy, rename, and delete from icons; a composer adds `KEY` or `KEY=value`.</li>
+          <li>The sidebar can add a Managed File; theme is an icon; panes scroll inside the window.</li>
+          <li>Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.</li>
+          <li>Desktop shows Sync, commit, and save failures next to those controls, not as a toast.</li>
+          <li>Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.</li>
+          <li>Empty Project / Managed File / key states, Sync and save loading, dark mode, and a commit message prefilled from dirty keys.</li>
+          <li>Inspector can Grant Access and dry-run or Publish to a Sync Target.</li>
+          <li>`recipient remove` drops Access, rotates the data key, and warns that Git history still decrypts.</li>
+          <li>Review shows a plaintext semantic diff of uncommitted Managed File keys.</li>
+          <li>Secret History lists commits on a Managed File; `get --at` decrypts a revision.</li>
+          <li>Restore copies a revision’s values into the worktree and leaves them uncommitted.</li>
+          <li>Review of a decryptable merge conflict shows base / ours / theirs for each key.</li>
+          <li>Inspector Review, History, and Restore call those CLI commands.</li>
+          <li>Product stills, clips, and a studio walkthrough are generated by `./scripts/demo`.</li>
+          <li>`sopsdeck --version` matches the desktop app; What’s new is bundled from this file.</li>
+        </ol>
+      </section>
+      <footer>Canonical source stays CHANGELOG.md. This page is generated.</footer>
+    </div>
   </body>
 </html>

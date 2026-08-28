@@ -187,7 +187,8 @@ input {
   cursor: pointer;
   transition:
     background 0.12s ease,
-    color 0.12s ease;
+    color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 .file:hover,
 .file:focus-visible {
@@ -260,25 +261,61 @@ input {
   color: var(--ink);
 }
 .whats-new-dialog {
-  width: min(420px, calc(100vw - 32px));
-  padding: 20px;
+  width: min(480px, calc(100vw - 32px));
+  padding: 22px 22px 18px;
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--editor);
+  box-shadow: 0 24px 70px rgba(16, 24, 40, 0.18);
+}
+.whats-new-dialog[open] {
+  animation: dialog-in 0.18s ease;
 }
 .whats-new-dialog::backdrop {
-  background: rgba(16, 24, 40, 0.35);
+  background: rgba(16, 24, 40, 0.4);
+}
+.whats-new-dialog .kicker {
+  margin: 0 0 6px;
 }
 .whats-new-dialog h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0 0 4px;
+  font-size: 22px;
+  letter-spacing: -0.04em;
 }
-.whats-new-dialog ul {
-  margin: 12px 0 16px;
-  padding-left: 18px;
+.whats-new-dialog .save-note {
+  margin: 0 0 14px;
+  text-align: left;
+}
+.whats-new-list {
+  margin: 0 0 16px;
+  padding: 0;
+  max-height: min(48vh, 360px);
+  overflow: auto;
+  list-style: none;
+}
+.whats-new-item {
+  margin: 0 0 8px;
+  padding: 10px 12px;
   color: var(--slate);
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
   font-size: 12px;
+  line-height: 1.45;
+}
+.whats-new-item:last-child {
+  margin-bottom: 0;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .review-out {
   margin: 8px 0 0;
@@ -376,6 +413,26 @@ h1 {
   padding: 10px 24px;
   border-bottom: 1px solid var(--line-soft);
 }
+.tool,
+.save,
+.add-project,
+.add-file-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.tool svg,
+.save svg,
+.add-project svg,
+.add-file-btn svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.git-action.has-icon {
+  justify-content: flex-start;
+}
 .tool {
   height: 29px;
   padding: 0 9px;
@@ -390,7 +447,8 @@ h1 {
     background 0.12s ease,
     border-color 0.12s ease,
     color 0.12s ease,
-    opacity 0.12s ease;
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 .tool:hover,
 .tool:focus-visible {
@@ -426,6 +484,12 @@ h1 {
   color: var(--slate);
   font-size: 14px;
   line-height: 1.5;
+}
+.file-note {
+  margin: 10px 24px 0;
+  color: var(--slate);
+  font-size: 12px;
+  line-height: 1.4;
 }
 .keys {
   flex: 1;

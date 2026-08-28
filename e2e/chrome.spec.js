@@ -114,6 +114,9 @@ test("What's new shows bundled notes", async ({ page }) => {
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('Unreleased');
   await expect(page.getByTestId('whats-new-list').locator('li')).not.toHaveCount(0);
+  await expect(page.getByTestId('whats-new-list').locator('li').first()).toHaveClass(
+    /whats-new-item/,
+  );
 });
 
 test('Review shows a plaintext secret diff after save', async ({ page }) => {
