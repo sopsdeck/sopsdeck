@@ -28,7 +28,7 @@ export SOPSDECK_STATE_DIR="$HOME/.sopsdeck"
 export SOPS_AGE_KEY_CMD="sopsdeck identity key"
 ```
 
-The private key is stored in the OS keychain. `identity key` prints it for SOPS. Existing `SOPS_AGE_KEY_FILE` Age files still work. Restore: `identity import -f FILE --confirmed-backup`.
+The private key is stored in the OS keychain. `identity key` prints it for SOPS. Existing `SOPS_AGE_KEY_FILE` Age files still work. Restore: `identity import -f FILE --confirmed-backup`. Failed commands append to `$SOPSDECK_STATE_DIR/errors.json`; the same message increments a count. Messages never include private keys or ciphertext.
 
 ```bash
 ./sopsdeck get KEY -f path/to/.env.production

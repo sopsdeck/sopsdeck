@@ -178,6 +178,7 @@
         <p class="kicker">In development</p>
         <h2>Unreleased</h2>
         <ol class="notes">
+          <li>Failed CLI commands append to `$SOPSDECK_STATE_DIR/errors.json`; repeats increment a count. Messages never include private keys or ciphertext.</li>
           <li>`./scripts/dev` builds a fresh CLI and launches the desktop app against it.</li>
           <li>`identity create` / `import` store the Age private key in the OS keychain; `SOPS_AGE_KEY_CMD='sopsdeck identity key'` decrypts. Existing `SOPS_AGE_KEY_FILE` still works.</li>
           <li>Editor paste sniffs dotenv, JSON, or YAML and previews key names until Apply paste.</li>
