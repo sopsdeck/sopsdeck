@@ -7,6 +7,10 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 
 ## CLI
 
+- Notes For Tag Returns Section (`TestNotesForTagReturnsSection`)
+- Notes For Tag Fails When Missing (`TestNotesForTagFailsWhenMissing`)
+- Notes For Tag Fails When Only Unreleased (`TestNotesForTagFailsWhenOnlyUnreleased`)
+- Bullets From Unreleased (`TestBulletsFromUnreleased`)
 - Commit Stages Managed File And Records Message (`TestCommitStagesManagedFileAndRecordsMessage`)
 - Del Removes Key (`TestDelRemovesKey`)
 - Drive Invoke Lists And Reads Managed File (`TestDriveInvokeListsAndReadsManagedFile`)
@@ -34,6 +38,9 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Publish Requires API (`TestPublishRequiresAPI`)
 - Publish Prunes Prefixed Secrets Not In File (`TestPublishPrunesPrefixedSecretsNotInFile`)
 - Recipient Add Lets Second Identity Decrypt (`TestRecipientAddLetsSecondIdentityDecrypt`)
+- Recipient Remove Revokes Access And Rotates Data Key (`TestRecipientRemoveRevokesAccessAndRotatesDataKey`)
+- Recipient Remove Refuses Last Recipient (`TestRecipientRemoveRefusesLastRecipient`)
+- Recipient Remove Unknown Is No Op (`TestRecipientRemoveUnknownIsNoOp`)
 - Run Injects JSON Secrets (`TestRunInjectsJSONSecrets`)
 - Run Injects Secrets Into Child Env (`TestRunInjectsSecretsIntoChildEnv`)
 - Set Creates Encrypted File When Missing (`TestSetCreatesEncryptedFileWhenMissing`)
@@ -42,13 +49,17 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Sync Refuses When Branch Has Diverged (`TestSyncRefusesWhenBranchHasDiverged`)
 - Sync Pushes When Remote Can Fast Forward (`TestSyncPushesWhenRemoteCanFastForward`)
 - Sync Without Upstream Explains Missing Tracking (`TestSyncWithoutUpstreamExplainsMissingTracking`)
+- Version Prints App Version (`TestVersionPrintsAppVersion`)
+- Version Matches Desktop Manifests (`TestVersionMatchesDesktopManifests`)
 - List Finds Dotenv And SOPS Structured Files (`TestListFindsDotenvAndSOPSStructuredFiles`)
 - Teammate Decrypts After Recipient Add And Sync (`TestTeammateDecryptsAfterRecipientAddAndSync`)
+- Teammate Loses Access After Recipient Remove And Sync (`TestTeammateLosesAccessAfterRecipientRemoveAndSync`)
 - Publish Puts Prefixed Names On Fake Git Hub (`TestPublishPutsPrefixedNamesOnFakeGitHub`)
 - Files Command Lists Studio Managed File (`TestFilesCommandListsStudioManagedFile`)
 
 ## Desktop discovery
 
+- cargo pkg version matches whats new (`cargo_pkg_version_matches_whats_new`)
 - list in rejects a file (`list_in_rejects_a_file`)
 - list in finds dotenv and sops structured files (`list_in_finds_dotenv_and_sops_structured_files`)
 - dotenv names include env production suffix (`dotenv_names_include_env_production_suffix`)

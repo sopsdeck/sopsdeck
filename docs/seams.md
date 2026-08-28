@@ -8,9 +8,9 @@ A phase is covered when at least one test exercises that seam.
 | Phase | Slice | Seam | Tests |
 | --- | --- | --- | --- |
 | 1 | CLI core | sopsdeck CLI | TestDelRemovesKey, TestFilesListsDotenvInFolder, TestFilesRejectsAFile, TestFilesRejectsExtraArgs, TestGetWithoutAccessExplainsMissingAccess, TestGetWithoutKeyPrintsAllDotenvPairs, TestGetReadsDotenvNamedEnvProduction, TestGetOutputJSONPrintsPairsForAnyFormat, TestGetPrintsValueFromSOPSJSONAndYAML, TestGetPrintsValueFromSOPSDotenv, TestIdentityCreateWithoutBackupConfirmDoesNotPersist, TestIdentityCreateWithBackupConfirmCanDecrypt, TestIdentityImportWithBackupConfirmRestoresAccess, TestRunInjectsJSONSecrets, TestRunInjectsSecretsIntoChildEnv, TestSetCreatesEncryptedFileWhenMissing, TestSetWritesValueRetrievableByGet |
-| 2 | Tauri folder-first editor | Managed File discovery | list_in_rejects_a_file, list_in_finds_dotenv_and_sops_structured_files, dotenv_names_include_env_production_suffix |
+| 2 | Tauri folder-first editor | Managed File discovery | cargo_pkg_version_matches_whats_new, list_in_rejects_a_file, list_in_finds_dotenv_and_sops_structured_files, dotenv_names_include_env_production_suffix |
 | 3 | Git Commit / Sync | Git adapter | TestCommitStagesManagedFileAndRecordsMessage, TestSyncRefusesDirtyManagedFile, TestSyncRefusesWhenBranchHasDiverged, TestSyncPushesWhenRemoteCanFastForward, TestSyncWithoutUpstreamExplainsMissingTracking |
-| 4 | Recipients | CLI recipients / re-encrypt | TestDriveInvokeAddsRecipient, TestRecipientAddLetsSecondIdentityDecrypt, TestTeammateDecryptsAfterRecipientAddAndSync |
+| 4 | Recipients | CLI recipients / re-encrypt | TestDriveInvokeAddsRecipient, TestRecipientAddLetsSecondIdentityDecrypt, TestRecipientRemoveRevokesAccessAndRotatesDataKey, TestRecipientRemoveRefusesLastRecipient, TestRecipientRemoveUnknownIsNoOp, TestTeammateDecryptsAfterRecipientAddAndSync, TestTeammateLosesAccessAfterRecipientRemoveAndSync |
 | 5 | GitHub Publish | GitHub Publish adapter | TestDriveInvokePublishesToFakeGitHub, TestPublishFailedPutExplainsRetry, TestPublishDryRunDoesNotWrite, TestPublishRequiresAPI, TestPublishPrunesPrefixedSecretsNotInFile, TestPublishPutsPrefixedNamesOnFakeGitHub |
 | 6 | Scan hook | scan hook | _none_ |
 | 7 | Paste + MCP | MCP | _none_ |

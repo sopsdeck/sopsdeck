@@ -36,5 +36,5 @@ Lost keychain + lost PM backup: Access is gone. Lost device with PM backup intac
 
 ## Implementation (2026-08-28)
 
-Identity create/import persists `age.txt` under `SOPSDECK_STATE_DIR` after `--confirmed-backup`. Studio Users are throwaway files, not keychain. `recipient add` re-wraps the data key so a second Age identity can decrypt (tests in `recipient_test.go` and studio teammate test). Not done: `SOPS_AGE_KEY_CMD` / OS keychain, remove + rotate, request PR, re-encrypt PR.
+Identity create/import persists `age.txt` under `SOPSDECK_STATE_DIR` after `--confirmed-backup`. Studio Users are throwaway files, not keychain. `recipient add` re-wraps the data key so a second Age identity can decrypt. `recipient remove` drops the Recipient, rotates the data key, and warns that Git history still decrypts (CLI, drive, inspector). Not done: `SOPS_AGE_KEY_CMD` / OS keychain, request PR, re-encrypt PR.
 

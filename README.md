@@ -40,6 +40,7 @@ export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
 
 ```bash
 ./sopsdeck recipient add AGE1... -f path/to/.env.production
+./sopsdeck recipient remove AGE1... -f path/to/.env.production
 ./sopsdeck publish -f path/to/.env.production --prefix SD_ --yes
 ./sopsdeck files path/to/project
 ```
