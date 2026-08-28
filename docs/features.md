@@ -50,6 +50,8 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Publish Records Last Published Names (`TestPublishRecordsLastPublishedNames`)
 - Publish Prune Deletes Only Previously Published Names (`TestPublishPruneDeletesOnlyPreviouslyPublishedNames`)
 - Publish Prune Leaves Unrecorded Prefixed Names (`TestPublishPruneLeavesUnrecordedPrefixedNames`)
+- Publish Sends Git Hub Token (`TestPublishSendsGitHubToken`)
+- Publish Uses Gh Auth Token (`TestPublishUsesGhAuthToken`)
 - Publish Manifest Environment Puts Environment Secrets (`TestPublishManifestEnvironmentPutsEnvironmentSecrets`)
 - Recipient Add Lets Second Identity Decrypt (`TestRecipientAddLetsSecondIdentityDecrypt`)
 - Recipient Remove Revokes Access And Rotates Data Key (`TestRecipientRemoveRevokesAccessAndRotatesDataKey`)

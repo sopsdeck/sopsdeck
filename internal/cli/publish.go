@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"sort"
 	"strings"
 )
@@ -37,12 +38,13 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 		return 0
 	}
 	client := &http.Client{}
-	if err := putSecrets(client, base, repo, mapping.Environment, names); err != nil {
+	token := githubToken(getenv)
+	if err := putSecrets(client, base, repo, mapping.Environment, token, names); err != nil {
 		fmt.Fprintln(stderr, explainPublish(err))
 		return 1
 	}
 	if prune {
-		if err := pruneSecrets(client, base, repo, mapping.Environment, prefix, names, mapping.Published); err != nil {
+		if err := pruneSecrets(client, base, repo, mapping.Environment, prefix, token, names, mapping.Published); err != nil {
 			fmt.Fprintf(stderr, "publish: %v\n", err)
 			return 1
 		}
@@ -147,7 +149,27 @@ func parsePublishFlags(args []string) (file, prefix string, yes, prune bool, err
 	return file, prefix, yes, prune, ""
 }
 
-func putSecrets(client *http.Client, base, repo, environment string, names []string) error {
+func githubToken(getenv func(string) string) string {
+	if v := getenv("GH_TOKEN"); v != "" {
+		return v
+	}
+	if v := getenv("GITHUB_TOKEN"); v != "" {
+		return v
+	}
+	out, err := exec.Command("gh", "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func setAuth(req *http.Request, token string) {
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+}
+
+func putSecrets(client *http.Client, base, repo, environment, token string, names []string) error {
 	for _, name := range names {
 		endpoint, err := secretURL(base, repo, environment, name)
 		if err != nil {
@@ -162,6 +184,7 @@ func putSecrets(client *http.Client, base, repo, environment string, names []str
 			return err
 		}
 		req.Header.Set("content-type", "application/json")
+		setAuth(req, token)
 		resp, err := client.Do(req)
 		if err != nil {
 			return err
@@ -175,7 +198,7 @@ func putSecrets(client *http.Client, base, repo, environment string, names []str
 	return nil
 }
 
-func pruneSecrets(client *http.Client, base, repo, environment, prefix string, keep, previously []string) error {
+func pruneSecrets(client *http.Client, base, repo, environment, prefix, token string, keep, previously []string) error {
 	want := map[string]struct{}{}
 	for _, n := range keep {
 		want[n] = struct{}{}
@@ -195,6 +218,7 @@ func pruneSecrets(client *http.Client, base, repo, environment, prefix string, k
 		if err != nil {
 			return err
 		}
+		setAuth(req, token)
 		delResp, err := client.Do(req)
 		if err != nil {
 			return err

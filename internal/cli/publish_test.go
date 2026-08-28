@@ -244,6 +244,76 @@ func TestPublishPruneLeavesUnrecordedPrefixedNames(t *testing.T) {
 	}
 }
 
+func TestPublishSendsGitHubToken(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	getenv := func(key string) string {
+		if key == "GH_TOKEN" {
+			return "gho_test"
+		}
+		return alice.Getenv(key)
+	}
+	var code int
+	alice.WithWorld(func() {
+		code = Main([]string{"publish", "-f", env, "--prefix", "SD_", "--yes"}, os.Stdin, io.Discard, io.Discard, getenv)
+	})
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if got := st.GitHub.LastAuthorization(); got != "Bearer gho_test" {
+		t.Fatalf("Authorization=%q", got)
+	}
+}
+
+func TestPublishUsesGhAuthToken(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	script := []byte("#!/bin/sh\n[ \"$1\" = auth ] && [ \"$2\" = token ] && echo gho_from_gh && exit 0\nexit 1\n")
+	if err := os.WriteFile(filepath.Join(bin, "gh"), script, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	getenv := func(key string) string {
+		if key == "GH_TOKEN" || key == "GITHUB_TOKEN" {
+			return ""
+		}
+		return alice.Getenv(key)
+	}
+	var code int
+	alice.WithWorld(func() {
+		code = Main([]string{"publish", "-f", env, "--prefix", "SD_", "--yes"}, os.Stdin, io.Discard, io.Discard, getenv)
+	})
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if got := st.GitHub.LastAuthorization(); got != "Bearer gho_from_gh" {
+		t.Fatalf("Authorization=%q", got)
+	}
+}
+
 func TestPublishManifestEnvironmentPutsEnvironmentSecrets(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {

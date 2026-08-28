@@ -49,7 +49,7 @@ export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
 ./sopsdeck files path/to/project
 ```
 
-`publish` talks to `SOPSDECK_GITHUB_API` (real GitHub or the in-process fake). Without `--yes` it is a dry-run.
+`publish` talks to `SOPSDECK_GITHUB_API` (real GitHub or the in-process fake). Auth is `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`. Without `--yes` it is a dry-run.
 
 `./sopsdeck --version` matches the desktop app. Notes are [CHANGELOG.md](CHANGELOG.md); bump rules are [docs/versioning.md](docs/versioning.md).
 

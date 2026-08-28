@@ -15,6 +15,7 @@ type Server struct {
 	mu      sync.Mutex
 	secrets map[string]string
 	envs    map[string]map[string]string
+	auth    string
 	http    *httptest.Server
 }
 
@@ -38,7 +39,16 @@ func (s *Server) Names() []string {
 	return out
 }
 
+func (s *Server) LastAuthorization() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.auth
+}
+
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	s.auth = r.Header.Get("Authorization")
+	s.mu.Unlock()
 	path := r.URL.Path
 	if r.Method == http.MethodGet && strings.HasSuffix(path, "/actions/secrets/public-key") {
 		_ = json.NewEncoder(w).Encode(map[string]string{
