@@ -140,6 +140,7 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, explainGet(err))
 		return 1
 	}
+	warnEASCLI(file, stderr)
 	if key == "" {
 		if output == "json" {
 			pairs, err := plainEnv(plain, format)
@@ -448,11 +449,20 @@ func dotenvMap(plain []byte) map[string]string {
 	for line := range strings.SplitSeq(string(plain), "\n") {
 		k, v, ok := strings.Cut(line, "=")
 		if ok && k != "" {
-			out[k] = v
+			out[k] = strings.ReplaceAll(v, `\n`, "\n")
 		}
 	}
 	return out
 }
+
+func warnEASCLI(file string, stderr io.Writer) {
+	if filepath.Base(file) != "eas.json" {
+		return
+	}
+	fmt.Fprintln(stderr, easJSONWarning)
+}
+
+const easJSONWarning = "eas.json: EAS CLI will not read SOPS ciphertext"
 
 func fileFormat(path string) formats.Format {
 	base := filepath.Base(path)

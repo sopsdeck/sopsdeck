@@ -42,3 +42,28 @@ func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestListFindsCommittedComposeYAMLAndMultilineDotenv(t *testing.T) {
+	root := filepath.Join("..", "..", "testdata")
+	files, err := List(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, f := range files {
+		got[f.Name] = true
+	}
+	for _, name := range []string{"compose.yaml", "hello.multiline.env", "eas.json"} {
+		if !got[name] {
+			t.Fatalf("names=%v, want %s", keys(got), name)
+		}
+	}
+}
+
+func keys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}

@@ -123,6 +123,20 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 	if err := aliceCLI(alice, "commit", "-m", "seed production", "-f", env); err != nil {
 		return nil, nil, err
 	}
+	eas := filepath.Join(alice.Home, "eas.json")
+	if err := aliceCLI(alice, "set", "EXPO_PUBLIC_API_URL", "https://api.acme.test", "-f", eas); err != nil {
+		return nil, nil, err
+	}
+	if err := aliceCLI(alice, "commit", "-m", "seed eas.json", "-f", eas); err != nil {
+		return nil, nil, err
+	}
+	compose := filepath.Join(alice.Home, "compose.yaml")
+	if err := aliceCLI(alice, "set", "POSTGRES_PASSWORD", "acme_pg_demo_password", "-f", compose); err != nil {
+		return nil, nil, err
+	}
+	if err := aliceCLI(alice, "commit", "-m", "seed compose.yaml", "-f", compose); err != nil {
+		return nil, nil, err
+	}
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
 		return nil, nil, err
 	}

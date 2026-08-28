@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,23 @@ func TestGetPrintsValueFromSOPSDotenv(t *testing.T) {
 	}
 	if got := stdout.String(); got != "world\n" {
 		t.Fatalf("stdout=%q want %q", got, "world\n")
+	}
+}
+
+func TestGetPrintsMultilineDotenvValueContainingANewline(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"get", "TLS_CERT", "-f", testdata(t, "hello.multiline.env")}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	got := strings.TrimSuffix(stdout.String(), "\n")
+	if !strings.Contains(got, "\n") {
+		t.Fatalf("stdout=%q, want a multiline value", stdout.String())
+	}
+	if !strings.Contains(got, "BEGIN CERTIFICATE") {
+		t.Fatalf("stdout=%q, want PEM-like certificate", stdout.String())
 	}
 }
 

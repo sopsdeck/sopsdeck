@@ -1,0 +1,11 @@
+POSTGRES_PASSWORD: acme_pg_demo_password
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: acme
+      POSTGRES_DB: acme
+  api:
+    image: acme/api:demo
+    environment:
+      DATABASE_URL: postgres://acme@db/acme

@@ -215,6 +215,19 @@ func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(info.Project, ".env.production")); err != nil {
 		t.Fatal(err)
 	}
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"files", info.Project}, os.Stdin, &stdout, &stderr, getenv); code != 0 {
+		t.Fatalf("files exit %d stderr=%q", code, stderr.String())
+	}
+	var files []struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &files); err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 || files[0].Name != ".env.production" {
+		t.Fatalf("files=%v, want .env.production first", files)
+	}
 }
 
 func TestDriveFlagErrors(t *testing.T) {

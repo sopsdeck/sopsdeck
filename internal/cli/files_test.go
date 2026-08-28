@@ -22,6 +22,20 @@ func TestFilesListsDotenvInFolder(t *testing.T) {
 	}
 }
 
+func TestFilesListsComposeYAMLAndMultilineDotenv(t *testing.T) {
+	dir := filepath.Dir(testdata(t, "compose.yaml"))
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"files", dir}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, name := range []string{"compose.yaml", "hello.multiline.env", "eas.json"} {
+		if !strings.Contains(out, `"name":"`+name+`"`) {
+			t.Fatalf("stdout=%q, want %s", out, name)
+		}
+	}
+}
+
 func TestFilesRejectsAFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "note.txt")
 	if err := os.WriteFile(path, []byte("x\n"), 0o600); err != nil {
