@@ -84,6 +84,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Set Creates Encrypted File When Missing (`TestSetCreatesEncryptedFileWhenMissing`)
 - Set Creates Empty Encrypted Managed File When Missing (`TestSetCreatesEmptyEncryptedManagedFileWhenMissing`)
 - Set Refuses Empty Create When Managed File Exists (`TestSetRefusesEmptyCreateWhenManagedFileExists`)
+- Set Creates Nested Managed File When Missing (`TestSetCreatesNestedManagedFileWhenMissing`)
 - Set Stdin Dotenv Previews Without Writing (`TestSetStdinDotenvPreviewsWithoutWriting`)
 - Set Stdin Dotenv Applies With Yes (`TestSetStdinDotenvAppliesWithYes`)
 - Set Stdin JSON Bulk Applies With Yes (`TestSetStdinJSONBulkAppliesWithYes`)

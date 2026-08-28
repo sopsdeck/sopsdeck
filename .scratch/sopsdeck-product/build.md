@@ -27,7 +27,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | Phase | Slice | Status | Proved | Still open |
 | --- | --- | --- | --- | --- |
 | 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` into the OS keychain; `identity key` for `SOPS_AGE_KEY_CMD`; existing Age files still work; local `$SOPSDECK_STATE_DIR/errors.json` with counts | — |
-| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25); in-editor paste preview; inspector collapse; Value-heading reveal | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
+| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25); in-editor paste preview; inspector collapse; Value-heading reveal; nested tree, recents, Show more | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
 | 5 | GitHub Publish | in progress | `publish` prefix, dry-run, `--yes`, `--prune`; `.sopsdeck.toml` mappings; last-published prune; `GH_TOKEN` / `gh auth token`; inspector mapping + prune vs `internal/githubfake` | — |
@@ -55,7 +55,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [32](issues/32-one-command-local-launch.md) | One command: build CLI + launch app | **done** |
 | [33](issues/33-deduped-local-error-log.md) | Local error log with counts | **done** |
 | [34](issues/34-inspector-collapse-and-reveal-heading.md) | Inspector collapse; heading reveal | **done** |
-| [35](issues/35-nested-project-file-tree.md) | Nested tree, recents, show more | open |
+| [35](issues/35-nested-project-file-tree.md) | Nested tree, recents, show more | **done** |
 | [36](issues/36-changelog-type-tags.md) | Changelog type tags and grouping | open |
 | [37](issues/37-public-site-download-and-hosting.md) | Download, Cloudflare, hero video | open |
 | [38](issues/38-multi-project-demo-seed.md) | Multi-project demo seed for stills | open |

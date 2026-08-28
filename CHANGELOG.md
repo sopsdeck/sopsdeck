@@ -4,6 +4,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+- Nested Project folders collapse; recents reopen a folder from this machine; long lists use Show more.
 - Inspector sections collapse; reveal/hide values sits on the Value heading. Add secret is gone (composer remains).
 - Failed CLI commands append to `$SOPSDECK_STATE_DIR/errors.json`; repeats increment a count. Messages never include private keys or ciphertext.
 - `./scripts/dev` builds a fresh CLI and launches the desktop app against it.
