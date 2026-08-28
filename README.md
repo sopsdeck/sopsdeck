@@ -72,7 +72,7 @@ The desktop UI is the same HTML/JS as Tauri. `sopsdeck drive` serves it on local
 ./sopsdeck drive --demo --listen 127.0.0.1:4174 --ui desktop/src
 ```
 
-`--demo` seeds Alice's Project with `.env.production` and a local origin. Open [http://127.0.0.1:4174/](http://127.0.0.1:4174/) — `GET /demo` returns Bob's public key (for Grant Access) and the Project path; `POST /invoke` matches Tauri commands.
+`--demo` seeds `checkout` (nested `apps/web/.env`), `atlas-web`, and `docs-site` (collapsed) on one Age identity. Open [http://127.0.0.1:4174/](http://127.0.0.1:4174/) — `GET /demo` returns Bob's public key (for Grant Access) and the Project paths; `POST /invoke` matches Tauri commands.
 
 ```bash
 ./scripts/smoke   # studio teammate tests + Playwright against drive --demo

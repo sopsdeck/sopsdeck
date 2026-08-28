@@ -1,7 +1,7 @@
 # Multi-project demo seed for stills
 
 Type: build
-Status: open
+Status: done
 Blocked by: None
 
 ## What to build
@@ -12,9 +12,9 @@ Do not encrypt unsupported formats. Do not invent a second discovery rule.
 
 ## Acceptance criteria
 
-- [ ] `sopsdeck drive --demo` (or demo Playwright seed) registers more than one Project.
-- [ ] Stills/clips that show the sidebar include nested/realistic files already in testdata plus extra Projects.
-- [ ] `./scripts/demo --check` still passes; no sub-second clips.
+- [x] `sopsdeck drive --demo` (or demo Playwright seed) registers more than one Project.
+- [x] Stills/clips that show the sidebar include nested/realistic files already in testdata plus extra Projects.
+- [x] `./scripts/demo --check` still passes; no sub-second clips.
 
 ## Seams
 
@@ -23,3 +23,5 @@ Do not encrypt unsupported formats. Do not invent a second discovery rule.
 ## Comments
 
 Captured 2026-08-28 from human-found review. Kind: idea.
+
+`drive --demo` seeds `checkout` (expanded, nested `apps/web/.env`), `atlas-web`, and `docs-site` (collapsed). Same Age identity. Discovery stays `list_managed_files`.

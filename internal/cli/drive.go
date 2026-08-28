@@ -29,9 +29,10 @@ type invokeReq struct {
 }
 
 type demoInfo struct {
-	Project      string `json:"project"`
-	BobPublicKey string `json:"bobPublicKey"`
-	GitHubAPI    string `json:"githubAPI"`
+	Project      string   `json:"project"`
+	Projects     []string `json:"projects"`
+	BobPublicKey string   `json:"bobPublicKey"`
+	GitHubAPI    string   `json:"githubAPI"`
 }
 
 type drive struct {
@@ -117,25 +118,16 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	env := filepath.Join(alice.Home, ".env.production")
-	if err := aliceCLI(alice, "set", "STRIPE_SECRET", "sk_test_demo", "-f", env); err != nil {
+	if err := seedFile(alice, filepath.Join(alice.Home, ".env.production"), "STRIPE_SECRET", "sk_test_demo", "seed production"); err != nil {
 		return nil, nil, err
 	}
-	if err := aliceCLI(alice, "commit", "-m", "seed production", "-f", env); err != nil {
+	if err := seedFile(alice, filepath.Join(alice.Home, "eas.json"), "EXPO_PUBLIC_API_URL", "https://api.acme.test", "seed eas.json"); err != nil {
 		return nil, nil, err
 	}
-	eas := filepath.Join(alice.Home, "eas.json")
-	if err := aliceCLI(alice, "set", "EXPO_PUBLIC_API_URL", "https://api.acme.test", "-f", eas); err != nil {
+	if err := seedFile(alice, filepath.Join(alice.Home, "compose.yaml"), "POSTGRES_PASSWORD", "acme_pg_demo_password", "seed compose.yaml"); err != nil {
 		return nil, nil, err
 	}
-	if err := aliceCLI(alice, "commit", "-m", "seed eas.json", "-f", eas); err != nil {
-		return nil, nil, err
-	}
-	compose := filepath.Join(alice.Home, "compose.yaml")
-	if err := aliceCLI(alice, "set", "POSTGRES_PASSWORD", "acme_pg_demo_password", "-f", compose); err != nil {
-		return nil, nil, err
-	}
-	if err := aliceCLI(alice, "commit", "-m", "seed compose.yaml", "-f", compose); err != nil {
+	if err := seedFile(alice, filepath.Join(alice.Home, "apps", "web", ".env"), "NEXT_PUBLIC_APP_URL", "https://app.acme.test", "seed nested env"); err != nil {
 		return nil, nil, err
 	}
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
@@ -145,8 +137,17 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 	if err := os.WriteFile(filepath.Join(alice.Home, ".sopsdeck.toml"), manifest, 0o600); err != nil {
 		return nil, nil, err
 	}
+	atlas, err := seedSiblingProject(alice, "atlas-web", "eas.json", "EXPO_PUBLIC_API_URL", "https://api.atlas.test", "seed atlas eas.json")
+	if err != nil {
+		return nil, nil, err
+	}
+	docs, err := seedSiblingProject(alice, "docs-site", ".env", "DOCS_SEARCH_KEY", "search_demo_key", "seed docs env")
+	if err != nil {
+		return nil, nil, err
+	}
 	info := &demoInfo{
 		Project:      alice.Home,
+		Projects:     []string{alice.Home, atlas, docs},
 		BobPublicKey: bob.PublicKey,
 		GitHubAPI:    alice.Getenv("SOPSDECK_GITHUB_API"),
 	}
@@ -157,6 +158,43 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 		return alice.Getenv(key)
 	}
 	return info, getenv, nil
+}
+
+func seedFile(alice *studio.User, path, key, value, msg string) error {
+	if err := aliceCLI(alice, "set", key, value, "-f", path); err != nil {
+		return err
+	}
+	return aliceCLI(alice, "commit", "-m", msg, "-f", path)
+}
+
+func seedSiblingProject(alice *studio.User, name, rel, key, value, msg string) (string, error) {
+	dir := filepath.Join(filepath.Dir(alice.Home), name)
+	if err := initGitDir(dir, name, "alice@sopsdeck.example"); err != nil {
+		return "", err
+	}
+	if err := seedFile(alice, filepath.Join(dir, rel), key, value, msg); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+func initGitDir(dir, name, email string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	steps := [][]string{
+		{"init", "-b", "main"},
+		{"config", "user.email", email},
+		{"config", "user.name", name},
+	}
+	for _, args := range steps {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
+		}
+	}
+	return nil
 }
 
 func aliceCLI(alice *studio.User, args ...string) error {

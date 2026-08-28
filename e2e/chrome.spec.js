@@ -261,7 +261,7 @@ test('recents reopen a Project without the folder picker', async ({ page }) => {
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await page.goto('/?empty=1');
   await expect(page.getByTestId('empty-state')).toBeVisible();
-  await page.getByTestId('recent-project').click();
+  await page.getByTestId('recent-project').filter({ hasText: 'checkout' }).click();
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await expect(
     page.getByTestId('managed-file').filter({ hasText: '.env.production' }),
@@ -271,7 +271,7 @@ test('recents reopen a Project without the folder picker', async ({ page }) => {
 test('long file lists truncate with Show more', async ({ page }) => {
   await page.route('**/invoke', async (route) => {
     const data = route.request().postDataJSON();
-    if (data?.cmd !== 'list_managed_files') {
+    if (data?.cmd !== 'list_managed_files' || !String(data.path || '').includes('checkout')) {
       await route.continue();
       return;
     }
@@ -297,6 +297,23 @@ test('long file lists truncate with Show more', async ({ page }) => {
   await expect(extra).toHaveCount(0);
   await page.getByTestId('tree-show-more').click();
   await expect(extra).toBeVisible();
+});
+
+test('demo seed shows several Projects with extras collapsed', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('tree-project').filter({ hasText: 'checkout' })).toBeVisible();
+  const atlas = page.getByTestId('tree-project').filter({ hasText: 'atlas-web' });
+  const docs = page.getByTestId('tree-project').filter({ hasText: 'docs-site' });
+  await expect(atlas).toBeVisible();
+  await expect(docs).toBeVisible();
+  await expect(atlas).toHaveAttribute('aria-expanded', 'false');
+  await expect(docs).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('tree-folder').filter({ hasText: 'apps/web' })).toBeVisible();
+  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toHaveCount(1);
+  await atlas.click();
+  await expect(atlas).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toHaveCount(2);
 });
 
 test('Publish inspector shows mapping and prune off', async ({ page }) => {

@@ -257,6 +257,24 @@ func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
 	if len(files) == 0 || files[0].Name != ".env.production" {
 		t.Fatalf("files=%v, want .env.production first", files)
 	}
+	if _, err := os.Stat(filepath.Join(info.Project, "apps", "web", ".env")); err != nil {
+		t.Fatal(err)
+	}
+	if len(info.Projects) != 3 {
+		t.Fatalf("projects=%v", info.Projects)
+	}
+	if info.Projects[0] != info.Project {
+		t.Fatalf("first project %q", info.Projects[0])
+	}
+	if filepath.Base(info.Projects[1]) != "atlas-web" || filepath.Base(info.Projects[2]) != "docs-site" {
+		t.Fatalf("projects=%v", info.Projects)
+	}
+	if _, err := os.Stat(filepath.Join(info.Projects[1], "eas.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(info.Projects[2], ".env")); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestDriveFlagErrors(t *testing.T) {

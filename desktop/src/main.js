@@ -5,6 +5,7 @@ const THEME_KEY = 'sopsdeck-theme';
 const INSPECTOR_KEY = 'sopsdeck-inspector';
 const RECENTS_KEY = 'sopsdeck-recents';
 const TREE_FOLDERS_KEY = 'sopsdeck-tree-folders';
+const TREE_PROJECTS_KEY = 'sopsdeck-tree-projects';
 const TREE_LIMIT = 8;
 
 async function invokeOverHTTP(cmd, args = {}) {
@@ -653,6 +654,12 @@ function folderStorageKey(projectPath, dir) {
   return `${projectPath}\n${dir}`;
 }
 
+function projectCollapsed(path, index) {
+  const stored = readJSON(TREE_PROJECTS_KEY, {});
+  if (Object.hasOwn(stored, path)) return Boolean(stored[path]);
+  return index > 0;
+}
+
 function appendManagedFile(parent, project, file) {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -740,25 +747,39 @@ function renderTree() {
   const nav = treeEl();
   nav.replaceChildren();
   renderRecents(nav);
-  for (const project of projects) {
+  for (const [index, project] of projects.entries()) {
+    const collapsed = projectCollapsed(project.path, index);
     const wrap = document.createElement('div');
-    const title = document.createElement('div');
+    wrap.className = 'tree-project' + (collapsed ? ' collapsed' : '');
+    const title = document.createElement('button');
+    title.type = 'button';
     title.className = 'project';
-    title.append(project.name);
+    title.dataset.testid = 'tree-project';
+    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    title.append(icon('chevron'), project.name);
     const hint = document.createElement('span');
     hint.className = 'project-path';
     hint.textContent = parentLabel(project.path);
     title.append(hint);
+    title.addEventListener('click', () => {
+      const next = readJSON(TREE_PROJECTS_KEY, {});
+      next[project.path] = !collapsed;
+      localStorage.setItem(TREE_PROJECTS_KEY, JSON.stringify(next));
+      renderTree();
+    });
     wrap.append(title);
-    const files = document.createElement('div');
-    files.className = 'files';
-    const groups = groupFiles(project.files || []);
-    const dirs = [...groups.keys()].sort((a, b) => a.localeCompare(b));
-    for (const dir of dirs) {
-      appendFileGroup(files, project, dir, groups.get(dir));
+    if (!collapsed) {
+      const files = document.createElement('div');
+      files.className = 'files';
+      const groups = groupFiles(project.files || []);
+      const dirs = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+      for (const dir of dirs) {
+        appendFileGroup(files, project, dir, groups.get(dir));
+      }
+
+      wrap.append(files);
     }
 
-    wrap.append(files);
     nav.append(wrap);
   }
 }
@@ -952,7 +973,8 @@ function renderKeys() {
   }
 }
 
-async function addProjectFromPath(path) {
+async function addProjectFromPath(path, opts = {}) {
+  const select = opts.select !== false;
   const files = await invoke('list_managed_files', { path });
   const name = path.split('/').findLast(Boolean) || path;
   const existing = projects.findIndex((p) => p.path === path);
@@ -965,13 +987,15 @@ async function addProjectFromPath(path) {
   }
 
   renderTree();
-  if (files[0]) {
+  if (files[0] && select) {
     await openFile(project, files[0]);
     return;
   }
 
-  selected = null;
-  renderWorkspace();
+  if (select && !files[0]) {
+    selected = null;
+    renderWorkspace();
+  }
 }
 
 async function addProject() {
@@ -1149,6 +1173,11 @@ async function loadDemoHints() {
     const info = await response.json();
     const input = document.getElementById('recipient-key');
     if (input && info.bobPublicKey) input.value = info.bobPublicKey;
+    const extras = Array.isArray(info.projects) ? info.projects : [];
+    for (const path of extras) {
+      if (!path || projects.some((p) => p.path === path)) continue;
+      await addProjectFromPath(path, { select: false });
+    }
   } catch {
     // Tauri has no /demo endpoint.
   }

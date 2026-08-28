@@ -17,6 +17,7 @@ test('publish runs against the local fake GitHub', async ({ request }) => {
   expect(demo.ok()).toBeTruthy();
   const info = await demo.json();
   expect(info.bobPublicKey).toMatch(/^age1/);
+  expect(info.projects.length).toBeGreaterThan(1);
 
   const listed = await request.post('/invoke', {
     data: { cmd: 'list_managed_files', path: info.project },

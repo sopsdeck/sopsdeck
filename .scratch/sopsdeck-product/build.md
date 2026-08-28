@@ -8,7 +8,7 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. Human QA tickets [32](issues/32-one-command-local-launch.md)–[37](issues/37-public-site-download-and-hosting.md) are done. [38](issues/38-multi-project-demo-seed.md) is next. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Request PR / re-encrypt PR still open on recipients. Fake GitHub PUTs are not Libsodium-sealed. Clipboard modal is leftover on 12 + [31](issues/31-deferred-product-ideas.md). [31](issues/31-deferred-product-ideas.md) is backlog (OpenBao needs spec).
+1. Human QA tickets [32](issues/32-one-command-local-launch.md)–[38](issues/38-multi-project-demo-seed.md) are done. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Request PR / re-encrypt PR still open on recipients. Fake GitHub PUTs are not Libsodium-sealed. Clipboard modal is leftover on 12 + [31](issues/31-deferred-product-ideas.md). [31](issues/31-deferred-product-ideas.md) is backlog (OpenBao needs spec).
 
 Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow. Check CI is [`.github/workflows/check.yml`](../../.github/workflows/check.yml).
 
@@ -17,7 +17,7 @@ Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-c
 | Substrate | What it is | Proof |
 | --- | --- | --- |
 | Studio | Two throwaway Age Users, bare origin, fake GitHub Actions secrets API. No extra machine or GitHub account. | `TestTeammateDecryptsAfterRecipientAddAndSync`, publish tests under `internal/studio/` |
-| `sopsdeck drive` | Localhost HTTP of the real UI + `POST /invoke` matching Tauri commands. `--demo` seeds `checkout` + Bob Access. | `internal/cli/drive_test.go`, `./scripts/smoke` |
+| `sopsdeck drive` | Localhost HTTP of the real UI + `POST /invoke` matching Tauri commands. `--demo` seeds `checkout`, `atlas-web`, `docs-site` + Bob Access. | `internal/cli/drive_test.go`, `./scripts/smoke` |
 | Playwright | UI smoke + stills. Not in `./scripts/check`. | `./scripts/smoke`, `./scripts/demo` → `docs/assets/` |
 
 ## Phase status
@@ -58,4 +58,4 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [35](issues/35-nested-project-file-tree.md) | Nested tree, recents, show more | **done** |
 | [36](issues/36-changelog-type-tags.md) | Changelog type tags and grouping | **done** |
 | [37](issues/37-public-site-download-and-hosting.md) | Download, Cloudflare, hero video | **done** |
-| [38](issues/38-multi-project-demo-seed.md) | Multi-project demo seed for stills | open |
+| [38](issues/38-multi-project-demo-seed.md) | Multi-project demo seed for stills | **done** |

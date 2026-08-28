@@ -23,6 +23,11 @@
       "platforms": []
     },
     {
+      "text": "Demo seed opens several Projects with nested Managed Files.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Notes show type tags, group by Added/Fixed/Changed, and platform when a bullet names macOS, Windows, or Linux.",
       "type": "feature",
       "platforms": [
