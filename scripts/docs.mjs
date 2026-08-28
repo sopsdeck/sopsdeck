@@ -232,13 +232,181 @@ function unlinkedAssets(catalog) {
   return missing;
 }
 
+function appVersion() {
+  const src = readFileSync(join(root, 'internal/version/version.go'), 'utf8');
+  const match = /const Version = "([^"]+)"/.exec(src);
+  if (!match) {
+    throw new Error('internal/version/version.go: missing Version');
+  }
+
+  return match[1];
+}
+
+function changelogSection(md, heading) {
+  const lines = md.split('\n');
+  let start = -1;
+  for (const [i, raw] of lines.entries()) {
+    const line = raw.trim();
+    if (
+      line === `## ${heading}` ||
+      line.startsWith(`## ${heading} `) ||
+      line.startsWith(`## [${heading}]`)
+    ) {
+      start = i;
+      break;
+    }
+  }
+
+  if (start < 0) return;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (lines[i].trim().startsWith('## ')) {
+      end = i;
+      break;
+    }
+  }
+
+  return lines.slice(start, end).join('\n');
+}
+
+function changelogBullets(md, heading) {
+  const body = changelogSection(md, heading);
+  if (!body) return [];
+  return body
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- '))
+    .map((line) => line.slice(2).trim());
+}
+
+function escapeHtml(text) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function changelogPage(md) {
+  const headings = [...md.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
+  const sections = headings.map((heading) => {
+    const items = changelogBullets(md, heading);
+    const bullets =
+      items.length === 0
+        ? '        <li>No notes.</li>'
+        : items.map((item) => `        <li>${escapeHtml(item)}</li>`).join('\n');
+    const title = heading === 'Unreleased' ? 'Unreleased (in development)' : heading;
+    return `      <section>
+        <h2>${escapeHtml(title)}</h2>
+        <ul>
+${bullets}
+        </ul>
+      </section>`;
+  });
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sopsdeck — notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0 auto;
+        max-width: 720px;
+        padding: 48px 24px 72px;
+        color: #101828;
+        background: #f7f9fc;
+        font:
+          15px/1.5 Manrope,
+          system-ui,
+          sans-serif;
+      }
+      a {
+        color: #3157f6;
+      }
+      h1 {
+        letter-spacing: -0.04em;
+      }
+      h2 {
+        margin-top: 2em;
+        font-size: 18px;
+      }
+      .kicker {
+        color: #475467;
+        font:
+          600 11px 'IBM Plex Mono',
+          ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="kicker"><a href="index.html">sopsdeck.com</a></p>
+    <h1>Notes</h1>
+    <p>
+      From <code>CHANGELOG.md</code>. Versioning is
+      <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>.
+    </p>
+${sections.join('\n')}
+  </body>
+</html>
+`;
+}
+
+function whatsNewPayload(md, version) {
+  let heading = version;
+  let notes = changelogBullets(md, version);
+  if (notes.length === 0) {
+    heading = 'Unreleased';
+    notes = changelogBullets(md, 'Unreleased');
+  }
+
+  return `${JSON.stringify({ version, heading, notes }, null, 2)}\n`;
+}
+
+function checkVersionDrift(version, bundled) {
+  const tauri = JSON.parse(
+    readFileSync(join(root, 'desktop/src-tauri/tauri.conf.json'), 'utf8'),
+  ).version;
+  const pkg = JSON.parse(readFileSync(join(root, 'desktop/package.json'), 'utf8')).version;
+  const cargoMatch = /^version = "([^"]+)"/m.exec(
+    readFileSync(join(root, 'desktop/src-tauri/Cargo.toml'), 'utf8'),
+  );
+  const cargo = cargoMatch ? cargoMatch[1] : '';
+  for (const [name, got] of Object.entries({
+    'tauri.conf.json': tauri,
+    'desktop/package.json': pkg,
+    'Cargo.toml': cargo,
+    'whats-new.json': bundled,
+  })) {
+    if (got !== version) {
+      process.stderr.write(`version drift: ${name} is ${got}, Go is ${version}\n`);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const go = goTests();
 const rust = rustTests();
 const catalog = loadCatalog();
+const changelogMd = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
+const version = appVersion();
 const files = {
   'docs/features.md': featuresMarkdown(go, rust),
   'docs/seams.md': seamsMarkdown(go, rust),
   'docs/assets.md': assetsMarkdown(catalog),
+  'site/changelog.html': changelogPage(changelogMd),
+  'desktop/src/whats-new.json': whatsNewPayload(changelogMd, version),
 };
 
 let stale = false;
@@ -273,6 +441,9 @@ if (check) {
     process.stderr.write(`${name} is not referenced in README, docs, or the landing page\n`);
     stale = true;
   }
+
+  const bundled = JSON.parse(files['desktop/src/whats-new.json']).version;
+  if (checkVersionDrift(version, bundled)) stale = true;
 }
 
 if (stale) {

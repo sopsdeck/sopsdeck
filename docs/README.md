@@ -10,21 +10,22 @@ This folder is the readable layer over the spec, glossary, and tests. Agents sho
 4. **Public seams** — [seams.md](seams.md) (generated). Where tests must live, and which delivery phases still have none.
 5. **Living features** — [features.md](features.md) (generated from test names). If a behavior is not named here, it is not specified by a test yet.
 6. **Product stills and clips** — [assets.md](assets.md) (generated catalog). Created by `./scripts/demo`; `./scripts/docs --check` fails when files are missing or unlinked.
+7. **Versioning** — [versioning.md](versioning.md). Epoch SemVer; `CHANGELOG.md` is canonical.
 
 Regenerate the living files with `./scripts/docs`. `./scripts/check` fails when they are stale.
 
 ## Quality scripts
 
-| Script             | What it proves                                             |
-| ------------------ | ---------------------------------------------------------- |
-| `./scripts/fmt`    | Formatters (gofumpt, rustfmt, prettier)                    |
-| `./scripts/lint`   | gofumpt, golangci-lint, rustfmt, clippy, prettier, xo      |
-| `./scripts/test`   | Go tests; Rust tests via cargo-nextest when installed      |
-| `./scripts/cover`  | Go coverage floor; rust `cargo llvm-cov` when installed    |
-| `./scripts/docs`   | Regenerates features and seams from tests                  |
-| `./scripts/smoke`  | Local teammates + Playwright against `sopsdeck drive`      |
-| `./scripts/demo`   | Product stills, clips, and walkthrough into `docs/assets/` |
-| `./scripts/mutate` | Mutation testing (slow; not in `./scripts/check`)          |
-| `./scripts/check`  | lint + test + cover + docs --check                         |
+| Script             | What it proves                                                             |
+| ------------------ | -------------------------------------------------------------------------- |
+| `./scripts/fmt`    | Formatters (gofumpt, rustfmt, prettier)                                    |
+| `./scripts/lint`   | gofumpt, golangci-lint, rustfmt, clippy, prettier, xo                      |
+| `./scripts/test`   | Go tests; Rust tests via cargo-nextest when installed                      |
+| `./scripts/cover`  | Go coverage floor; rust `cargo llvm-cov` when installed                    |
+| `./scripts/docs`   | Regenerates features, seams, assets catalog, landing changelog, What’s new |
+| `./scripts/smoke`  | Local teammates + Playwright against `sopsdeck drive`                      |
+| `./scripts/demo`   | Product stills, clips, and walkthrough into `docs/assets/`                 |
+| `./scripts/mutate` | Mutation testing (slow; not in `./scripts/check`)                          |
+| `./scripts/check`  | lint + test + cover + docs --check                                         |
 
 Rust local loop: `cd desktop/src-tauri && bacon clippy`. Stay on stable rustc; Tauri is the reason not to default to nightly. Clippy denies panics, unwrap, expect, and indexing in production code, and allows them in tests.

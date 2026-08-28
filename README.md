@@ -46,6 +46,8 @@ export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
 
 `publish` talks to `SOPSDECK_GITHUB_API` (real GitHub or the in-process fake). Without `--yes` it is a dry-run.
 
+`./sopsdeck --version` matches the desktop app. Notes are [CHANGELOG.md](CHANGELOG.md); bump rules are [docs/versioning.md](docs/versioning.md).
+
 ## Drive the app from code
 
 The desktop UI is the same HTML/JS as Tauri. `sopsdeck drive` serves it on localhost and accepts the same invoke commands over HTTP, so Playwright (or any client) can smoke-test the full app and capture screenshots. Team flows use a local **studio**: two throwaway Age identities, a bare git origin, and a fake GitHub Actions secrets API. No extra machine or GitHub account.
@@ -85,7 +87,7 @@ bun run tauri -- dev
 python3 -m http.server 4173 --directory site
 ```
 
-Open http://127.0.0.1:4173/
+Open http://127.0.0.1:4173/ — [changelog.html](site/changelog.html) is generated from `CHANGELOG.md`.
 
 ## Quality
 

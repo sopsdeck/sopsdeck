@@ -1,7 +1,7 @@
 # Epoch SemVer, CHANGELOG.md, and release notes surfaces
 
 Type: build
-Status: ready
+Status: done
 Blocked by: None
 
 ## What to build
@@ -39,16 +39,18 @@ CLI `sopsdeck --version` / about UI read the same version string as Tauri (`taur
 
 - Issue 14: semver, GitHub Releases, Tauri updater JSON, no Sopsdeck backend.
 - `desktop/src-tauri/tauri.conf.json` and `desktop/package.json` are `0.1.0`.
-- No repo `CHANGELOG.md`, no `.github/workflows` release job.
+- `CHANGELOG.md`, `docs/versioning.md`, `./scripts/release-notes`, `.github/workflows/release.yml`.
+- `./scripts/docs` writes `site/changelog.html` and `desktop/src/whats-new.json`.
+- `sopsdeck --version` is `internal/version`; check/tests fail on drift vs Tauri/Cargo/`package.json`.
 
 ## Acceptance criteria
 
-- [ ] `CHANGELOG.md` exists with Unreleased; user-facing work adds bullets there before or with the change.
-- [ ] Documented bump rules: epoch-semver; first public tag `v1.0.0`; EPOCH only for a named era.
-- [ ] Tag pipeline: `vX.Y.Z` → GitHub Release notes equal that changelog section (fail CI if missing).
-- [ ] Landing page changelog is generated from `CHANGELOG.md` (or a generated fragment checked in by `./scripts/docs`).
-- [ ] App can show What’s new for the running version from bundled notes (no required network).
-- [ ] One version number for CLI + app; a test or check fails if they drift.
+- [x] `CHANGELOG.md` exists with Unreleased; user-facing work adds bullets there before or with the change.
+- [x] Documented bump rules: epoch-semver; first public tag `v1.0.0`; EPOCH only for a named era.
+- [x] Tag pipeline: `vX.Y.Z` → GitHub Release notes equal that changelog section (fail CI if missing).
+- [x] Landing page changelog is generated from `CHANGELOG.md` (or a generated fragment checked in by `./scripts/docs`).
+- [x] App can show What’s new for the running version from bundled notes (no required network).
+- [x] One version number for CLI + app; a test or check fails if they drift.
 
 ## Seams
 
