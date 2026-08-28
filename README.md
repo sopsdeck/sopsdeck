@@ -47,7 +47,11 @@ export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
 ./sopsdeck recipient remove AGE1... -f path/to/.env.production
 ./sopsdeck publish -f path/to/.env.production --prefix SD_ --yes
 ./sopsdeck files path/to/project
+./sopsdeck scan
+./sopsdeck scan --install
 ```
+
+`scan` looks at staged files only. High-confidence cloud keys, private key PEMs, and common tokens block; test tokens warn. SOPS ciphertext is ignored. `--install` writes an opt-in `.git/hooks/pre-commit` and records `scan.hook` in `.sopsdeck.toml`. `git commit --no-verify` still skips the hook.
 
 `publish` talks to `SOPSDECK_GITHUB_API` (real GitHub or the in-process fake). Auth is `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`. Without `--yes` it is a dry-run.
 

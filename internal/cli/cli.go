@@ -27,7 +27,7 @@ import (
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive|scan> ...")
 		return 1
 	}
 	switch args[0] {
@@ -62,6 +62,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdFiles(args[1:], stdout, stderr)
 	case "drive":
 		return cmdDrive(args[1:], stdout, stderr, getenv)
+	case "scan":
+		return cmdScan(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 1

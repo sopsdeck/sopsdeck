@@ -38,10 +38,16 @@ const phases = [
     match: /^publish/,
     names: /Publish|GitHub/,
   },
+  {
+    phase: 6,
+    title: 'Scan hook',
+    seam: 'scan hook',
+    match: /^scan/,
+    names: /Scan/,
+  },
 ];
 
 const uncovered = [
-  { phase: 6, title: 'Scan hook', seam: 'scan hook' },
   { phase: 7, title: 'Paste + MCP', seam: 'MCP' },
   { phase: 8, title: 'Signed macOS release', seam: 'release artifacts' },
 ];
@@ -168,6 +174,7 @@ function seamsMarkdown(go, rust) {
   lines.push(
     `| 5 | GitHub Publish | GitHub Publish adapter | ${(goByPhase.get(5) ?? []).join(', ') || '_none_'} |`,
   );
+  lines.push(`| 6 | Scan hook | scan hook | ${(goByPhase.get(6) ?? []).join(', ') || '_none_'} |`);
   for (const row of uncovered) {
     lines.push(`| ${row.phase} | ${row.title} | ${row.seam} | _none_ |`);
   }

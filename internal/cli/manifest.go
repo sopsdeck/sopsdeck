@@ -9,6 +9,12 @@ import (
 
 type projectManifest struct {
 	ManagedFile []manifestFile `toml:"managed_file"`
+	Scan        scanPolicy     `toml:"scan"`
+}
+
+type scanPolicy struct {
+	Hook      bool     `toml:"hook,omitempty"`
+	Allowlist []string `toml:"allowlist,omitempty"`
 }
 
 type manifestFile struct {
