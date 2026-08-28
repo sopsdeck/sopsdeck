@@ -20,5 +20,5 @@ Conflicts: if base, ours, and theirs all decrypt and parse, show a secret-aware 
 
 ## Implementation (2026-08-28)
 
-`sopsdeck commit -m … -f` and `sopsdeck sync` (fetch, `pull --ff-only`, push) are tested, including diverge refusal and dirty-worktree stop. `sopsdeck review -f` prints a plaintext semantic diff of uncommitted keys vs HEAD. `sopsdeck history -f` is `git log` on the file; `get --at REV` decrypts that revision. Desktop Commit/Sync invoke those commands. Commit message is user-supplied; prefill is [21](21-desktop-chrome-polish.md). Not done: Restore, three-way.
+`sopsdeck commit -m … -f` and `sopsdeck sync` (fetch, `pull --ff-only`, push) are tested, including diverge refusal and dirty-worktree stop. `sopsdeck review -f` prints a plaintext semantic diff of uncommitted keys vs HEAD. `sopsdeck history -f` is `git log` on the file; `get --at REV` decrypts that revision. `sopsdeck restore -f FILE --at REV` copies those values into the current file and does not commit. Desktop Commit/Sync invoke those commands. Commit message is user-supplied; prefill is [21](21-desktop-chrome-polish.md). Not done: three-way.
 
