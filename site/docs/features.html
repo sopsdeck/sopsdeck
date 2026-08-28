@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sopsdeck — features</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #101828;
+        --blue: #3157f6;
+        --mint: #46d6a8;
+        --paper: #f7f9fc;
+        --slate: #475467;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font: 15px/1.5 Manrope, system-ui, sans-serif;
+      }
+      a { color: inherit; }
+      a:hover { color: var(--blue); }
+      .wrap { width: min(800px, calc(100% - 40px)); margin: 0 auto; }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 22px 0;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        text-decoration: none;
+      }
+      .mark { width: 28px; height: 28px; }
+      nav {
+        display: flex;
+        gap: 22px;
+        color: var(--slate);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      nav a { text-decoration: none; }
+      nav a[aria-current='page'] { color: var(--ink); }
+      .hero {
+        padding: 36px 40px 40px;
+        color: var(--paper);
+        border-radius: 24px;
+        background: var(--ink);
+      }
+      .kicker {
+        color: var(--mint);
+        font: 600 11px 'IBM Plex Mono', ui-monospace, monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .hero h1 {
+        margin: 10px 0 8px;
+        font-size: clamp(32px, 6vw, 48px);
+        letter-spacing: -0.05em;
+      }
+      .hero p { margin: 0; max-width: 52ch; color: rgba(247, 249, 252, 0.72); }
+      .hero a { color: var(--mint); }
+      .prose { margin: 36px 0 48px; color: var(--slate); }
+      .prose h1, .prose h2, .prose h3 {
+        color: var(--ink);
+        letter-spacing: -0.04em;
+      }
+      .prose h1 { font-size: 28px; }
+      .prose h2 { margin-top: 32px; font-size: 22px; }
+      .prose code, .prose pre {
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
+        font-size: 13px;
+      }
+      .prose pre {
+        overflow: auto;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      .prose table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .prose th, .prose td {
+        text-align: left;
+        vertical-align: top;
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      .prose ul { padding-left: 1.2em; }
+      .doc-index { list-style: none; padding: 0; }
+      .doc-index li {
+        margin: 0 0 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(16, 24, 40, 0.08);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .release { margin: 0 0 48px; }
+      .release h2 {
+        margin: 6px 0 18px;
+        font-size: 28px;
+        letter-spacing: -0.04em;
+        color: var(--ink);
+      }
+      .release > .kicker { color: var(--slate); }
+      .notes {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: note;
+      }
+      .notes li {
+        counter-increment: note;
+        display: grid;
+        grid-template-columns: 2.2em 1fr;
+        gap: 12px;
+        margin: 0 0 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(16, 24, 40, 0.08);
+        border-radius: 14px;
+        background: #fff;
+        color: var(--slate);
+        line-height: 1.45;
+      }
+      .notes li:before {
+        content: counter(note, decimal-leading-zero);
+        color: var(--blue);
+        font: 600 11px 'IBM Plex Mono', ui-monospace, monospace;
+      }
+      footer { padding: 8px 0 48px; color: var(--slate); font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a class="logo" href="../index.html">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path
+              d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="6"
+              stroke-linejoin="round"
+            />
+            <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
+          </svg>
+          sopsdeck
+        </a>
+        <nav>
+          <a href="../index.html">Product</a>
+          <a href="../docs/" aria-current="page">Docs</a>
+          <a href="../changelog.html">Notes</a>
+        </nav>
+      </header>
+      <section class="hero">
+        <p class="kicker">Living spec</p>
+        <h1>Features proved by tests</h1>
+        <p>Generated from test names. If a behavior is not named here, it is not specified by a test yet.</p>
+      </section>
+      <div class="prose">
+        <p>Generated by <code>./scripts/docs</code>. Do not edit by hand.</p>
+        <p>These names are the living specification of behavior that currently has a test.</p>
+        <p>Domain words come from <a href="glossary.html">CONTEXT.md</a>.</p>
+        <h2>CLI</h2>
+        <ul>
+        <li>Notes For Tag Returns Section (<code>TestNotesForTagReturnsSection</code>)</li>
+        <li>Notes For Tag Fails When Missing (<code>TestNotesForTagFailsWhenMissing</code>)</li>
+        <li>Notes For Tag Fails When Only Unreleased (<code>TestNotesForTagFailsWhenOnlyUnreleased</code>)</li>
+        <li>Bullets From Unreleased (<code>TestBulletsFromUnreleased</code>)</li>
+        <li>Commit Stages Managed File And Records Message (<code>TestCommitStagesManagedFileAndRecordsMessage</code>)</li>
+        <li>Del Removes Key (<code>TestDelRemovesKey</code>)</li>
+        <li>Drive Invoke Lists And Reads Managed File (<code>TestDriveInvokeListsAndReadsManagedFile</code>)</li>
+        <li>Drive Listen Must Be Localhost (<code>TestDriveListenMustBeLocalhost</code>)</li>
+        <li>Drive Invoke Publishes To Fake Git Hub (<code>TestDriveInvokePublishesToFakeGitHub</code>)</li>
+        <li>Drive Health And Demo JSON (<code>TestDriveHealthAndDemoJSON</code>)</li>
+        <li>Drive Invoke Adds Recipient (<code>TestDriveInvokeAddsRecipient</code>)</li>
+        <li>Seed Demo Creates Shared Managed File (<code>TestSeedDemoCreatesSharedManagedFile</code>)</li>
+        <li>Drive Flag Errors (<code>TestDriveFlagErrors</code>)</li>
+        <li>Drive Invoke Set Commit Sync And Errors (<code>TestDriveInvokeSetCommitSyncAndErrors</code>)</li>
+        <li>Drive Invoke Review History And Restore (<code>TestDriveInvokeReviewHistoryAndRestore</code>)</li>
+        <li>Drive Invoke Creates Empty Managed File (<code>TestDriveInvokeCreatesEmptyManagedFile</code>)</li>
+        <li>Drive Invoke Deletes Managed Key (<code>TestDriveInvokeDeletesManagedKey</code>)</li>
+        <li>Files Lists Dotenv In Folder (<code>TestFilesListsDotenvInFolder</code>)</li>
+        <li>Files Lists Compose YAML And Multiline Dotenv (<code>TestFilesListsComposeYAMLAndMultilineDotenv</code>)</li>
+        <li>Files Rejects A File (<code>TestFilesRejectsAFile</code>)</li>
+        <li>Files Rejects Extra Args (<code>TestFilesRejectsExtraArgs</code>)</li>
+        <li>Get Without Access Explains Missing Access (<code>TestGetWithoutAccessExplainsMissingAccess</code>)</li>
+        <li>Get Without Key Prints All Dotenv Pairs (<code>TestGetWithoutKeyPrintsAllDotenvPairs</code>)</li>
+        <li>Get Reads Dotenv Named Env Production (<code>TestGetReadsDotenvNamedEnvProduction</code>)</li>
+        <li>Get Output JSON Prints Pairs For Any Format (<code>TestGetOutputJSONPrintsPairsForAnyFormat</code>)</li>
+        <li>Get Prints Value From SOPSJSON And YAML (<code>TestGetPrintsValueFromSOPSJSONAndYAML</code>)</li>
+        <li>Get Prints Value From EASJSON And Warns On Stderr (<code>TestGetPrintsValueFromEASJSONAndWarnsOnStderr</code>)</li>
+        <li>Get Prints Value From Compose YAML (<code>TestGetPrintsValueFromComposeYAML</code>)</li>
+        <li>Get Prints Value From SOPS Dotenv (<code>TestGetPrintsValueFromSOPSDotenv</code>)</li>
+        <li>Get Prints Multiline Dotenv Value Containing A Newline (<code>TestGetPrintsMultilineDotenvValueContainingANewline</code>)</li>
+        <li>History Lists Commits On A Managed File (<code>TestHistoryListsCommitsOnAManagedFile</code>)</li>
+        <li>Get At Revision Prints Historical Value (<code>TestGetAtRevisionPrintsHistoricalValue</code>)</li>
+        <li>Identity Create Without Backup Confirm Does Not Persist (<code>TestIdentityCreateWithoutBackupConfirmDoesNotPersist</code>)</li>
+        <li>Identity Create With Backup Confirm Can Decrypt (<code>TestIdentityCreateWithBackupConfirmCanDecrypt</code>)</li>
+        <li>Identity Import With Backup Confirm Restores Access (<code>TestIdentityImportWithBackupConfirmRestoresAccess</code>)</li>
+        <li>Publish Failed Put Explains Retry (<code>TestPublishFailedPutExplainsRetry</code>)</li>
+        <li>Publish Dry Run Does Not Write (<code>TestPublishDryRunDoesNotWrite</code>)</li>
+        <li>Publish Requires API (<code>TestPublishRequiresAPI</code>)</li>
+        <li>Publish Prunes Prefixed Secrets Not In File (<code>TestPublishPrunesPrefixedSecretsNotInFile</code>)</li>
+        <li>Recipient Add Lets Second Identity Decrypt (<code>TestRecipientAddLetsSecondIdentityDecrypt</code>)</li>
+        <li>Recipient Remove Revokes Access And Rotates Data Key (<code>TestRecipientRemoveRevokesAccessAndRotatesDataKey</code>)</li>
+        <li>Recipient Remove Refuses Last Recipient (<code>TestRecipientRemoveRefusesLastRecipient</code>)</li>
+        <li>Recipient Remove Unknown Is No Op (<code>TestRecipientRemoveUnknownIsNoOp</code>)</li>
+        <li>Restore Copies Historical Values Without Committing (<code>TestRestoreCopiesHistoricalValuesWithoutCommitting</code>)</li>
+        <li>Review Shows Plaintext Semantic Diff Of Uncommitted Managed File (<code>TestReviewShowsPlaintextSemanticDiffOfUncommittedManagedFile</code>)</li>
+        <li>Review Shows Three Way When Managed File Conflicts (<code>TestReviewShowsThreeWayWhenManagedFileConflicts</code>)</li>
+        <li>Run Injects JSON Secrets (<code>TestRunInjectsJSONSecrets</code>)</li>
+        <li>Run Injects Secrets Into Child Env (<code>TestRunInjectsSecretsIntoChildEnv</code>)</li>
+        <li>Set Creates Encrypted File When Missing (<code>TestSetCreatesEncryptedFileWhenMissing</code>)</li>
+        <li>Set Creates Empty Encrypted Managed File When Missing (<code>TestSetCreatesEmptyEncryptedManagedFileWhenMissing</code>)</li>
+        <li>Set Refuses Empty Create When Managed File Exists (<code>TestSetRefusesEmptyCreateWhenManagedFileExists</code>)</li>
+        <li>Set Writes Value Retrievable By Get (<code>TestSetWritesValueRetrievableByGet</code>)</li>
+        <li>Sync Refuses Dirty Managed File (<code>TestSyncRefusesDirtyManagedFile</code>)</li>
+        <li>Sync Refuses When Branch Has Diverged (<code>TestSyncRefusesWhenBranchHasDiverged</code>)</li>
+        <li>Sync Pushes When Remote Can Fast Forward (<code>TestSyncPushesWhenRemoteCanFastForward</code>)</li>
+        <li>Sync Without Upstream Explains Missing Tracking (<code>TestSyncWithoutUpstreamExplainsMissingTracking</code>)</li>
+        <li>Version Prints App Version (<code>TestVersionPrintsAppVersion</code>)</li>
+        <li>Version Matches Desktop Manifests (<code>TestVersionMatchesDesktopManifests</code>)</li>
+        <li>List Finds Dotenv And SOPS Structured Files (<code>TestListFindsDotenvAndSOPSStructuredFiles</code>)</li>
+        <li>List Finds Committed Compose YAML And Multiline Dotenv (<code>TestListFindsCommittedComposeYAMLAndMultilineDotenv</code>)</li>
+        <li>Teammate Decrypts After Recipient Add And Sync (<code>TestTeammateDecryptsAfterRecipientAddAndSync</code>)</li>
+        <li>Teammate Loses Access After Recipient Remove And Sync (<code>TestTeammateLosesAccessAfterRecipientRemoveAndSync</code>)</li>
+        <li>Publish Puts Prefixed Names On Fake Git Hub (<code>TestPublishPutsPrefixedNamesOnFakeGitHub</code>)</li>
+        <li>Files Command Lists Studio Managed File (<code>TestFilesCommandListsStudioManagedFile</code>)</li>
+        </ul>
+        <h2>Desktop discovery</h2>
+        <ul>
+        <li>cargo pkg version matches whats new (<code>cargo<em>pkg</em>version<em>matches</em>whats_new</code>)</li>
+        <li>list in rejects a file (<code>list<em>in</em>rejects<em>a</em>file</code>)</li>
+        <li>list in finds dotenv and sops structured files (<code>list<em>in</em>finds<em>dotenv</em>and<em>sops</em>structured_files</code>)</li>
+        <li>dotenv names include env production suffix (<code>dotenv<em>names</em>include<em>env</em>production_suffix</code>)</li>
+        </ul>
+      </div>
+      <footer>Canonical domain sopsdeck.com. Generated pages stay in sync via ./scripts/docs.</footer>
+    </div>
+  </body>
+</html>

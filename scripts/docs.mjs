@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { mediaDurationSeconds, minClipSeconds } from './clip-duration.mjs';
+import { mdToHtml, sitePage } from './site-pages.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const check = process.argv.includes('--check');
@@ -236,7 +237,14 @@ function requiredAssetFiles(catalog) {
 }
 
 function unlinkedAssets(catalog) {
-  const roots = ['README.md', 'docs/README.md', 'docs/assets.md', 'site/index.html'];
+  const roots = [
+    'README.md',
+    'docs/README.md',
+    'docs/assets.md',
+    'site/index.html',
+    'site/docs/index.html',
+    'site/docs/assets.html',
+  ];
   const combined = roots
     .map((rel) => {
       try {
@@ -331,183 +339,54 @@ ${bullets}
         </ol>
       </section>`;
   });
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sopsdeck — notes</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      :root {
-        --ink: #101828;
-        --blue: #3157f6;
-        --mint: #46d6a8;
-        --paper: #f7f9fc;
-        --slate: #475467;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        color: var(--ink);
-        background: var(--paper);
-        font:
-          15px/1.5 Manrope,
-          system-ui,
-          sans-serif;
-      }
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-      a:hover {
-        color: var(--ink);
-      }
-      .wrap {
-        width: min(720px, calc(100% - 40px));
-        margin: 0 auto;
-      }
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 22px 0;
-      }
-      .logo {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-      }
-      .mark {
-        width: 28px;
-        height: 28px;
-      }
-      nav {
-        display: flex;
-        gap: 22px;
-        color: var(--slate);
-        font-size: 13px;
-        font-weight: 600;
-      }
-      .hero {
-        padding: 36px 40px 40px;
-        color: var(--paper);
-        border-radius: 24px;
-        background: var(--ink);
-      }
-      .kicker {
-        color: var(--mint);
-        font:
-          600 11px 'IBM Plex Mono',
-          ui-monospace,
-          monospace;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      .hero h1 {
-        margin: 10px 0 8px;
-        font-size: clamp(32px, 6vw, 48px);
-        letter-spacing: -0.05em;
-      }
-      .hero p {
-        margin: 0;
-        max-width: 46ch;
-        color: rgba(247, 249, 252, 0.72);
-      }
-      .hero a {
-        color: var(--mint);
-      }
-      .release {
-        margin: 36px 0 48px;
-      }
-      .release h2 {
-        margin: 6px 0 18px;
-        font-size: 28px;
-        letter-spacing: -0.04em;
-      }
-      .release > .kicker {
-        color: var(--slate);
-      }
-      .notes {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-        counter-reset: note;
-      }
-      .notes li {
-        counter-increment: note;
-        display: grid;
-        grid-template-columns: 2.2em 1fr;
-        gap: 12px;
-        margin: 0 0 10px;
-        padding: 14px 16px;
-        border: 1px solid rgba(16, 24, 40, 0.08);
-        border-radius: 14px;
-        background: #fff;
-        color: var(--slate);
-        line-height: 1.45;
-      }
-      .notes li:before {
-        content: counter(note, decimal-leading-zero);
-        color: var(--blue);
-        font:
-          600 11px 'IBM Plex Mono',
-          ui-monospace,
-          monospace;
-      }
-      footer {
-        padding: 8px 0 48px;
-        color: var(--slate);
-        font-size: 13px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <header>
-        <a class="logo" href="index.html">
-          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
-            <path
-              d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="6"
-              stroke-linejoin="round"
-            />
-            <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
-          </svg>
-          sopsdeck
-        </a>
-        <nav>
-          <a href="index.html">Product</a>
-          <a href="changelog.html">Notes</a>
-        </nav>
-      </header>
-      <section class="hero">
-        <p class="kicker">Changelog</p>
-        <h1>What's new</h1>
-        <p>
-          From <code>CHANGELOG.md</code>. Versioning is
-          <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>.
-        </p>
-      </section>
-${sections.join('\n')}
-      <footer>Canonical source stays CHANGELOG.md. This page is generated.</footer>
-    </div>
-  </body>
-</html>
-`;
+  return sitePage({
+    title: 'Sopsdeck — notes',
+    kicker: 'Changelog',
+    heading: "What's new",
+    lede: 'From <code>CHANGELOG.md</code>. Versioning is <a href="docs/versioning.html">Epoch SemVer</a>.',
+    active: 'notes',
+    base: '',
+    body: sections.join('\n'),
+  });
+}
+
+function stripFirstHeading(md) {
+  return md.replace(/^# .+\n+/, '');
+}
+
+function markdownSitePage({ title, kicker, heading, lede, md }) {
+  const html = mdToHtml(stripFirstHeading(md))
+    .split('\n')
+    .map((line) => (line ? `        ${line}` : line))
+    .join('\n');
+  return sitePage({
+    title,
+    kicker,
+    heading,
+    lede,
+    active: 'docs',
+    base: '../',
+    body: html,
+  });
+}
+
+function docsHubPage() {
+  return sitePage({
+    title: 'Sopsdeck — docs',
+    kicker: 'Documentation',
+    heading: 'What the product is, proved',
+    lede: 'Living pages generated from tests, the asset catalog, and CHANGELOG.md.',
+    active: 'docs',
+    base: '../',
+    body: `        <ul class="doc-index">
+          <li><a href="features.html">Living features</a> — generated from test names. If a behavior is not named here, it is not specified by a test yet.</li>
+          <li><a href="seams.html">Public seams</a> — where tests must live, and which delivery phases still have none.</li>
+          <li><a href="assets.html">Product assets</a> — stills, clips, walkthrough, and CLI casts from <code>./scripts/demo</code>.</li>
+          <li><a href="versioning.html">Versioning</a> — Epoch SemVer; CHANGELOG.md is canonical.</li>
+          <li><a href="glossary.html">Domain language</a> — words from CONTEXT.md.</li>
+          <li><a href="../changelog.html">Notes</a> — generated from CHANGELOG.md.</li>
+        </ul>`,
+  });
 }
 
 function whatsNewPayload(md, version) {
@@ -550,11 +429,50 @@ const rust = rustTests();
 const catalog = loadCatalog();
 const changelogMd = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
 const version = appVersion();
+const featuresMd = featuresMarkdown(go, rust);
+const seamsMd = seamsMarkdown(go, rust);
+const assetsMd = assetsMarkdown(catalog);
 const files = {
-  'docs/features.md': featuresMarkdown(go, rust),
-  'docs/seams.md': seamsMarkdown(go, rust),
-  'docs/assets.md': assetsMarkdown(catalog),
+  'docs/features.md': featuresMd,
+  'docs/seams.md': seamsMd,
+  'docs/assets.md': assetsMd,
   'site/changelog.html': changelogPage(changelogMd),
+  'site/docs/index.html': docsHubPage(),
+  'site/docs/features.html': markdownSitePage({
+    title: 'Sopsdeck — features',
+    kicker: 'Living spec',
+    heading: 'Features proved by tests',
+    lede: 'Generated from test names. If a behavior is not named here, it is not specified by a test yet.',
+    md: featuresMd,
+  }),
+  'site/docs/seams.html': markdownSitePage({
+    title: 'Sopsdeck — seams',
+    kicker: 'Delivery',
+    heading: 'Public seams',
+    lede: 'Where tests must live, and which delivery phases still have none.',
+    md: seamsMd,
+  }),
+  'site/docs/assets.html': markdownSitePage({
+    title: 'Sopsdeck — assets',
+    kicker: 'Catalog',
+    heading: 'Product assets',
+    lede: 'Stills, clips, walkthrough, and CLI casts from <code>./scripts/demo</code>.',
+    md: assetsMd,
+  }),
+  'site/docs/versioning.html': markdownSitePage({
+    title: 'Sopsdeck — versioning',
+    kicker: 'Releases',
+    heading: 'Versioning',
+    lede: 'Epoch SemVer. CHANGELOG.md is the source of truth.',
+    md: readFileSync(join(root, 'docs/versioning.md'), 'utf8'),
+  }),
+  'site/docs/glossary.html': markdownSitePage({
+    title: 'Sopsdeck — domain language',
+    kicker: 'Glossary',
+    heading: 'Domain language',
+    lede: 'Words from CONTEXT.md. Use these in tests, UI copy, and docs.',
+    md: readFileSync(join(root, 'CONTEXT.md'), 'utf8'),
+  }),
   'desktop/src/whats-new.json': whatsNewPayload(changelogMd, version),
 };
 
