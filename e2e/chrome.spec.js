@@ -240,6 +240,15 @@ test('sidebar rejects a Managed File path outside the Project', async ({ page })
   await expect(error).toContainText('inside the Project');
 });
 
+test('Publish inspector shows mapping and prune off', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('publish-prefix')).toHaveValue('SD_');
+  await expect(page.getByTestId('publish-repo')).toContainText('studio/demo');
+  await expect(page.getByTestId('publish-environment')).toHaveText('—');
+  await expect(page.getByTestId('publish-prune')).not.toBeChecked();
+});
+
 test('window does not scroll empty body chrome', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');

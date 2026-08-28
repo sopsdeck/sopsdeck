@@ -88,6 +88,32 @@ func TestDriveInvokePublishesToFakeGitHub(t *testing.T) {
 	}
 }
 
+func TestDriveInvokeReturnsPublishMapping(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte("[[managed_file]]\npath = \".env.production\"\nrepo = \"acme/app\"\nenvironment = \"production\"\nprefix = \"SD_\"\n")
+	if err := os.WriteFile(filepath.Join(alice.Home, ".sopsdeck.toml"), manifest, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
+	t.Cleanup(srv.Close)
+	body := postInvoke(t, srv.URL, invokeReq{Cmd: "get_publish_mapping", Path: env})
+	if !bytes.Contains(body, []byte("acme/app")) || !bytes.Contains(body, []byte("production")) || !bytes.Contains(body, []byte("SD_")) {
+		t.Fatalf("mapping=%s", body)
+	}
+}
+
 func TestDriveHealthAndDemoJSON(t *testing.T) {
 	srv := httptest.NewServer(&drive{
 		uiRoot: t.TempDir(),
@@ -213,6 +239,9 @@ func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
 		t.Fatalf("project %q", getenv("SOPSDECK_DEV_PROJECT"))
 	}
 	if _, err := os.Stat(filepath.Join(info.Project, ".env.production")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(info.Project, ".sopsdeck.toml")); err != nil {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer

@@ -126,6 +126,26 @@
           </section>
           <section class="inspect-section">
             <h2>Publish</h2>
+            <div class="meta">
+              <span>Repo</span><strong id="publish-repo" data-testid="publish-repo">—</strong>
+              <span>Environment</span
+              ><strong id="publish-environment" data-testid="publish-environment">—</strong>
+            </div>
+            <label class="commit-label">
+              Prefix
+              <input
+                id="publish-prefix"
+                type="text"
+                placeholder="SD_"
+                autocomplete="off"
+                spellcheck="false"
+                data-testid="publish-prefix"
+              />
+            </label>
+            <label class="commit-label prune-label">
+              <input id="publish-prune" type="checkbox" data-testid="publish-prune" />
+              Prune previously published names
+            </label>
             <button id="publish" class="tool git-action" type="button" data-testid="publish">
               Dry run
             </button>

@@ -24,6 +24,7 @@ type invokeReq struct {
 	PublicKey string `json:"publicKey"`
 	Prefix    string `json:"prefix"`
 	Yes       bool   `json:"yes"`
+	Prune     bool   `json:"prune"`
 	At        string `json:"at"`
 }
 
@@ -140,6 +141,10 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
 		return nil, nil, err
 	}
+	manifest := []byte("[[managed_file]]\npath = \".env.production\"\nrepo = \"studio/demo\"\nprefix = \"SD_\"\n")
+	if err := os.WriteFile(filepath.Join(alice.Home, ".sopsdeck.toml"), manifest, 0o600); err != nil {
+		return nil, nil, err
+	}
 	info := &demoInfo{
 		Project:      alice.Home,
 		BobPublicKey: bob.PublicKey,
@@ -246,6 +251,8 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 		return invokeRecipientRemove(req, getenv)
 	case "publish_managed_file":
 		return invokePublish(req, getenv)
+	case "get_publish_mapping":
+		return invokePublishMapping(req, getenv)
 	case "pick_project_folder", "boot_project":
 		project := getenv("SOPSDECK_DEV_PROJECT")
 		if project == "" {
@@ -354,11 +361,26 @@ func invokePublish(req invokeReq, getenv func(string) string) (any, error) {
 	if req.Yes {
 		args = append(args, "--yes")
 	}
+	if req.Prune {
+		args = append(args, "--prune")
+	}
 	var stdout, stderr strings.Builder
 	if err := cliErr(cmdPublish(args, &stdout, &stderr, getenv), &stderr); err != nil {
 		return nil, err
 	}
 	return strings.TrimSpace(stdout.String()), nil
+}
+
+func invokePublishMapping(req invokeReq, getenv func(string) string) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdPublish([]string{"-f", req.Path, "--mapping"}, &stdout, &stderr, getenv), &stderr); err != nil {
+		return nil, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal([]byte(stdout.String()), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func gitTopLevel(path string) (string, error) {

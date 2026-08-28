@@ -2,6 +2,7 @@
   "version": "0.1.0",
   "heading": "Unreleased",
   "notes": [
+    "Inspector Publish shows repo, environment, prefix, and opt-in prune from `.sopsdeck.toml`.",
     "Publish uses `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token` as the GitHub Authorization bearer.",
     "Publish reads `.sopsdeck.toml` for repo, environment, prefix, keys, and last-published names; prune deletes only names Sopsdeck previously published.",
     "Markdown in `docs/`, README, and CHANGELOG is linted; `./scripts/scan` runs govulncheck and bun audit. CI runs `./scripts/check`; opt-in hooks require a CHANGELOG bullet on user-facing commits.",

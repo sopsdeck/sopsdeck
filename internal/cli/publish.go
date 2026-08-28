@@ -13,17 +13,29 @@ import (
 )
 
 func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
-	file, prefix, yes, prune, errMsg := parsePublishFlags(args)
+	file, prefix, yes, prune, printMapping, errMsg := parsePublishFlags(args)
 	if errMsg != "" {
 		fmt.Fprintln(stderr, errMsg)
 		return 1
+	}
+	mapping, prefix, repo, manifestPath := resolvePublishMapping(file, prefix, getenv)
+	if printMapping {
+		if err := json.NewEncoder(stdout).Encode(map[string]any{
+			"repo":        repo,
+			"environment": mapping.Environment,
+			"prefix":      prefix,
+			"keys":        mapping.Keys,
+		}); err != nil {
+			fmt.Fprintf(stderr, "publish: %v\n", err)
+			return 1
+		}
+		return 0
 	}
 	base := getenv("SOPSDECK_GITHUB_API")
 	if base == "" {
 		fmt.Fprintln(stderr, "publish: SOPSDECK_GITHUB_API is required (local fake or GitHub api root)")
 		return 1
 	}
-	mapping, prefix, repo, manifestPath := resolvePublishMapping(file, prefix, getenv)
 	pairs, errMsg := decryptPublishPairs(file)
 	if errMsg != "" {
 		fmt.Fprintf(stderr, "publish: %s", errMsg)
@@ -119,34 +131,36 @@ func recordPublished(mapping manifestFile, manifestPath string, names []string) 
 	return setPublished(manifestPath, mapping.Path, recorded)
 }
 
-func parsePublishFlags(args []string) (file, prefix string, yes, prune bool, errMsg string) {
-	usage := "usage: sopsdeck publish -f FILE [--prefix P] [--yes] [--prune]"
+func parsePublishFlags(args []string) (file, prefix string, yes, prune, printMapping bool, errMsg string) {
+	usage := "usage: sopsdeck publish -f FILE [--prefix P] [--yes] [--prune] [--mapping]"
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-f":
 			i++
 			if i >= len(args) {
-				return "", "", false, false, "publish: -f requires a file"
+				return "", "", false, false, false, "publish: -f requires a file"
 			}
 			file = args[i]
 		case "--prefix":
 			i++
 			if i >= len(args) {
-				return "", "", false, false, "publish: --prefix requires a value"
+				return "", "", false, false, false, "publish: --prefix requires a value"
 			}
 			prefix = args[i]
 		case "--yes":
 			yes = true
 		case "--prune":
 			prune = true
+		case "--mapping":
+			printMapping = true
 		default:
-			return "", "", false, false, usage
+			return "", "", false, false, false, usage
 		}
 	}
 	if file == "" {
-		return "", "", false, false, usage
+		return "", "", false, false, false, usage
 	}
-	return file, prefix, yes, prune, ""
+	return file, prefix, yes, prune, printMapping, ""
 }
 
 func githubToken(getenv func(string) string) string {

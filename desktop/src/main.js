@@ -470,6 +470,7 @@ async function openFile(project, file) {
     sublineEl().textContent = `${rows.length} secrets · never uploaded`;
     setFileNote(file.name === 'eas.json' ? 'eas.json: EAS CLI will not read SOPS ciphertext' : '');
     renderKeys();
+    await loadPublishMapping(file.path);
   } catch (err) {
     rows = [];
     keysEl().replaceChildren();
@@ -769,17 +770,36 @@ async function addManagedFile() {
   }
 }
 
+async function loadPublishMapping(path) {
+  const prefix = document.getElementById('publish-prefix');
+  const repo = document.getElementById('publish-repo');
+  const environment = document.getElementById('publish-environment');
+  try {
+    const mapping = await invoke('get_publish_mapping', { path });
+    prefix.value = mapping?.prefix || '';
+    repo.textContent = mapping?.repo || '—';
+    environment.textContent = mapping?.environment || '—';
+  } catch {
+    prefix.value = '';
+    repo.textContent = '—';
+    environment.textContent = '—';
+  }
+}
+
 async function publishFile(yes) {
   if (!selected) return;
   showError('');
   setStatus('publish', '');
   const btn = document.getElementById(yes ? 'publish-yes' : 'publish');
+  const prefix = document.getElementById('publish-prefix').value.trim();
+  const prune = document.getElementById('publish-prune').checked;
   try {
     const result = await withBusy(btn, yes ? 'Publishing…' : 'Checking…', () =>
       invoke('publish_managed_file', {
         path: selected.path,
-        prefix: 'SD_',
+        prefix,
         yes,
+        prune,
       }),
     );
     setStatus('publish', String(result || '').trim());

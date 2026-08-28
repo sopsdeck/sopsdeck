@@ -111,7 +111,12 @@ fn restore_managed_file(path: String, at: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn publish_managed_file(path: String, prefix: String, yes: bool) -> Result<String, String> {
+fn publish_managed_file(
+    path: String,
+    prefix: String,
+    yes: bool,
+    prune: bool,
+) -> Result<String, String> {
     let mut args = vec!["publish".to_string(), "-f".to_string(), path];
     if !prefix.is_empty() {
         args.push("--prefix".to_string());
@@ -120,8 +125,17 @@ fn publish_managed_file(path: String, prefix: String, yes: bool) -> Result<Strin
     if yes {
         args.push("--yes".to_string());
     }
+    if prune {
+        args.push("--prune".to_string());
+    }
     let refs: Vec<&str> = args.iter().map(String::as_str).collect();
     run_sopsdeck(&refs)
+}
+
+#[tauri::command]
+fn get_publish_mapping(path: String) -> Result<serde_json::Value, String> {
+    let out = run_sopsdeck(&["publish", "-f", &path, "--mapping"])?;
+    serde_json::from_str(out.trim()).map_err(|error| error.to_string())
 }
 
 #[allow(clippy::unused_async)]
@@ -173,6 +187,7 @@ pub fn run() {
             history_managed_file,
             restore_managed_file,
             publish_managed_file,
+            get_publish_mapping,
             pick_project_folder,
             boot_project,
             whats_new,

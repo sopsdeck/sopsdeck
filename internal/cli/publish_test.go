@@ -85,6 +85,47 @@ func TestPublishUsesManifestPrefixAndRepo(t *testing.T) {
 	}
 }
 
+func TestPublishMappingPrintsResolvedTarget(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte("[[managed_file]]\npath = \".env.production\"\nrepo = \"acme/app\"\nenvironment = \"production\"\nprefix = \"SD_\"\n")
+	if err := os.WriteFile(filepath.Join(alice.Home, ".sopsdeck.toml"), manifest, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	getenv := func(key string) string {
+		if key == "SOPSDECK_GITHUB_API" {
+			return ""
+		}
+		return alice.Getenv(key)
+	}
+	var stdout, stderr bytes.Buffer
+	var code int
+	alice.WithWorld(func() {
+		code = Main([]string{"publish", "-f", env, "--mapping"}, os.Stdin, &stdout, &stderr, getenv)
+	})
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if strings.Contains(stderr.String(), "SOPSDECK_GITHUB_API") {
+		t.Fatalf("mapping required API: %q", stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "acme/app") || !strings.Contains(out, "production") || !strings.Contains(out, "SD_") {
+		t.Fatalf("stdout=%q", out)
+	}
+}
+
 func TestPublishManifestKeysSelectsSubset(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {
