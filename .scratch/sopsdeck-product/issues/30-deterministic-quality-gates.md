@@ -1,7 +1,7 @@
 # Deterministic quality gates: markdown, security, hooks
 
 Type: build
-Status: ready
+Status: done
 Blocked by: None
 
 ## What to build
@@ -18,10 +18,10 @@ Do not weaken `./scripts/check`. Do not invent changelog *product* wording; [22]
 
 ## Acceptance criteria
 
-- [ ] Markdown in `docs/` (and agreed paths) is linted/formatted; `./scripts/fmt` / `./scripts/check` cover it.
-- [ ] A documented local security/static check exists (e.g. gosec/clippy already, plus an extra JS/Go scanner if we add one) and is deterministic.
-- [ ] Pre-commit or CI fails on fmt/lint/test the way `./scripts/check` does today; changelog rule is explicit and mechanical.
-- [ ] `./scripts/check` stays the fast default; heavy scanners may be a separate script called from CI.
+- [x] Markdown in `docs/` (and agreed paths) is linted/formatted; `./scripts/fmt` / `./scripts/check` cover it.
+- [x] A documented local security/static check exists (e.g. gosec/clippy already, plus an extra JS/Go scanner if we add one) and is deterministic.
+- [x] Pre-commit or CI fails on fmt/lint/test the way `./scripts/check` does today; changelog rule is explicit and mechanical.
+- [x] `./scripts/check` stays the fast default; heavy scanners may be a separate script called from CI.
 
 ## Seams
 
@@ -30,3 +30,5 @@ Do not weaken `./scripts/check`. Do not invent changelog *product* wording; [22]
 ## Comments
 
 Captured 2026-08-28 from human-found review. Kind: idea. Not a substitute for issue 16 threat model.
+
+Shipped: prettier still formats markdown; `markdownlint-cli2` is in `./scripts/lint` / `./scripts/check`. `./scripts/scan` is govulncheck + bun audit (CI job, not check). `.github/workflows/check.yml` runs `./scripts/check` and `./scripts/changelog-check`. `./scripts/hooks` sets `core.hooksPath=.githooks` (opt-in); pre-commit is changelog-check --staged then lint; `git commit --no-verify` still skips.

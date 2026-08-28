@@ -8,10 +8,9 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. **[30](issues/30-deterministic-quality-gates.md)** hooks/lint/security.
-2. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
+1. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
 
-Tickets 19–29 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
+Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow. Check CI is [`.github/workflows/check.yml`](../../.github/workflows/check.yml).
 
 ## Already in the tree (not a phase by itself)
 
@@ -51,5 +50,5 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [27](issues/27-realistic-managed-file-fixtures.md) | eas.json, compose, multiline fixtures | **done** |
 | [28](issues/28-usable-product-recordings.md) | webreel + CLI casts; fail sub-second clips | **done** |
 | [29](issues/29-docs-site.md) | One public site: landing, changelog, docs | **done** |
-| [30](issues/30-deterministic-quality-gates.md) | Markdown, security scanner, changelog/test hooks | ready |
+| [30](issues/30-deterministic-quality-gates.md) | Markdown, security scanner, changelog/test hooks | **done** |
 | [31](issues/31-deferred-product-ideas.md) | Unused keys, smart rename, clipboard, OpenBao, paste-path | backlog |
