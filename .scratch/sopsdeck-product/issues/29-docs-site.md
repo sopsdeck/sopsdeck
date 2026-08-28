@@ -1,7 +1,7 @@
 # Docs site: landing, changelog, documentation
 
 Type: build
-Status: ready
+Status: done
 Blocked by: None
 
 ## What to build
@@ -14,10 +14,10 @@ Docusaurus is a **candidate**, not mandated. Vanilla `site/` + markdown docs is 
 
 ## Acceptance criteria
 
-- [ ] Public docs are reachable from the landing page (not only GitHub `docs/`).
-- [ ] Changelog is on that site and stays generated from `CHANGELOG.md`.
-- [ ] `./scripts/docs --check` still fails on stale generated pages / missing asset links.
-- [ ] Canonical domain remains sopsdeck.com; no new product policy in the docs copy.
+- [x] Public docs are reachable from the landing page (not only GitHub `docs/`).
+- [x] Changelog is on that site and stays generated from `CHANGELOG.md`.
+- [x] `./scripts/docs --check` still fails on stale generated pages / missing asset links.
+- [x] Canonical domain remains sopsdeck.com; no new product policy in the docs copy.
 
 ## Seams
 
@@ -26,3 +26,5 @@ Docusaurus is a **candidate**, not mandated. Vanilla `site/` + markdown docs is 
 ## Comments
 
 Captured 2026-08-28 from human-found review. Kind: idea.
+
+Shipped as vanilla `site/` (no Docusaurus): landing nav **Docs** → `site/docs/` hub; living features/seams/assets plus versioning and CONTEXT glossary as HTML; notes still from `CHANGELOG.md`. Markdown sources stay the generated/hand files under `docs/`.
