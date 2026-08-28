@@ -217,6 +217,8 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 		return nil, d.invokeSync(req.Path)
 	case "add_recipient":
 		return nil, invokeRecipientAdd(req, getenv)
+	case "remove_recipient":
+		return invokeRecipientRemove(req, getenv)
 	case "publish_managed_file":
 		return invokePublish(req, getenv)
 	case "pick_project_folder", "boot_project":
@@ -274,6 +276,14 @@ func (d *drive) invokeSync(path string) error {
 func invokeRecipientAdd(req invokeReq, getenv func(string) string) error {
 	var stderr strings.Builder
 	return cliErr(cmdRecipient([]string{"add", req.PublicKey, "-f", req.Path}, io.Discard, &stderr, getenv), &stderr)
+}
+
+func invokeRecipientRemove(req invokeReq, getenv func(string) string) (any, error) {
+	var stderr strings.Builder
+	if err := cliErr(cmdRecipient([]string{"remove", req.PublicKey, "-f", req.Path}, io.Discard, &stderr, getenv), &stderr); err != nil {
+		return nil, err
+	}
+	return strings.TrimSpace(stderr.String()), nil
 }
 
 func invokePublish(req invokeReq, getenv func(string) string) (any, error) {

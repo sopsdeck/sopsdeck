@@ -67,6 +67,69 @@ func TestTeammateDecryptsAfterRecipientAddAndSync(t *testing.T) {
 	}
 }
 
+func TestTeammateLosesAccessAfterRecipientRemoveAndSync(t *testing.T) {
+	s, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+
+	alice, err := s.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobKeys, err := s.Identity("bob", "bob@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	env := filepath.Join(alice.Home, ".env.production")
+	if _, stderr, code := run(alice, "set", "HELLO", "from-alice", "-f", env); code != 0 {
+		t.Fatalf("set: %s", stderr)
+	}
+	if _, stderr, code := run(alice, "recipient", "add", bobKeys.PublicKey, "-f", env); code != 0 {
+		t.Fatalf("recipient add: %s", stderr)
+	}
+	if _, stderr, code := run(alice, "commit", "-m", "share production", "-f", env); code != 0 {
+		t.Fatalf("commit: %s", stderr)
+	}
+	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
+		t.Fatal(err)
+	}
+
+	bob, err := s.Clone("bob", "bob@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobEnv := filepath.Join(bob.Home, ".env.production")
+	if _, stderr, code := run(bob, "get", "HELLO", "-f", bobEnv); code != 0 {
+		t.Fatalf("bob get before remove: %s", stderr)
+	}
+
+	if _, stderr, code := run(alice, "recipient", "remove", bobKeys.PublicKey, "-f", env); code != 0 {
+		t.Fatalf("recipient remove: %s", stderr)
+	}
+	if _, stderr, code := run(alice, "commit", "-m", "drop bob", "-f", env); code != 0 {
+		t.Fatalf("commit remove: %s", stderr)
+	}
+	if _, err := alice.Git("push", "origin", "main"); err != nil {
+		t.Fatal(err)
+	}
+
+	if stdout, stderr, code := run(bob, "get", "HELLO", "-f", bobEnv); code != 0 {
+		t.Fatalf("bob get of un-synced copy: %s", stderr)
+	} else if strings.TrimSpace(stdout) != "from-alice" {
+		t.Fatalf("bob copy %q", stdout)
+	}
+
+	if _, stderr, code := run(bob, "sync"); code != 0 {
+		t.Fatalf("bob sync: %s", stderr)
+	}
+	if _, stderr, code := run(bob, "get", "HELLO", "-f", bobEnv); code == 0 {
+		t.Fatalf("bob still has Access after sync: %s", stderr)
+	}
+}
+
 func TestPublishPutsPrefixedNamesOnFakeGitHub(t *testing.T) {
 	s, err := studio.New(t.TempDir())
 	if err != nil {

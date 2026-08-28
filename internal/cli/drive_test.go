@@ -160,6 +160,24 @@ func TestDriveInvokeAddsRecipient(t *testing.T) {
 	if strings.TrimSpace(stdout.String()) != "shared" {
 		t.Fatalf("bob get %q", stdout.String())
 	}
+
+	removed := postInvoke(t, srv.URL, invokeReq{
+		Cmd:       "remove_recipient",
+		Path:      env,
+		PublicKey: bob.PublicKey,
+	})
+	if !bytes.Contains(removed, []byte("Git history")) {
+		t.Fatalf("remove=%s", removed)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	bob.WithWorld(func() {
+		code = Main([]string{"get", "HELLO", "-f", env}, os.Stdin, &stdout, &stderr, bob.Getenv)
+	})
+	if code == 0 {
+		t.Fatal("bob still has Access after remove")
+	}
 }
 
 func postInvoke(t *testing.T, base string, req invokeReq) []byte {
