@@ -14,4 +14,4 @@ The approved three-pane editor is the surface; no extra prototype. Clipboard is 
 
 ## Implementation (2026-08-28)
 
-CLI: non-empty stdin to `sopsdeck set -f FILE` is paste. Detection order: JSON object, dotenv `KEY=value`, YAML map, else lone value (needs KEY). Without `--yes`, preview lists add/change **names** only (no values) and does not write. `--yes` applies in one decrypt/encrypt. Not done: desktop clipboard sniff / preview modal (12 + 31); Node/dotenvx quoting warning.
+CLI: non-empty stdin to `sopsdeck set -f FILE` is paste. Detection order: JSON object, dotenv `KEY=value`, YAML map, else lone value (needs KEY). Without `--yes`, preview lists add/change **names** only (no values) and does not write. `--yes` applies in one decrypt/encrypt. Desktop: `paste` in the open Managed File sniffs the same formats, shows an in-editor names-only preview, and writes to rows on confirm (Encrypt & save still required). Not done: clipboard sniff on app focus / preview **modal** (12 + 31); Node/dotenvx quoting warning.

@@ -14,4 +14,4 @@ Local MCP only, plus thin Codex/Claude skills that call it. Default tools return
 
 ## Implementation (2026-08-28)
 
-`sopsdeck mcp` is a local JSON-RPC 2.0 stdio server. Tools: `list_managed_files`, `list_keys`, `list_recipients`, `git_status` (metadata); `get_value` requires `SOPSDECK_MCP_APPROVE` containing `get_value`; `run` injects env into a child and returns exit status only (child stdout is not in the MCP result). Logs `mcp: <tool> ok|denied` on stderr, never values. Thin skill: `skills/sopsdeck-mcp/SKILL.md`. No remote MCP. Not done: desktop paste sniff (issue 12 UI).
+`sopsdeck mcp` is a local JSON-RPC 2.0 stdio server. Tools: `list_managed_files`, `list_keys`, `list_recipients`, `git_status` (metadata); `get_value` requires `SOPSDECK_MCP_APPROVE` containing `get_value`; `run` injects env into a child and returns exit status only (child stdout is not in the MCP result). Logs `mcp: <tool> ok|denied` on stderr, never values. Thin skill: `skills/sopsdeck-mcp/SKILL.md`. No remote MCP.

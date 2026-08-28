@@ -8,7 +8,7 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Request PR / re-encrypt PR still open on recipients. Fake GitHub PUTs are not Libsodium-sealed. Desktop paste sniff is leftover on 12. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard modal rides with 12; OpenBao needs spec).
+1. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Request PR / re-encrypt PR still open on recipients. Fake GitHub PUTs are not Libsodium-sealed. Clipboard modal is leftover on 12 + [31](issues/31-deferred-product-ideas.md). [31](issues/31-deferred-product-ideas.md) is backlog (OpenBao needs spec).
 
 Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow. Check CI is [`.github/workflows/check.yml`](../../.github/workflows/check.yml).
 
@@ -27,12 +27,12 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | Phase | Slice | Status | Proved | Still open |
 | --- | --- | --- | --- | --- |
 | 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` to a state-dir Age file | OS keychain / `SOPS_AGE_KEY_CMD` (issue 06) |
-| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25) | desktop paste sniff (12) |
+| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25); in-editor paste preview | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
 | 5 | GitHub Publish | in progress | `publish` prefix, dry-run, `--yes`, `--prune`; `.sopsdeck.toml` mappings; last-published prune; `GH_TOKEN` / `gh auth token`; inspector mapping + prune vs `internal/githubfake` | — |
 | 6 | Scan hook | in progress | `scan` staged files; ciphertext ignored; allowlist; block vs warn; `--install` hook | unused-key analysis is [31](issues/31-deferred-product-ideas.md); desktop warn after `--no-verify` is optional in 10 |
-| 7 | Paste + MCP | in progress | local `mcp` metadata tools; `get_value` approval; `run` outcome-only; CLI stdin paste preview/`--yes` | desktop clipboard sniff (12); clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
+| 7 | Paste + MCP | in progress | local `mcp` metadata tools; `get_value` approval; `run` outcome-only; CLI stdin paste preview/`--yes`; in-editor paste preview | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
 | 8 | Signed macOS release | not started | — | issue 14; tag notes already from [22](issues/22-epoch-semver-and-changelog.md) |
 
 ## Ready build tickets
