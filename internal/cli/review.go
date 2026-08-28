@@ -94,22 +94,34 @@ func headSecretPairs(file string, format formats.Format) (map[string]string, err
 	return secretPairs(plain, format)
 }
 
-func gitShowHEAD(file string) ([]byte, error) {
-	dir := filepath.Dir(file)
-	cmd := exec.Command("git", "rev-parse", "--show-prefix")
-	cmd.Dir = dir
-	prefixOut, err := cmd.Output()
+func gitShowAt(file, rev string) ([]byte, error) {
+	dir, rel, err := gitTrackedRel(file)
 	if err != nil {
 		return nil, err
 	}
-	rel := strings.TrimSpace(string(prefixOut)) + filepath.Base(file)
-	show := exec.Command("git", "show", "HEAD:"+filepath.ToSlash(rel))
+	show := exec.Command("git", "show", rev+":"+rel)
 	show.Dir = dir
 	out, err := show.Output()
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+func gitShowHEAD(file string) ([]byte, error) {
+	return gitShowAt(file, "HEAD")
+}
+
+func gitTrackedRel(file string) (dir, rel string, err error) {
+	dir = filepath.Dir(file)
+	cmd := exec.Command("git", "rev-parse", "--show-prefix")
+	cmd.Dir = dir
+	prefixOut, err := cmd.Output()
+	if err != nil {
+		return "", "", err
+	}
+	rel = filepath.ToSlash(strings.TrimSpace(string(prefixOut)) + filepath.Base(file))
+	return dir, rel, nil
 }
 
 func secretPairs(plain []byte, format formats.Format) (map[string]string, error) {

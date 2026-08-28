@@ -27,7 +27,7 @@ import (
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|recipient|publish|files|drive> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|recipient|publish|files|drive> ...")
 		return 1
 	}
 	switch args[0] {
@@ -50,6 +50,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdSync(args[1:], stdout, stderr)
 	case "review":
 		return cmdReview(args[1:], stdout, stderr)
+	case "history":
+		return cmdHistory(args[1:], stdout, stderr)
 	case "recipient":
 		return cmdRecipient(args[1:], stdout, stderr, getenv)
 	case "publish":
@@ -68,6 +70,7 @@ type getFlags struct {
 	key    string
 	file   string
 	output string
+	at     string
 }
 
 func parseGetFlags(args []string) (getFlags, string) {
@@ -86,6 +89,12 @@ func parseGetFlags(args []string) (getFlags, string) {
 				return getFlags{}, "get: --output requires a format"
 			}
 			flags.output = args[i]
+		case "--at":
+			i++
+			if i >= len(args) {
+				return getFlags{}, "get: --at requires a revision"
+			}
+			flags.at = args[i]
 		default:
 			if strings.HasPrefix(args[i], "-") {
 				return getFlags{}, fmt.Sprintf("get: unknown flag %s", args[i])
@@ -113,7 +122,18 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 	}
 	key, file, output := flags.key, flags.file, flags.output
 	format := fileFormat(file)
-	plain, err := decrypt.File(file, formatName(format))
+	var plain []byte
+	var err error
+	if flags.at != "" {
+		raw, showErr := gitShowAt(file, flags.at)
+		if showErr != nil {
+			fmt.Fprintf(stderr, "get: %v\n", showErr)
+			return 1
+		}
+		plain, err = decrypt.Data(raw, formatName(format))
+	} else {
+		plain, err = decrypt.File(file, formatName(format))
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, explainGet(err))
 		return 1

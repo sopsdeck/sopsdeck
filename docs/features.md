@@ -30,6 +30,8 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Get Output JSON Prints Pairs For Any Format (`TestGetOutputJSONPrintsPairsForAnyFormat`)
 - Get Prints Value From SOPSJSON And YAML (`TestGetPrintsValueFromSOPSJSONAndYAML`)
 - Get Prints Value From SOPS Dotenv (`TestGetPrintsValueFromSOPSDotenv`)
+- History Lists Commits On A Managed File (`TestHistoryListsCommitsOnAManagedFile`)
+- Get At Revision Prints Historical Value (`TestGetAtRevisionPrintsHistoricalValue`)
 - Identity Create Without Backup Confirm Does Not Persist (`TestIdentityCreateWithoutBackupConfirmDoesNotPersist`)
 - Identity Create With Backup Confirm Can Decrypt (`TestIdentityCreateWithBackupConfirmCanDecrypt`)
 - Identity Import With Backup Confirm Restores Access (`TestIdentityImportWithBackupConfirmRestoresAccess`)
