@@ -6,7 +6,7 @@ Label: `wayfinder:map`
 
 An implementation-ready product and technical specification for Sopsdeck: domain model, desktop workflows, security boundaries, CLI compatibility contract, integrations, test seams, and delivery phases are explicit enough for agents to build the product test-first without inventing product policy.
 
-**Status: destination reached.** Remaining work is vertical build from [build.md](build.md), not this map. Phases: [issue 15](issues/15-lock-public-test-seams-and-delivery-phases.md). Chrome, assets, errors, and versioning tickets [19](issues/19-drive-professional-product-assets.md)–[22](issues/22-epoch-semver-and-changelog.md) are done.
+**Status: destination reached.** Remaining work is vertical build from [build.md](build.md), not this map. Phases: [issue 15](issues/15-lock-public-test-seams-and-delivery-phases.md). Chrome, assets, errors, and versioning tickets [19](issues/19-drive-professional-product-assets.md)–[22](issues/22-epoch-semver-and-changelog.md) are done. Human QA tickets [23](issues/23-fix-folder-open-hang.md)–[31](issues/31-deferred-product-ideas.md) are next on the board.
 
 ## Notes
 
@@ -44,7 +44,7 @@ An implementation-ready product and technical specification for Sopsdeck: domain
 - File-watching and in-process persistence details inside the Go core (writes are atomic ciphertext).
 - Later Sync Targets: EAS API, GitLab, cloud secret managers, GitHub org/Codespaces/Dependabot.
 
-Screen chrome, contextual errors, demo assets, and versioning (19–22) are done on [build.md](build.md).
+Screen chrome, contextual errors, demo assets, and versioning (19–22) are done on [build.md](build.md). Human QA after dogfooding is tickets [23](issues/23-fix-folder-open-hang.md)–[31](issues/31-deferred-product-ideas.md); those interrupt phase-15 tail until the editor is usable.
 
 ## Out of scope
 

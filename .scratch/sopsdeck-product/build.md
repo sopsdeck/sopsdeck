@@ -4,11 +4,18 @@ Agents implement from here. Spec policy stays in [map.md](map.md) and issues 01�
 
 Use `/tdd` at the public seams in [Lock public test seams and delivery phases](issues/15-lock-public-test-seams-and-delivery-phases.md). Living proof is [docs/seams.md](../../docs/seams.md) and [docs/features.md](../../docs/features.md).
 
+Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-review.md). Process that file into tickets, then build those before more phase-15 tail unless a slice is blocked.
+
 ## Next
 
-1. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients.
+1. **[23](issues/23-fix-folder-open-hang.md)** — opening a folder beach-balls (P0).
+2. **[24](issues/24-editor-key-row-actions.md)** — delete/add/reveal/copy/rename keys; add-key field is broken.
+3. **[25](issues/25-sidebar-window-and-scroll.md)** — add Managed File, theme icon, app name/logo, scroll.
+4. Then [26](issues/26-visual-polish-and-changelog-look.md) polish, [27](issues/27-realistic-managed-file-fixtures.md) fixtures, [28](issues/28-usable-product-recordings.md) recordings (19’s clips are unusable).
+5. [29](issues/29-docs-site.md) docs site, [30](issues/30-deterministic-quality-gates.md) hooks/lint/security.
+6. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
 
-Tickets 19–22 are done. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
+Tickets 19–22 are done as shipped. 19’s **pipeline** is done; watchable assets are 28. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
 
 ## Already in the tree (not a phase by itself)
 
@@ -25,19 +32,28 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | Phase | Slice | Status | Proved | Still open |
 | --- | --- | --- | --- | --- |
 | 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` to a state-dir Age file | OS keychain / `SOPS_AGE_KEY_CMD` (issue 06) |
-| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20) | paste (12) |
+| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20) | paste (12); hang on folder pick (23); key CRUD chrome (24); sidebar add-file / identity / scroll (25) |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
 | 5 | GitHub Publish | in progress | `publish` prefix, dry-run default, `--yes`, `--prune` against `internal/githubfake` | `.sopsdeck.toml` mappings; `gh` auth; environment secrets; last-published names; desktop Publish (09) |
-| 6 | Scan hook | not started | — | issue 10 |
-| 7 | Paste + MCP | not started | — | issues 11, 12 |
+| 6 | Scan hook | not started | — | issue 10; unused-key analysis is [31](issues/31-deferred-product-ideas.md) |
+| 7 | Paste + MCP | not started | — | issues 11, 12; clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
 | 8 | Signed macOS release | not started | — | issue 14; tag notes already from [22](issues/22-epoch-semver-and-changelog.md) |
 
 ## Ready build tickets
 
 | # | Title | Status |
 | --- | --- | --- |
-| [19](issues/19-drive-professional-product-assets.md) | Professional videos, snippets, stills; docs generated/testable | **done** |
+| [19](issues/19-drive-professional-product-assets.md) | Professional videos, snippets, stills; docs generated/testable | **done** (pipeline; clips unusable → 28) |
 | [20](issues/20-contextual-failure-ux.md) | Contextual failures, not raw Git or toasts | **done** |
 | [21](issues/21-desktop-chrome-polish.md) | Motion, states, commit default, theme, display paths | **done** |
 | [22](issues/22-epoch-semver-and-changelog.md) | Epoch SemVer, CHANGELOG.md, GH Release + site + in-app notes | **done** |
+| [23](issues/23-fix-folder-open-hang.md) | Folder picker beach-balls | ready (P0) |
+| [24](issues/24-editor-key-row-actions.md) | Reveal, copy, rename, delete, add-key composer | ready |
+| [25](issues/25-sidebar-window-and-scroll.md) | Add Managed File, theme icon, app identity, scroll | ready |
+| [26](issues/26-visual-polish-and-changelog-look.md) | Icons/motion; changelog look | ready |
+| [27](issues/27-realistic-managed-file-fixtures.md) | eas.json, compose, multiline fixtures | ready |
+| [28](issues/28-usable-product-recordings.md) | webreel + CLI casts; fail sub-second clips | ready |
+| [29](issues/29-docs-site.md) | One public site: landing, changelog, docs | ready |
+| [30](issues/30-deterministic-quality-gates.md) | Markdown, security scanner, changelog/test hooks | ready |
+| [31](issues/31-deferred-product-ideas.md) | Unused keys, smart rename, clipboard, OpenBao, paste-path | backlog |

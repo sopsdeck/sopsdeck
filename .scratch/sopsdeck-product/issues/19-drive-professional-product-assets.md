@@ -51,3 +51,5 @@ Do not invent product behavior in a clip that is not already proved in [docs/fea
 ## Comments
 
 Captured 2026-08-28; triaged 2026-08-28; done 2026-08-28. Kind: idea → build.
+
+Human QA 2026-08-28: generated clips are ~0.01s (unusable). Watchable recordings are [28](28-usable-product-recordings.md).
