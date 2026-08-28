@@ -8,14 +8,12 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. **[23](issues/23-fix-folder-open-hang.md)** — opening a folder beach-balls (P0).
-2. **[24](issues/24-editor-key-row-actions.md)** — delete/add/reveal/copy/rename keys; add-key field is broken.
-3. **[25](issues/25-sidebar-window-and-scroll.md)** — add Managed File, theme icon, app name/logo, scroll.
-4. Then [26](issues/26-visual-polish-and-changelog-look.md) polish, [27](issues/27-realistic-managed-file-fixtures.md) fixtures, [28](issues/28-usable-product-recordings.md) recordings (19’s clips are unusable).
-5. [29](issues/29-docs-site.md) docs site, [30](issues/30-deterministic-quality-gates.md) hooks/lint/security.
-6. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
+1. **[26](issues/26-visual-polish-and-changelog-look.md)** — icons/motion; changelog look.
+2. **[27](issues/27-realistic-managed-file-fixtures.md)** fixtures, **[28](issues/28-usable-product-recordings.md)** recordings (19’s clips are unusable).
+3. **[29](issues/29-docs-site.md)** docs site, **[30](issues/30-deterministic-quality-gates.md)** hooks/lint/security.
+4. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
 
-Tickets 19–22 are done as shipped. 19’s **pipeline** is done; watchable assets are 28. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
+Tickets 19–25 are done as shipped. 19’s **pipeline** is done; watchable assets are 28. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
 
 ## Already in the tree (not a phase by itself)
 
@@ -32,7 +30,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | Phase | Slice | Status | Proved | Still open |
 | --- | --- | --- | --- | --- |
 | 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` to a state-dir Age file | OS keychain / `SOPS_AGE_KEY_CMD` (issue 06) |
-| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20) | paste (12); hang on folder pick (23); key CRUD chrome (24); sidebar add-file / identity / scroll (25) |
+| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25) | paste (12) |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
 | 5 | GitHub Publish | in progress | `publish` prefix, dry-run default, `--yes`, `--prune` against `internal/githubfake` | `.sopsdeck.toml` mappings; `gh` auth; environment secrets; last-published names; desktop Publish (09) |
@@ -48,9 +46,9 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [20](issues/20-contextual-failure-ux.md) | Contextual failures, not raw Git or toasts | **done** |
 | [21](issues/21-desktop-chrome-polish.md) | Motion, states, commit default, theme, display paths | **done** |
 | [22](issues/22-epoch-semver-and-changelog.md) | Epoch SemVer, CHANGELOG.md, GH Release + site + in-app notes | **done** |
-| [23](issues/23-fix-folder-open-hang.md) | Folder picker beach-balls | ready (P0) |
-| [24](issues/24-editor-key-row-actions.md) | Reveal, copy, rename, delete, add-key composer | ready |
-| [25](issues/25-sidebar-window-and-scroll.md) | Add Managed File, theme icon, app identity, scroll | ready |
+| [23](issues/23-fix-folder-open-hang.md) | Folder picker beach-balls | **done** |
+| [24](issues/24-editor-key-row-actions.md) | Reveal, copy, rename, delete, add-key composer | **done** |
+| [25](issues/25-sidebar-window-and-scroll.md) | Add Managed File, theme icon, app identity, scroll | **done** |
 | [26](issues/26-visual-polish-and-changelog-look.md) | Icons/motion; changelog look | ready |
 | [27](issues/27-realistic-managed-file-fixtures.md) | eas.json, compose, multiline fixtures | ready |
 | [28](issues/28-usable-product-recordings.md) | webreel + CLI casts; fail sub-second clips | ready |

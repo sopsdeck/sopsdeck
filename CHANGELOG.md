@@ -4,6 +4,10 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+- Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.
+- `sopsdeck set -f FILE` with no KEY creates an empty encrypted Managed File.
+- Editor key rows reveal, copy, rename, and delete from icons; a composer adds `KEY` or `KEY=value`.
+- The sidebar can add a Managed File; theme is an icon; panes scroll inside the window.
 - Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.
 - Desktop shows Sync, commit, and save failures next to those controls, not as a toast.
 - Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.
