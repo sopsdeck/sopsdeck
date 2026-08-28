@@ -21,6 +21,8 @@ import (
 	"github.com/getsops/sops/v3/keyservice"
 	"github.com/getsops/sops/v3/version"
 	"go.yaml.in/yaml/v3"
+
+	appver "sopsdeck/internal/version"
 )
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
@@ -29,6 +31,9 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return 1
 	}
 	switch args[0] {
+	case "--version", "-V", "version":
+		fmt.Fprintln(stdout, appver.Version)
+		return 0
 	case "get":
 		return cmdGet(args[1:], stdout, stderr)
 	case "set":
