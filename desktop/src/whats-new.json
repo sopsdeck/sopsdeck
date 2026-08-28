@@ -2,6 +2,7 @@
   "version": "0.1.0",
   "heading": "Unreleased",
   "notes": [
+    "Inspector sections collapse; reveal/hide values sits on the Value heading. Add secret is gone (composer remains).",
     "Failed CLI commands append to `$SOPSDECK_STATE_DIR/errors.json`; repeats increment a count. Messages never include private keys or ciphertext.",
     "`./scripts/dev` builds a fresh CLI and launches the desktop app against it.",
     "`identity create` / `import` store the Age private key in the OS keychain; `SOPS_AGE_KEY_CMD='sopsdeck identity key'` decrypts. Existing `SOPS_AGE_KEY_FILE` still works.",

@@ -1,7 +1,7 @@
 # Inspector collapse and value-column reveal
 
 Type: build
-Status: open
+Status: done
 Blocked by: None
 
 ## What to build
@@ -12,13 +12,17 @@ Do not change the three-pane IA. Do not add a clipboard modal ([31](31-deferred-
 
 ## Acceptance criteria
 
-- [ ] Each inspector section is collapsible; state can persist for the session (localStorage is fine).
-- [ ] Add secret toolbar button is gone; composer remains.
-- [ ] Values column heading has a reveal/hide icon that matches today’s Reveal values behavior.
+- [x] Each inspector section is collapsible; state can persist for the session (localStorage is fine).
+- [x] Add secret toolbar button is gone; composer remains.
+- [x] Values column heading has a reveal/hide icon that matches today’s Reveal values behavior.
 
 ## Seams
 
 - Playwright chrome tests (`data-testid` on heading reveal and inspector sections).
+
+## Implementation (2026-08-28)
+
+Inspector File / Access / Publish / Git headings toggle collapse; collapsed ids live in `localStorage` `sopsdeck-inspector`. Toolbar Add secret and Reveal values are gone. The Value column heading uses `data-testid="reveal"`. Composer is unchanged.
 
 ## Comments
 
