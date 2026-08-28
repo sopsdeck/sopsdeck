@@ -38,6 +38,7 @@ let rows = [];
 let revealed = false;
 let commitAuto = true;
 let lastAuto = '';
+let historyRev = '';
 
 function messageOf(err) {
   if (err instanceof Error) return err.message;
@@ -527,6 +528,89 @@ window.addEventListener('DOMContentLoaded', async () => {
       await withBusy(document.getElementById('sync'), 'Syncing…', () =>
         invoke('sync_project', { path: selected.path }),
       );
+    } catch (err) {
+      showError(messageOf(err), 'git');
+    }
+  });
+  document.getElementById('review').addEventListener('click', async () => {
+    if (!selected) return;
+    showError('');
+    setStatus('git', '');
+    try {
+      const text = await withBusy(document.getElementById('review'), 'Reviewing…', () =>
+        invoke('review_managed_file', { path: selected.path }),
+      );
+      const out = document.getElementById('review-out');
+      out.hidden = false;
+      out.textContent = text && String(text).trim() ? text : 'No uncommitted secret changes';
+    } catch (err) {
+      showError(messageOf(err), 'git');
+    }
+  });
+  document.getElementById('history').addEventListener('click', async () => {
+    if (!selected) return;
+    showError('');
+    setStatus('git', '');
+    try {
+      const text = await withBusy(document.getElementById('history'), 'Loading…', () =>
+        invoke('history_managed_file', { path: selected.path }),
+      );
+      const list = document.getElementById('history-list');
+      list.hidden = false;
+      list.replaceChildren();
+      historyRev = '';
+      for (const line of String(text || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean)) {
+        const space = line.indexOf(' ');
+        const rev = space === -1 ? line : line.slice(0, space);
+        const subject = space === -1 ? line : line.slice(space + 1);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = line;
+        btn.dataset.rev = rev;
+        btn.addEventListener('click', async () => {
+          historyRev = rev;
+          for (const other of list.querySelectorAll('button')) {
+            other.removeAttribute('aria-current');
+          }
+
+          btn.setAttribute('aria-current', 'true');
+
+          try {
+            const pairs = await invoke('get_managed_file', { path: selected.path, at: rev });
+            const out = document.getElementById('review-out');
+            out.hidden = false;
+            out.textContent = (pairs || [])
+              .filter((p) => p.key && p.key !== 'sops' && !String(p.key).startsWith('sops_'))
+              .map((p) => `${p.key}=${p.value}`)
+              .join('\n');
+            setStatus('git', subject);
+          } catch (err) {
+            showError(messageOf(err), 'git');
+          }
+        });
+        list.append(btn);
+      }
+    } catch (err) {
+      showError(messageOf(err), 'git');
+    }
+  });
+  document.getElementById('restore').addEventListener('click', async () => {
+    if (!selected) return;
+    if (!historyRev) {
+      showError('Pick a revision from History', 'git');
+      return;
+    }
+
+    showError('');
+    try {
+      await withBusy(document.getElementById('restore'), 'Restoring…', () =>
+        invoke('restore_managed_file', { path: selected.path, at: historyRev }),
+      );
+      await openFile(selected.project, selected);
+      setStatus('git', 'Restored. Commit to keep it.');
     } catch (err) {
       showError(messageOf(err), 'git');
     }

@@ -304,3 +304,61 @@ func TestDriveInvokeSetCommitSyncAndErrors(t *testing.T) {
 		t.Fatalf("demo %d", demo404.StatusCode)
 	}
 }
+
+func TestDriveInvokeReviewHistoryAndRestore(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	if err := aliceCLI(alice, "commit", "-m", "seed production", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	if err := aliceCLI(alice, "set", "HELLO", "next", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	if err := aliceCLI(alice, "commit", "-m", "rotate hello", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
+	t.Cleanup(srv.Close)
+
+	hist := postInvoke(t, srv.URL, invokeReq{Cmd: "history_managed_file", Path: env})
+	if !bytes.Contains(hist, []byte("seed production")) || !bytes.Contains(hist, []byte("rotate hello")) {
+		t.Fatalf("history=%s", hist)
+	}
+	var histBody struct {
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal(hist, &histBody); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(histBody.Result), "\n")
+	oldest := strings.Fields(lines[len(lines)-1])
+	rev := oldest[0]
+	got := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: env, At: rev})
+	if !bytes.Contains(got, []byte("world")) {
+		t.Fatalf("get at=%s", got)
+	}
+
+	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "set_managed_key", Path: env, Key: "HELLO", Value: "later"})
+	review := postInvoke(t, srv.URL, invokeReq{Cmd: "review_managed_file", Path: env})
+	if !bytes.Contains(review, []byte("HELLO")) || !bytes.Contains(review, []byte("later")) {
+		t.Fatalf("review=%s", review)
+	}
+
+	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "restore_managed_file", Path: env, At: rev})
+	after := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: env})
+	if !bytes.Contains(after, []byte("world")) {
+		t.Fatalf("restored=%s", after)
+	}
+}

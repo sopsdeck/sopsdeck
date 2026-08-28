@@ -21,8 +21,20 @@ fn list_managed_files(path: String) -> Result<Vec<ManagedFile>, String> {
 }
 
 #[tauri::command]
-fn get_managed_file(path: String) -> Result<Vec<Pair>, String> {
-    let out = run_sopsdeck(&["get", "-f", &path, "--output", "json"])?;
+fn get_managed_file(path: String, at: Option<String>) -> Result<Vec<Pair>, String> {
+    let mut args = vec![
+        "get".to_string(),
+        "-f".to_string(),
+        path,
+        "--output".to_string(),
+        "json".to_string(),
+    ];
+    if let Some(rev) = at.filter(|value| !value.is_empty()) {
+        args.push("--at".to_string());
+        args.push(rev);
+    }
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out = run_sopsdeck(&refs)?;
     let map: serde_json::Map<String, serde_json::Value> =
         serde_json::from_str(out.trim()).map_err(|error| error.to_string())?;
     let mut pairs: Vec<Pair> = map
@@ -67,6 +79,25 @@ fn add_recipient(path: String, public_key: String) -> Result<(), String> {
 #[tauri::command]
 fn remove_recipient(path: String, public_key: String) -> Result<(), String> {
     run_sopsdeck(&["recipient", "remove", &public_key, "-f", &path]).map(|_| ())
+}
+
+#[tauri::command]
+fn review_managed_file(path: String) -> Result<String, String> {
+    run_sopsdeck(&["review", "-f", &path])
+}
+
+#[tauri::command]
+fn history_managed_file(path: String) -> Result<String, String> {
+    run_sopsdeck(&["history", "-f", &path])
+}
+
+#[tauri::command]
+fn restore_managed_file(path: String, at: String) -> Result<(), String> {
+    let at = at.trim();
+    if at.is_empty() {
+        return Err("pick a revision from History".into());
+    }
+    run_sopsdeck(&["restore", "-f", &path, "--at", at]).map(|_| ())
 }
 
 #[tauri::command]
@@ -125,6 +156,9 @@ pub fn run() {
             sync_project,
             add_recipient,
             remove_recipient,
+            review_managed_file,
+            history_managed_file,
+            restore_managed_file,
             publish_managed_file,
             pick_project_folder,
             boot_project,

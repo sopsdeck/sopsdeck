@@ -224,6 +224,46 @@ input {
   color: var(--slate);
   font-size: 12px;
 }
+.review-out {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  font:
+    11px/1.45 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  white-space: pre-wrap;
+}
+.history-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 140px;
+  overflow: auto;
+}
+.history-list button {
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  font:
+    11px/1.4 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  cursor: pointer;
+}
+.history-list button[aria-current='true'] {
+  border-color: var(--blue);
+}
 .editor {
   display: flex;
   flex-direction: column;

@@ -114,3 +114,27 @@ test("What's new shows bundled notes", async ({ page }) => {
   await expect(dialog).toContainText('Unreleased');
   await expect(page.getByTestId('whats-new-list').locator('li')).not.toHaveCount(0);
 });
+
+test('Review shows a plaintext secret diff after save', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('reveal').click();
+  await page.getByTestId('key-value').fill('sk_review_demo');
+  await expect(page.getByTestId('save')).toBeEnabled();
+  await page.getByTestId('save').click();
+  await page.getByTestId('review').click();
+  const out = page.getByTestId('review-out');
+  await expect(out).toBeVisible();
+  await expect(out).toContainText('STRIPE_SECRET');
+  await expect(out).toContainText('sk_review_demo');
+  await expect(out).not.toContainText('ENC[');
+});
+
+test('History lists commits without secret values', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('history').click();
+  const list = page.getByTestId('history-list');
+  await expect(list.locator('button')).not.toHaveCount(0);
+  await expect(list).not.toContainText('sk_test_demo');
+});

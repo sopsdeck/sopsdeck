@@ -132,8 +132,22 @@
             Commit
           </button>
           <button id="sync" class="tool git-action" type="button" data-testid="sync">Sync</button>
+          <button id="review" class="tool git-action" type="button" data-testid="review">
+            Review
+          </button>
+          <button id="history" class="tool git-action" type="button" data-testid="history">
+            History
+          </button>
+          <button id="restore" class="tool git-action" type="button" data-testid="restore">
+            Restore
+          </button>
+          <pre id="review-out" class="review-out" hidden data-testid="review-out"></pre>
+          <ul id="history-list" class="history-list" hidden data-testid="history-list"></ul>
+          <p id="git-status" class="control-status" hidden data-testid="git-status"></p>
           <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
-          <p class="save-note">Sync is fetch, ff-only pull, then push</p>
+          <p class="save-note">
+            Restore copies a revision into the editor; save and commit to keep it
+          </p>
         </section>
         <div class="save-zone">
           <button id="save" class="save" type="button" disabled data-testid="save">

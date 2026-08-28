@@ -24,6 +24,7 @@ type invokeReq struct {
 	PublicKey string `json:"publicKey"`
 	Prefix    string `json:"prefix"`
 	Yes       bool   `json:"yes"`
+	At        string `json:"at"`
 }
 
 type demoInfo struct {
@@ -208,13 +209,19 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 	case "list_managed_files":
 		return managed.List(req.Path)
 	case "get_managed_file":
-		return invokeGet(req.Path)
+		return invokeGet(req.Path, req.At)
 	case "set_managed_key":
 		return nil, invokeSet(req, getenv)
 	case "commit_managed_file":
 		return nil, invokeCommit(req)
 	case "sync_project":
 		return nil, d.invokeSync(req.Path)
+	case "review_managed_file":
+		return invokeReview(req)
+	case "history_managed_file":
+		return invokeHistory(req)
+	case "restore_managed_file":
+		return nil, invokeRestore(req)
 	case "add_recipient":
 		return nil, invokeRecipientAdd(req, getenv)
 	case "remove_recipient":
@@ -239,9 +246,13 @@ func cliErr(code int, stderr *strings.Builder) error {
 	return nil
 }
 
-func invokeGet(path string) (any, error) {
+func invokeGet(path, at string) (any, error) {
+	args := []string{"-f", path, "--output", "json"}
+	if at != "" {
+		args = append(args, "--at", at)
+	}
 	var stdout, stderr strings.Builder
-	if err := cliErr(cmdGet([]string{"-f", path, "--output", "json"}, &stdout, &stderr), &stderr); err != nil {
+	if err := cliErr(cmdGet(args, &stdout, &stderr), &stderr); err != nil {
 		return nil, err
 	}
 	var pairs map[string]string
@@ -263,6 +274,27 @@ func invokeSet(req invokeReq, getenv func(string) string) error {
 func invokeCommit(req invokeReq) error {
 	var stderr strings.Builder
 	return cliErr(cmdCommit([]string{"-m", req.Message, "-f", req.Path}, io.Discard, &stderr), &stderr)
+}
+
+func invokeReview(req invokeReq) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdReview([]string{"-f", req.Path}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	return stdout.String(), nil
+}
+
+func invokeHistory(req invokeReq) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdHistory([]string{"-f", req.Path}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	return stdout.String(), nil
+}
+
+func invokeRestore(req invokeReq) error {
+	var stderr strings.Builder
+	return cliErr(cmdRestore([]string{"-f", req.Path, "--at", req.At}, io.Discard, &stderr), &stderr)
 }
 
 func (d *drive) invokeSync(path string) error {
