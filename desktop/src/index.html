@@ -68,12 +68,6 @@
             <span id="badge" class="encrypted" hidden>SOPS encrypted</span>
           </div>
         </header>
-        <div id="toolbar" class="toolbar" hidden>
-          <button id="add-secret" class="tool primary" type="button" data-testid="add-secret">
-            Add secret
-          </button>
-          <button id="reveal" class="tool" type="button" data-testid="reveal">Reveal values</button>
-        </div>
         <p id="error" class="error" hidden data-testid="editor-error"></p>
         <p id="empty-state" class="empty-state" hidden data-testid="empty-state"></p>
         <p id="file-note" class="file-note" hidden data-testid="file-note"></p>
@@ -84,114 +78,168 @@
           <span class="kicker">Environment</span>
         </div>
         <div class="inspect-body">
-          <section class="inspect-section">
-            <h2>File</h2>
-            <div class="meta">
-              <span>Path</span><strong id="meta-path" data-testid="inspector-path">—</strong>
-              <span>Format</span><strong id="meta-format">—</strong> <span>Encryption</span
-              ><strong id="meta-enc">—</strong>
+          <section class="inspect-section" data-section="file" data-testid="inspector-section-file">
+            <h2>
+              <button
+                type="button"
+                class="inspect-toggle"
+                data-testid="inspector-toggle-file"
+                aria-expanded="true"
+              >
+                File
+              </button>
+            </h2>
+            <div class="inspect-section-body">
+              <div class="meta">
+                <span>Path</span><strong id="meta-path" data-testid="inspector-path">—</strong>
+                <span>Format</span><strong id="meta-format">—</strong> <span>Encryption</span
+                ><strong id="meta-enc">—</strong>
+              </div>
             </div>
           </section>
-          <section class="inspect-section">
-            <h2>Access</h2>
-            <label class="commit-label">
-              Recipient
-              <input
-                id="recipient-key"
-                type="text"
-                placeholder="age1…"
-                autocomplete="off"
-                data-testid="recipient-key"
-              />
-            </label>
-            <button
-              id="grant-access"
-              class="tool git-action"
-              type="button"
-              data-testid="grant-access"
-            >
-              Grant Access
-            </button>
-            <button
-              id="remove-access"
-              class="tool git-action"
-              type="button"
-              data-testid="remove-access"
-            >
-              Remove Access
-            </button>
-            <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
-            <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
-            <p class="save-note">Removing Access does not rewrite Git history</p>
-          </section>
-          <section class="inspect-section">
-            <h2>Publish</h2>
-            <div class="meta">
-              <span>Repo</span><strong id="publish-repo" data-testid="publish-repo">—</strong>
-              <span>Environment</span
-              ><strong id="publish-environment" data-testid="publish-environment">—</strong>
+          <section
+            class="inspect-section"
+            data-section="access"
+            data-testid="inspector-section-access"
+          >
+            <h2>
+              <button
+                type="button"
+                class="inspect-toggle"
+                data-testid="inspector-toggle-access"
+                aria-expanded="true"
+              >
+                Access
+              </button>
+            </h2>
+            <div class="inspect-section-body">
+              <label class="commit-label">
+                Recipient
+                <input
+                  id="recipient-key"
+                  type="text"
+                  placeholder="age1…"
+                  autocomplete="off"
+                  data-testid="recipient-key"
+                />
+              </label>
+              <button
+                id="grant-access"
+                class="tool git-action"
+                type="button"
+                data-testid="grant-access"
+              >
+                Grant Access
+              </button>
+              <button
+                id="remove-access"
+                class="tool git-action"
+                type="button"
+                data-testid="remove-access"
+              >
+                Remove Access
+              </button>
+              <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
+              <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
+              <p class="save-note">Removing Access does not rewrite Git history</p>
             </div>
-            <label class="commit-label">
-              Prefix
-              <input
-                id="publish-prefix"
-                type="text"
-                placeholder="SD_"
-                autocomplete="off"
-                spellcheck="false"
-                data-testid="publish-prefix"
-              />
-            </label>
-            <label class="commit-label prune-label">
-              <input id="publish-prune" type="checkbox" data-testid="publish-prune" />
-              Prune previously published names
-            </label>
-            <button id="publish" class="tool git-action" type="button" data-testid="publish">
-              Dry run
-            </button>
-            <button
-              id="publish-yes"
-              class="tool git-action"
-              type="button"
-              data-testid="publish-yes"
-            >
-              Publish
-            </button>
-            <p id="publish-status" class="control-status" hidden data-testid="publish-status"></p>
-            <p id="publish-error" class="control-error" hidden data-testid="publish-error"></p>
-            <p class="save-note">Dry run lists names; Publish writes to the Sync Target</p>
           </section>
-          <section class="inspect-section">
-            <h2>Git</h2>
-            <label class="commit-label">
-              Message
-              <input
-                id="commit-message"
-                type="text"
-                placeholder="What changed"
-                data-testid="commit-message"
-              />
-            </label>
-            <button id="commit" class="tool git-action" type="button" data-testid="commit">
-              Commit
-            </button>
-            <button id="sync" class="tool git-action" type="button" data-testid="sync">Sync</button>
-            <button id="review" class="tool git-action" type="button" data-testid="review">
-              Review
-            </button>
-            <button id="history" class="tool git-action" type="button" data-testid="history">
-              History
-            </button>
-            <button id="restore" class="tool git-action" type="button" data-testid="restore">
-              Restore
-            </button>
-            <pre id="review-out" class="review-out" hidden data-testid="review-out"></pre>
-            <ul id="history-list" class="history-list" hidden data-testid="history-list"></ul>
-            <p id="git-status" class="control-status" hidden data-testid="git-status"></p>
-            <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
-            <p class="save-note">
-              Restore copies a revision into the editor; save and commit to keep it
-            </p>
+          <section
+            class="inspect-section"
+            data-section="publish"
+            data-testid="inspector-section-publish"
+          >
+            <h2>
+              <button
+                type="button"
+                class="inspect-toggle"
+                data-testid="inspector-toggle-publish"
+                aria-expanded="true"
+              >
+                Publish
+              </button>
+            </h2>
+            <div class="inspect-section-body">
+              <div class="meta">
+                <span>Repo</span><strong id="publish-repo" data-testid="publish-repo">—</strong>
+                <span>Environment</span
+                ><strong id="publish-environment" data-testid="publish-environment">—</strong>
+              </div>
+              <label class="commit-label">
+                Prefix
+                <input
+                  id="publish-prefix"
+                  type="text"
+                  placeholder="SD_"
+                  autocomplete="off"
+                  spellcheck="false"
+                  data-testid="publish-prefix"
+                />
+              </label>
+              <label class="commit-label prune-label">
+                <input id="publish-prune" type="checkbox" data-testid="publish-prune" />
+                Prune previously published names
+              </label>
+              <button id="publish" class="tool git-action" type="button" data-testid="publish">
+                Dry run
+              </button>
+              <button
+                id="publish-yes"
+                class="tool git-action"
+                type="button"
+                data-testid="publish-yes"
+              >
+                Publish
+              </button>
+              <p id="publish-status" class="control-status" hidden data-testid="publish-status"></p>
+              <p id="publish-error" class="control-error" hidden data-testid="publish-error"></p>
+              <p class="save-note">Dry run lists names; Publish writes to the Sync Target</p>
+            </div>
+          </section>
+          <section class="inspect-section" data-section="git" data-testid="inspector-section-git">
+            <h2>
+              <button
+                type="button"
+                class="inspect-toggle"
+                data-testid="inspector-toggle-git"
+                aria-expanded="true"
+              >
+                Git
+              </button>
+            </h2>
+            <div class="inspect-section-body">
+              <label class="commit-label">
+                Message
+                <input
+                  id="commit-message"
+                  type="text"
+                  placeholder="What changed"
+                  data-testid="commit-message"
+                />
+              </label>
+              <button id="commit" class="tool git-action" type="button" data-testid="commit">
+                Commit
+              </button>
+              <button id="sync" class="tool git-action" type="button" data-testid="sync">
+                Sync
+              </button>
+              <button id="review" class="tool git-action" type="button" data-testid="review">
+                Review
+              </button>
+              <button id="history" class="tool git-action" type="button" data-testid="history">
+                History
+              </button>
+              <button id="restore" class="tool git-action" type="button" data-testid="restore">
+                Restore
+              </button>
+              <pre id="review-out" class="review-out" hidden data-testid="review-out"></pre>
+              <ul id="history-list" class="history-list" hidden data-testid="history-list"></ul>
+              <p id="git-status" class="control-status" hidden data-testid="git-status"></p>
+              <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
+              <p class="save-note">
+                Restore copies a revision into the editor; save and commit to keep it
+              </p>
+            </div>
           </section>
         </div>
         <div class="save-zone">

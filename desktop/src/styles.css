@@ -553,6 +553,14 @@ h1 {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.value-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.key-head .icon-button {
+  opacity: 1;
+}
 .key-row {
   min-height: 54px;
   padding: 8px 10px;
@@ -670,6 +678,34 @@ h1 {
 .inspect-section h2 {
   margin: 0 0 11px;
   font-size: 11px;
+}
+.inspect-section.collapsed h2 {
+  margin-bottom: 0;
+}
+.inspect-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.inspect-toggle svg {
+  flex: none;
+  transition: transform 0.12s ease;
+}
+.inspect-section.collapsed .inspect-toggle svg {
+  transform: rotate(-90deg);
+}
+.inspect-section.collapsed .inspect-section-body {
+  display: none;
 }
 .meta {
   display: grid;

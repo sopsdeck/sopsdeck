@@ -269,6 +269,35 @@ async function dispatchPaste(page, text) {
   }, text);
 }
 
+test('Add secret toolbar is gone; composer remains', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('add-secret')).toHaveCount(0);
+  await expect(page.getByTestId('key-composer')).toBeVisible();
+});
+
+test('values column heading reveals and hides values', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  const value = page.getByTestId('key-value').first();
+  await expect(value).toHaveValue(/•/);
+  await page.getByTestId('reveal').click();
+  await expect(value).not.toHaveValue(/•/);
+  await page.getByTestId('reveal').click();
+  await expect(value).toHaveValue(/•/);
+});
+
+test('inspector sections collapse and persist', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('inspector-path')).toBeVisible();
+  await page.getByTestId('inspector-toggle-file').click();
+  await expect(page.getByTestId('inspector-path')).toBeHidden();
+  await page.reload();
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('inspector-path')).toBeHidden();
+});
+
 test('bulk paste previews key names without values', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');

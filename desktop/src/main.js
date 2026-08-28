@@ -2,6 +2,7 @@ import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.
 
 const invoke = globalThis.__TAURI__?.core?.invoke ?? invokeOverHTTP;
 const THEME_KEY = 'sopsdeck-theme';
+const INSPECTOR_KEY = 'sopsdeck-inspector';
 
 async function invokeOverHTTP(cmd, args = {}) {
   const response = await fetch('/invoke', {
@@ -29,9 +30,7 @@ const saveErrorEl = () => document.getElementById('save-error');
 const accessErrorEl = () => document.getElementById('access-error');
 const publishErrorEl = () => document.getElementById('publish-error');
 const badgeEl = () => document.getElementById('badge');
-const toolbarEl = () => document.getElementById('toolbar');
 const saveEl = () => document.getElementById('save');
-const revealEl = () => document.getElementById('reveal');
 const commitEl = () => document.getElementById('commit-message');
 
 const projects = [];
@@ -148,6 +147,7 @@ function icon(kind) {
       }),
     ],
     moon: [svgEl('path', { d: 'M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z', ...stroke })],
+    chevron: [svgEl('path', { d: 'M8 10l4 4 4-4', ...stroke })],
   };
   return svgEl(
     'svg',
@@ -508,7 +508,6 @@ function resetEditorChrome() {
   rows = [];
   revealed = false;
   badgeEl().hidden = true;
-  toolbarEl().hidden = true;
   keysEl().hidden = true;
   keysEl().replaceChildren();
   document.getElementById('meta-path').textContent = '—';
@@ -552,6 +551,53 @@ function applyTheme(theme) {
   btn.setAttribute('aria-label', `Switch to ${next} theme`);
 }
 
+function readInspectorState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(INSPECTOR_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeInspectorState(state) {
+  const collapsed = {};
+  for (const [id, value] of Object.entries(state)) {
+    if (value) collapsed[id] = true;
+  }
+
+  localStorage.setItem(INSPECTOR_KEY, JSON.stringify(collapsed));
+}
+
+function applyInspectorCollapsed(section, collapsed) {
+  const toggle = section.querySelector('.inspect-toggle');
+  section.classList.toggle('collapsed', collapsed);
+  if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+}
+
+function initInspector() {
+  const stored = readInspectorState();
+  for (const section of document.querySelectorAll('.inspect-section[data-section]')) {
+    const id = section.dataset.section;
+    const toggle = section.querySelector('.inspect-toggle');
+    if (!toggle) continue;
+    applyInspectorCollapsed(section, Boolean(stored[id]));
+    toggle.prepend(icon('chevron'));
+    toggle.addEventListener('click', () => {
+      const next = !section.classList.contains('collapsed');
+      applyInspectorCollapsed(section, next);
+      stored[id] = next;
+      writeInspectorState(stored);
+    });
+  }
+}
+
+function toggleReveal() {
+  revealed = !revealed;
+  for (const row of rows) row.revealed = revealed;
+  renderKeys();
+}
+
 function renderTree() {
   const nav = treeEl();
   nav.replaceChildren();
@@ -589,13 +635,11 @@ async function openFile(project, file) {
   commitAuto = true;
   lastAuto = '';
   commitEl().value = '';
-  buttonLabel(revealEl()).textContent = 'Reveal values';
   renderTree();
   crumbEl().textContent = displayPath(project, file);
   headlineEl().textContent = titleOf(file.name);
   showError('');
   badgeEl().hidden = false;
-  toolbarEl().hidden = false;
   document.getElementById('meta-path').textContent = displayPath(project, file);
   document.getElementById('meta-format').textContent = formatOf(file.path);
   document.getElementById('meta-enc').textContent = 'age + SOPS';
@@ -638,11 +682,23 @@ function renderKeys() {
   renderPasteChrome(box);
   const head = document.createElement('div');
   head.className = 'key-head';
-  for (const label of ['Key', 'Value', 'Type', '']) {
-    const span = document.createElement('span');
-    span.textContent = label;
-    head.append(span);
-  }
+  const keyHead = document.createElement('span');
+  keyHead.textContent = 'Key';
+  const valueHead = document.createElement('span');
+  valueHead.className = 'value-head';
+  valueHead.append('Value');
+  valueHead.append(
+    iconButton(
+      'reveal',
+      revealed ? 'Hide values' : 'Reveal values',
+      revealed ? 'eye-off' : 'eye',
+      toggleReveal,
+    ),
+  );
+  const typeHead = document.createElement('span');
+  typeHead.textContent = 'Type';
+  const actionsHead = document.createElement('span');
+  head.append(keyHead, valueHead, typeHead, actionsHead);
 
   box.append(head);
 
@@ -811,8 +867,6 @@ function decorateChrome() {
   decorateButton('add-file', 'file');
   decorateButton('whats-new', 'spark');
   decorateButton('add-project', 'folder');
-  decorateButton('add-secret', 'plus');
-  decorateButton('reveal', 'eye');
   decorateButton('grant-access', 'grant');
   decorateButton('remove-access', 'drop');
   decorateButton('publish', 'review');
@@ -1002,6 +1056,7 @@ async function showWhatsNew() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   decorateChrome();
+  initInspector();
   document.addEventListener('paste', onEditorPaste);
   applyTheme(currentTheme());
   document.getElementById('whats-new').addEventListener('click', () => {
@@ -1023,17 +1078,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     addManagedFile();
-  });
-  document.getElementById('add-secret').addEventListener('click', () => {
-    if (!selected) return;
-    const composer = keysEl().querySelector('[data-testid="key-composer"]');
-    if (composer) composer.focus();
-  });
-  revealEl().addEventListener('click', () => {
-    revealed = !revealed;
-    buttonLabel(revealEl()).textContent = revealed ? 'Hide values' : 'Reveal values';
-    for (const row of rows) row.revealed = revealed;
-    renderKeys();
   });
   saveEl().addEventListener('click', saveFile);
   document.getElementById('commit').addEventListener('click', async () => {
