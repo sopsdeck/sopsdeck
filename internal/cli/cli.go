@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +27,16 @@ import (
 )
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+	var captured bytes.Buffer
+	logged := io.MultiWriter(stderr, &captured)
+	code := run(args, stdin, stdout, logged, getenv)
+	if code != 0 {
+		recordError(getenv, captured.String())
+	}
+	return code
+}
+
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive|scan|mcp> ...")
 		return 1

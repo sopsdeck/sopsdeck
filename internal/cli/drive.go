@@ -266,7 +266,9 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 
 func cliErr(code int, stderr *strings.Builder) error {
 	if code != 0 {
-		return fmt.Errorf("%s", strings.TrimSpace(stderr.String()))
+		msg := strings.TrimSpace(stderr.String())
+		recordError(os.Getenv, msg)
+		return fmt.Errorf("%s", msg)
 	}
 	return nil
 }

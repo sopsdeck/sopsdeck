@@ -16,7 +16,8 @@ const phases = [
     phase: 1,
     title: 'CLI core',
     seam: 'sopsdeck CLI',
-    match: /^(get|set|del|run|identity|files)/,
+    match: /^(get|set|del|run|identity|files|errorlog)/,
+    names: /ErrorLog/,
   },
   {
     phase: 3,
