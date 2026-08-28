@@ -6,7 +6,7 @@ Label: `wayfinder:map`
 
 An implementation-ready product and technical specification for Sopsdeck: domain model, desktop workflows, security boundaries, CLI compatibility contract, integrations, test seams, and delivery phases are explicit enough for agents to build the product test-first without inventing product policy.
 
-**Status: destination reached.** Remaining work is vertical build from [build.md](build.md), not this map. Phases: [issue 15](issues/15-lock-public-test-seams-and-delivery-phases.md). Ready chrome/assets tickets: [21](issues/21-desktop-chrome-polish.md) (next), [19](issues/19-drive-professional-product-assets.md). Versioning/changelog: [22](issues/22-epoch-semver-and-changelog.md). [20 Contextual failure UX](issues/20-contextual-failure-ux.md) is done.
+**Status: destination reached.** Remaining work is vertical build from [build.md](build.md), not this map. Phases: [issue 15](issues/15-lock-public-test-seams-and-delivery-phases.md). Chrome/assets tickets [19](issues/19-drive-professional-product-assets.md)–[21](issues/21-desktop-chrome-polish.md) are done. Next: [22](issues/22-epoch-semver-and-changelog.md). [20 Contextual failure UX](issues/20-contextual-failure-ux.md) is done.
 
 ## Notes
 
@@ -44,7 +44,7 @@ An implementation-ready product and technical specification for Sopsdeck: domain
 - File-watching and in-process persistence details inside the Go core (writes are atomic ciphertext).
 - Later Sync Targets: EAS API, GitLab, cloud secret managers, GitHub org/Codespaces/Dependabot.
 
-Screen chrome, contextual errors, and demo assets are specified as ready builds (20, 21, 19) on [build.md](build.md).
+Screen chrome, contextual errors, and demo assets (19–21) are done on [build.md](build.md). Next: [22](issues/22-epoch-semver-and-changelog.md).
 
 ## Out of scope
 

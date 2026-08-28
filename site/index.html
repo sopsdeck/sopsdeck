@@ -255,6 +255,22 @@
         font-size: 10px;
         font-weight: 700;
       }
+      .product-still {
+        margin: 0;
+      }
+      .product-still img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 16px;
+        border: 1px solid rgba(16, 24, 40, 0.12);
+        box-shadow: 0 24px 70px rgba(16, 24, 40, 0.18);
+      }
+      .product-still figcaption {
+        margin-top: 10px;
+        color: var(--slate);
+        font-size: 12px;
+      }
       .start {
         padding: 36px;
         border-radius: 24px;
@@ -377,35 +393,15 @@
             Encrypt &amp; save writes only to the local file. The WebView never holds keys on disk.
           </p>
         </div>
-        <div class="browser" aria-hidden="true">
-          <div class="browser-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
-          <div class="app-shell">
-            <aside class="sidebar">
-              <div class="kicker">Projects</div>
-              <div class="nav-row">▾ acme-api</div>
-              <div class="nav-row">&nbsp;&nbsp;.env.local</div>
-              <div class="nav-row active">&nbsp;&nbsp;.env.production</div>
-              <div class="nav-row">▾ atlas-web</div>
-              <div class="nav-row">&nbsp;&nbsp;eas.json</div>
-            </aside>
-            <div class="content">
-              <div class="kicker">~/code/acme-api</div>
-              <h3 style="margin: 6px 0 12px; font-size: 22px">Production</h3>
-              <div class="env-row">
-                <span class="mono">DATABASE_URL</span><span class="status">encrypted</span
-                ><span>••••••••</span>
-              </div>
-              <div class="env-row">
-                <span class="mono">STRIPE_KEY</span><span class="status">encrypted</span
-                ><span>••••••••</span>
-              </div>
-              <div class="env-row">
-                <span class="mono">SENTRY_DSN</span><span class="status">encrypted</span
-                ><span>••••••••</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <figure class="product-still">
+          <img
+            src="assets/editor.png"
+            width="1440"
+            height="900"
+            alt="Sopsdeck editor with a Production Managed File open"
+          />
+          <figcaption>Generated still from <code class="mono">./scripts/demo</code>.</figcaption>
+        </figure>
       </section>
 
       <section class="start" id="start">

@@ -6,8 +6,7 @@ Use `/tdd` at the public seams in [Lock public test seams and delivery phases](i
 
 ## Next
 
-1. [19 Product assets and testable docs](issues/19-drive-professional-product-assets.md) — walkthroughs and stills; display paths no longer leak temp dirs.
-2. [22 Epoch SemVer and changelog](issues/22-epoch-semver-and-changelog.md) — parallel; Unreleased bullets already started.
+1. [22 Epoch SemVer and changelog](issues/22-epoch-semver-and-changelog.md) — version sync, tag → GH Release, landing fragment, in-app notes.
 
 Versioning/changelog ([22](issues/22-epoch-semver-and-changelog.md)) can land in parallel with 20–21: add `CHANGELOG.md` Unreleased bullets on user-facing work; tag CI waits for phase 8 artifacts.
 
@@ -40,7 +39,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 
 | # | Title | Status |
 | --- | --- | --- |
-| [19](issues/19-drive-professional-product-assets.md) | Professional videos, snippets, stills; docs generated/testable | ready (after 20, 21) |
+| [19](issues/19-drive-professional-product-assets.md) | Professional videos, snippets, stills; docs generated/testable | **done** |
 | [20](issues/20-contextual-failure-ux.md) | Contextual failures, not raw Git or toasts | **done** |
 | [21](issues/21-desktop-chrome-polish.md) | Motion, states, commit default, theme, display paths | **done** |
 | [22](issues/22-epoch-semver-and-changelog.md) | Epoch SemVer, CHANGELOG.md, GH Release + site + in-app notes | ready (parallel; tag CI with phase 8) |

@@ -1,7 +1,7 @@
 # Drive professional product assets and testable docs
 
 Type: build
-Status: ready
+Status: done
 Blocked by: None (20 and 21 are done)
 
 ## What to build
@@ -22,18 +22,18 @@ Do not invent product behavior in a clip that is not already proved in [docs/fea
 
 ## Already there
 
-- `sopsdeck drive --demo` seeds `checkout` + Bob Access + local origin + fake GitHub.
-- Playwright smoke (`e2e/smoke.spec.js`) and stills (`e2e/demo.spec.js`).
-- Living feature/seams markdown from tests (`./scripts/docs`).
+- `sopsdeck drive --demo` seeds `checkout` + Bob's public key at `GET /demo` + local origin + fake GitHub. Grant Access is an inspector action.
+- Playwright smoke, chrome, stills/clips/walkthrough (`e2e/demo.spec.js`).
+- Catalog + `docs/assets.md` from `./scripts/docs`; `./scripts/docs --check` / `./scripts/demo --check` fail when files are missing or unlinked.
 
 ## Acceptance criteria
 
-- [ ] A full walkthrough video (or scripted recording) covers the studio teammate + Publish path without a second GitHub account or machine.
-- [ ] Separate short clips **and** stills exist per proved editor action (at least: open Managed File, reveal, save, commit, Sync, recipient add, Publish).
-- [ ] Public frames do not show raw filesystem junk (`/var/folders`, `../testdata`, unexpanded `desktop/../…`) — depends on 21 display paths.
-- [ ] Walkthrough does not show raw `git-pull(1)` (or equivalent) as the user-visible failure — depends on 20.
-- [ ] Docs that show the product (README, `docs/`, landing page as applicable) reference the generated files; a script fails when those files or links are stale.
-- [ ] Asset jobs are not part of `./scripts/check`.
+- [x] A full walkthrough video (or scripted recording) covers the studio teammate + Publish path without a second GitHub account or machine.
+- [x] Separate short clips **and** stills exist per proved editor action (at least: open Managed File, reveal, save, commit, Sync, recipient add, Publish).
+- [x] Public frames do not show raw filesystem junk (`/var/folders`, `../testdata`, unexpanded `desktop/../…`) — depends on 21 display paths.
+- [x] Walkthrough does not show raw `git-pull(1)` (or equivalent) as the user-visible failure — depends on 20.
+- [x] Docs that show the product (README, `docs/`, landing page as applicable) reference the generated files; a script fails when those files or links are stale.
+- [x] Asset jobs are not part of `./scripts/check`.
 
 ## Seams
 
@@ -41,6 +41,13 @@ Do not invent product behavior in a clip that is not already proved in [docs/fea
 - Studio + fake GitHub (existing).
 - Generated docs/asset index (extend `./scripts/docs` or `./scripts/demo`).
 
+## Implementation (2026-08-28)
+
+- Catalog: `docs/assets/catalog.json`. Gallery: `docs/assets.md`. Landing still: `site/assets/editor.png`.
+- `./scripts/demo` records page-only webm (Playwright; not Screen Studio) plus stills.
+- Existence and link check lives in `./scripts/docs --check` (fast). Generation is `./scripts/demo` only.
+- Inspector Grant Access / Dry run / Publish so those actions can be filmed; drive `--demo` no longer pre-grants Bob.
+
 ## Comments
 
-Captured 2026-08-28; triaged 2026-08-28. Kind: idea → build.
+Captured 2026-08-28; triaged 2026-08-28; done 2026-08-28. Kind: idea → build.

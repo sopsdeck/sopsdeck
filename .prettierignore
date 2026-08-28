@@ -14,6 +14,8 @@ coverage.out
 coverage.html
 docs/features.md
 docs/seams.md
+docs/assets.md
 *.png
+*.webm
 *.ico
 *.icns
