@@ -9,6 +9,8 @@ services:
         image: ENC[AES256_GCM,data:JATIk47pnbpKB0UxrQ==,iv:qO4xpBXUkm5l1/0x11vzgz1CqoK5KHXT7r/VO3aERqE=,tag:mm5PXnZ+v8D7Z4KjNX0vvg==,type:str]
         environment:
             DATABASE_URL: ENC[AES256_GCM,data:YQDphaYt0nR7XlQHNSqijRTGt/Zv3Is=,iv:hxggJWh89/eIz9INP6dUSU+HB2cfjtFOCa/bJxGvsfI=,tag:hLizToDYCNlPmKAyE79SRA==,type:str]
+foo: ENC[AES256_GCM,data:7ug1,iv:jHbSlSQn5kabF6FnlIg1MCS/OO/G/YWoBiLgbaoUj8g=,tag:qzuuqVF/8hKPNJFWy+dG4g==,type:str]
+baz: ENC[AES256_GCM,data:iKl8,iv:DDteYVIfDyYdt0zJsmwWFO13n0TOQxkc/g0IAFEYhdE=,tag:xny+cnN5jyDVM4Ul/vwBcg==,type:str]
 sops:
     age:
         - recipient: age1z49kt22ur6rugrulasu98au5fh94pv0jlv8nnmwzf2gge6gjgdqs6k8hf2
@@ -20,7 +22,7 @@ sops:
             cTRBUUxPdGM5WjE2R1lheFdzSVJsREUKhcx0T7ffeE/AXrKQHggqFOr3W4GjQ6Qs
             Dq4B8LT1cKfyccg+8vx1sCagLAOIokaEH21w1REMtQYy1ggIN1KJiA==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2026-08-28T02:45:54Z"
-    mac: ENC[AES256_GCM,data:lQRbVAELdB5HQdeX8VS6SX3f2rHJjxY/CXPkxUgUSLPvUEkbEMREib0OICVPVm18/djLnFumRc4g6qQzIVL1GKznYRjYQur4RojzAkAgIUPm5YwEh/Y3uBKYvQ4hxq53QcjdpD3NM3/SGjpvHRmJgLeAK/rvHynr094XOsfcrQE=,iv:djSfeyuu2YJEhjq0rDIXSNjZXja2yxOAEIwnjgzpWZc=,tag:nAUdck7cmLH78MnYGw/uiA==,type:str]
+    lastmodified: "2026-08-28T03:02:00Z"
+    mac: ENC[AES256_GCM,data:3m8BbMmP4O6fFqYMWpaMjex62aG97xLwZWxvHAELgaohRCR9ONZmjZ2gfQssGCyWdcum68VcP7ouuhSJUCgTJgjzGofsxMN2ovgDQu2Kw6u/ijLiGT9UeBWirsEamzcRWvSellARWrrvQXOm1jVsZRpKII3EZKuiCD/qoPNqhRM=,iv:PWzW8GkwXp99quywiBIGRr7Oqpc9de9F2p27vAM29hs=,tag:j+rbQjsSKFDiPM4n3mSnHg==,type:str]
     unencrypted_suffix: _unencrypted
     version: 3.11.0
