@@ -398,7 +398,7 @@ func gitTopLevel(path string) (string, error) {
 }
 
 func applyProcessEnv(getenv func(string) string) func() {
-	keys := []string{"SOPS_AGE_KEY_FILE", "SOPSDECK_STATE_DIR", "SOPSDECK_GITHUB_API", "SOPSDECK_GITHUB_REPO"}
+	keys := []string{"SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPSDECK_STATE_DIR", "SOPSDECK_KEYCHAIN_DIR", "SOPSDECK_GITHUB_API", "SOPSDECK_GITHUB_REPO"}
 	prev := map[string]*string{}
 	for _, key := range keys {
 		if cur, ok := os.LookupEnv(key); ok {

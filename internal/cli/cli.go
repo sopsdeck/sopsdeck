@@ -533,7 +533,7 @@ func dotenvValue(plain []byte, key string) (string, bool) {
 
 func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import [--confirmed-backup]")
+		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import|key [--confirmed-backup]")
 		return 1
 	}
 	switch args[0] {
@@ -541,8 +541,10 @@ func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) st
 		return identityCreate(args[1:], stdout, stderr, getenv)
 	case "import":
 		return identityImport(args[1:], stdout, stderr, getenv)
+	case "key":
+		return identityPrintKey(stdout, stderr, getenv)
 	default:
-		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import [--confirmed-backup]")
+		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import|key [--confirmed-backup]")
 		return 1
 	}
 }
@@ -561,8 +563,7 @@ func identityCreate(args []string, stdout, stderr io.Writer, getenv func(string)
 		fmt.Fprintln(stderr, "identity create: save the private key in your password manager, then rerun with --confirmed-backup")
 		return 1
 	}
-	dir, ok := identityStateDir(getenv, stderr)
-	if !ok {
+	if _, ok := identityStateDir(getenv, stderr); !ok {
 		return 1
 	}
 	id, err := age.GenerateX25519Identity()
@@ -570,17 +571,13 @@ func identityCreate(args []string, stdout, stderr io.Writer, getenv func(string)
 		fmt.Fprintf(stderr, "identity create: %v\n", err)
 		return 1
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		fmt.Fprintf(stderr, "identity create: %v\n", err)
-		return 1
-	}
-	path := filepath.Join(dir, "age.txt")
 	body := "# public key: " + id.Recipient().String() + "\n" + id.String() + "\n"
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+	if err := putIdentity(getenv, body); err != nil {
 		fmt.Fprintf(stderr, "identity create: %v\n", err)
 		return 1
 	}
 	fmt.Fprintln(stdout, id.Recipient().String())
+	fmt.Fprintln(stderr, "identity: stored in the OS keychain; export SOPS_AGE_KEY_CMD='sopsdeck identity key'")
 	return 0
 }
 
@@ -609,8 +606,7 @@ func identityImport(args []string, stdout, stderr io.Writer, getenv func(string)
 		fmt.Fprintln(stderr, "identity import: confirm the private key is in your password manager with --confirmed-backup")
 		return 1
 	}
-	dir, ok := identityStateDir(getenv, stderr)
-	if !ok {
+	if _, ok := identityStateDir(getenv, stderr); !ok {
 		return 1
 	}
 	data, err := os.ReadFile(file)
@@ -622,14 +618,23 @@ func identityImport(args []string, stdout, stderr io.Writer, getenv func(string)
 		fmt.Fprintf(stderr, "identity import: %v\n", err)
 		return 1
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := putIdentity(getenv, string(data)); err != nil {
 		fmt.Fprintf(stderr, "identity import: %v\n", err)
 		return 1
 	}
-	if err := os.WriteFile(filepath.Join(dir, "age.txt"), data, 0o600); err != nil {
-		fmt.Fprintf(stderr, "identity import: %v\n", err)
+	return 0
+}
+
+func identityPrintKey(stdout, stderr io.Writer, getenv func(string) string) int {
+	body, err := getIdentity(getenv)
+	if err != nil {
+		fmt.Fprintf(stderr, "identity key: %v\n", err)
 		return 1
 	}
+	if !strings.HasSuffix(body, "\n") {
+		body += "\n"
+	}
+	fmt.Fprint(stdout, body)
 	return 0
 }
 
@@ -695,26 +700,34 @@ func setCreate(file, key, value string, stderr io.Writer, getenv func(string) st
 }
 
 func ageRecipientFromEnv(getenv func(string) string) (string, error) {
-	path := getenv("SOPS_AGE_KEY_FILE")
-	if path == "" {
-		if dir := getenv("SOPSDECK_STATE_DIR"); dir != "" {
-			path = filepath.Join(dir, "age.txt")
-		}
+	if path := getenv("SOPS_AGE_KEY_FILE"); path != "" {
+		return recipientFromIdentityFile(path)
 	}
-	if path == "" {
-		return "", fmt.Errorf("no age identity (set SOPS_AGE_KEY_FILE or SOPSDECK_STATE_DIR)")
+	if body, err := getIdentity(getenv); err == nil && strings.TrimSpace(body) != "" {
+		return recipientFromIdentityReader(strings.NewReader(body))
 	}
+	if dir := getenv("SOPSDECK_STATE_DIR"); dir != "" {
+		return recipientFromIdentityFile(filepath.Join(dir, "age.txt"))
+	}
+	return "", fmt.Errorf("no age identity (set SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, or SOPSDECK_STATE_DIR)")
+}
+
+func recipientFromIdentityFile(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = f.Close() }()
-	ids, err := age.ParseIdentities(f)
+	return recipientFromIdentityReader(f)
+}
+
+func recipientFromIdentityReader(r io.Reader) (string, error) {
+	ids, err := age.ParseIdentities(r)
 	if err != nil {
 		return "", err
 	}
 	if len(ids) == 0 {
-		return "", fmt.Errorf("no age identities in %s", path)
+		return "", fmt.Errorf("no age identities")
 	}
 	id, ok := ids[0].(*age.X25519Identity)
 	if !ok {

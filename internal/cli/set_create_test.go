@@ -11,6 +11,7 @@ import (
 func TestSetCreatesEncryptedFileWhenMissing(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", state)
 	mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE")
 
 	var stdout, stderr bytes.Buffer
@@ -18,7 +19,7 @@ func TestSetCreatesEncryptedFileWhenMissing(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("create exit %d stderr=%q", code, stderr.String())
 	}
-	keyFile := filepath.Join(state, "age.txt")
+	keyFile := filepath.Join(state, "identity")
 	t.Setenv("SOPS_AGE_KEY_FILE", keyFile)
 
 	envFile := filepath.Join(t.TempDir(), "new.env")
@@ -54,6 +55,7 @@ func TestSetCreatesEncryptedFileWhenMissing(t *testing.T) {
 func TestSetCreatesEmptyEncryptedManagedFileWhenMissing(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", state)
 	mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE")
 
 	var stdout, stderr bytes.Buffer
@@ -61,7 +63,7 @@ func TestSetCreatesEmptyEncryptedManagedFileWhenMissing(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("create exit %d stderr=%q", code, stderr.String())
 	}
-	keyFile := filepath.Join(state, "age.txt")
+	keyFile := filepath.Join(state, "identity")
 	t.Setenv("SOPS_AGE_KEY_FILE", keyFile)
 
 	folder := t.TempDir()
@@ -106,6 +108,7 @@ func TestSetCreatesEmptyEncryptedManagedFileWhenMissing(t *testing.T) {
 func TestSetRefusesEmptyCreateWhenManagedFileExists(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", state)
 	mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE")
 
 	var stdout, stderr bytes.Buffer
@@ -113,7 +116,7 @@ func TestSetRefusesEmptyCreateWhenManagedFileExists(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("create exit %d stderr=%q", code, stderr.String())
 	}
-	t.Setenv("SOPS_AGE_KEY_FILE", filepath.Join(state, "age.txt"))
+	t.Setenv("SOPS_AGE_KEY_FILE", filepath.Join(state, "identity"))
 
 	envFile := filepath.Join(t.TempDir(), ".env.staging")
 	stdout.Reset()

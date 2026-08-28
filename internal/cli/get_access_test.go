@@ -11,13 +11,14 @@ import (
 func TestGetWithoutAccessExplainsMissingAccess(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", state)
 	mustUnsetenv(t, "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY")
 
 	var stdout, stderr bytes.Buffer
 	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
 		t.Fatalf("identity exit %d stderr=%q", code, stderr.String())
 	}
-	t.Setenv("SOPS_AGE_KEY_FILE", filepath.Join(state, "age.txt"))
+	t.Setenv("SOPS_AGE_KEY_FILE", filepath.Join(state, "identity"))
 
 	stdout.Reset()
 	stderr.Reset()

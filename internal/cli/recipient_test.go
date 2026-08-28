@@ -16,12 +16,14 @@ import (
 func TestRecipientAddLetsSecondIdentityDecrypt(t *testing.T) {
 	aliceDir := t.TempDir()
 	bobDir := t.TempDir()
-	aliceKey := filepath.Join(aliceDir, "age.txt")
-	bobKey := filepath.Join(bobDir, "age.txt")
+	aliceKey := filepath.Join(aliceDir, "identity")
+	bobKey := filepath.Join(bobDir, "identity")
 
 	aliceEnv := func(key string) string {
 		switch key {
 		case "SOPSDECK_STATE_DIR":
+			return aliceDir
+		case "SOPSDECK_KEYCHAIN_DIR":
 			return aliceDir
 		case "SOPS_AGE_KEY_FILE":
 			return aliceKey
@@ -32,6 +34,8 @@ func TestRecipientAddLetsSecondIdentityDecrypt(t *testing.T) {
 	bobEnv := func(key string) string {
 		switch key {
 		case "SOPSDECK_STATE_DIR":
+			return bobDir
+		case "SOPSDECK_KEYCHAIN_DIR":
 			return bobDir
 		case "SOPS_AGE_KEY_FILE":
 			return bobKey
@@ -103,8 +107,8 @@ func TestRecipientAddLetsSecondIdentityDecrypt(t *testing.T) {
 func TestRecipientRemoveRevokesAccessAndRotatesDataKey(t *testing.T) {
 	aliceDir := t.TempDir()
 	bobDir := t.TempDir()
-	aliceKey := filepath.Join(aliceDir, "age.txt")
-	bobKey := filepath.Join(bobDir, "age.txt")
+	aliceKey := filepath.Join(aliceDir, "identity")
+	bobKey := filepath.Join(bobDir, "identity")
 	aliceEnv := identityEnv(aliceDir, aliceKey)
 	bobEnv := identityEnv(bobDir, bobKey)
 
@@ -186,7 +190,7 @@ func TestRecipientRemoveRevokesAccessAndRotatesDataKey(t *testing.T) {
 
 func TestRecipientRemoveRefusesLastRecipient(t *testing.T) {
 	aliceDir := t.TempDir()
-	aliceKey := filepath.Join(aliceDir, "age.txt")
+	aliceKey := filepath.Join(aliceDir, "identity")
 	aliceEnv := identityEnv(aliceDir, aliceKey)
 
 	var stdout, stderr bytes.Buffer
@@ -227,8 +231,8 @@ func TestRecipientRemoveRefusesLastRecipient(t *testing.T) {
 func TestRecipientRemoveUnknownIsNoOp(t *testing.T) {
 	aliceDir := t.TempDir()
 	bobDir := t.TempDir()
-	aliceKey := filepath.Join(aliceDir, "age.txt")
-	bobKey := filepath.Join(bobDir, "age.txt")
+	aliceKey := filepath.Join(aliceDir, "identity")
+	bobKey := filepath.Join(bobDir, "identity")
 	aliceEnv := identityEnv(aliceDir, aliceKey)
 	bobEnv := identityEnv(bobDir, bobKey)
 
@@ -270,6 +274,8 @@ func identityEnv(stateDir, ageKey string) func(string) string {
 	return func(key string) string {
 		switch key {
 		case "SOPSDECK_STATE_DIR":
+			return stateDir
+		case "SOPSDECK_KEYCHAIN_DIR":
 			return stateDir
 		case "SOPS_AGE_KEY_FILE":
 			return ageKey
