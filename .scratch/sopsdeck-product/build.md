@@ -8,7 +8,7 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Request PR / re-encrypt PR still open on recipients. Fake GitHub PUTs are not Libsodium-sealed. Clipboard modal is leftover on 12 + [31](issues/31-deferred-product-ideas.md). [31](issues/31-deferred-product-ideas.md) is backlog (OpenBao needs spec).
+1. Human QA tickets [32](issues/32-one-command-local-launch.md)–[38](issues/38-multi-project-demo-seed.md). Incomplete tracer-bullet phases in issue 15 (signed macOS release). Request PR / re-encrypt PR still open on recipients. Fake GitHub PUTs are not Libsodium-sealed. Clipboard modal is leftover on 12 + [31](issues/31-deferred-product-ideas.md). [31](issues/31-deferred-product-ideas.md) is backlog (OpenBao needs spec).
 
 Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow. Check CI is [`.github/workflows/check.yml`](../../.github/workflows/check.yml).
 
@@ -52,3 +52,10 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [29](issues/29-docs-site.md) | One public site: landing, changelog, docs | **done** |
 | [30](issues/30-deterministic-quality-gates.md) | Markdown, security scanner, changelog/test hooks | **done** |
 | [31](issues/31-deferred-product-ideas.md) | Unused keys, smart rename, clipboard, OpenBao, paste-path | backlog |
+| [32](issues/32-one-command-local-launch.md) | One command: build CLI + launch app | **done** |
+| [33](issues/33-deduped-local-error-log.md) | Local error log with counts | open |
+| [34](issues/34-inspector-collapse-and-reveal-heading.md) | Inspector collapse; heading reveal | open |
+| [35](issues/35-nested-project-file-tree.md) | Nested tree, recents, show more | open |
+| [36](issues/36-changelog-type-tags.md) | Changelog type tags and grouping | open |
+| [37](issues/37-public-site-download-and-hosting.md) | Download, Cloudflare, hero video | open |
+| [38](issues/38-multi-project-demo-seed.md) | Multi-project demo seed for stills | open |

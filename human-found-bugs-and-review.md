@@ -8,6 +8,56 @@ addressed.
 
 ## Findings
 
+_Processed into tickets 32–38._
+
+## Feature Ideas
+
+- [ ] feature 1
+
+---
+
+### Archived
+
+- [x] need a better way for running it locally, it should just be one command to
+      launch the app, build the cli, make sure the app is using the freshly
+      built cli → [32](.scratch/sopsdeck-product/issues/32-one-command-local-launch.md)
+- [x] when running and testing it locally and any errors occur, they should be
+      captured into a file and properly logged, such that the same error simpley
+      just increments the count instead of duplicating the error, then these
+      errors can be discovered and fixed like tickets or bugs, and the logging
+      and observability system should work effectively to help debug and fix
+      issues → [33](.scratch/sopsdeck-product/issues/33-deduped-local-error-log.md)
+- [x] The right panel should work kind of like how panels in vscode work, where
+      each section is collapsible → [34](.scratch/sopsdeck-product/issues/34-inspector-collapse-and-reveal-heading.md)
+- [x] The add secret button can be remove, and the reveal values button can be a
+      show/hide icon in the heading for the values column next to the "value"
+      text → [34](.scratch/sopsdeck-product/issues/34-inspector-collapse-and-reveal-heading.md)
+- [x] The left file tree needs to be more advanced and robust, it should support
+      nested folders, i should be able to collapse folders, have recents and
+      truncation with a show more button like codex → [35](.scratch/sopsdeck-product/issues/35-nested-project-file-tree.md)
+- [x] Changelog still needs to be refined, adding change types with nice tags
+      and badges along with grouping by change type (bug fix, feature, performance)
+      following conventional commits, grouping by date and version, as well as
+      platform information (macos, windows, linux etc) → [36](.scratch/sopsdeck-product/issues/36-changelog-type-tags.md)
+- [x] Should be able to download the app from the website → [37](.scratch/sopsdeck-product/issues/37-public-site-download-and-hosting.md)
+- [x] Website should be deployed on cloudflare → [37](.scratch/sopsdeck-product/issues/37-public-site-download-and-hosting.md)
+- [x] Website should display a teaser video in the hero → [37](.scratch/sopsdeck-product/issues/37-public-site-download-and-hosting.md)
+- [x] Demo screenshots and assets aren't seeded properly with realistic data, they
+      should have a sidebar filled with projects, some open some closed, real looking
+      projects with real looking files and secrets ranging from docker compose
+      files to dot env files to eas.json files, and whatever other common frameworks
+      use → [38](.scratch/sopsdeck-product/issues/38-multi-project-demo-seed.md)
+- [x] Revealing secrets that aren't used anywhere → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (needs a reference rule; adjacent to scan)
+- [x] Smart renaming of secrets, if you rename a secret key that is used, it
+      should offer to update any references to use the new name → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (in-file rename is 24)
+- [x] Smart clipboard detection, if you focus the app and have secret in
+      your clipboard it should offer to capture it, same for recipient keys, by
+      showing a modal with where you want to add the secret or which
+      file/projects you want to give the key access to → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (this is issue 12 + 06, not a side channel)
+- [x] OpenBao? → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (later Sync Target; needs specify first)
+- [x] an easy way for me to copy an absolute path to a project from my terminal
+      or nvim editor or something, the go to the sopsdeck app and just open that
+      path from my clipboard or paste it into the file tree or something → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (issue 05; blocked on 23)
 - [x] I don't like the dark mode button, it should be an icon or something cleaner → [25](.scratch/sopsdeck-product/issues/25-sidebar-window-and-scroll.md)
 - [x] Secret value inputs should have click to reveal, copy icons, delete icons → [24](.scratch/sopsdeck-product/issues/24-editor-key-row-actions.md)
 - [x] I can't add any more secret files from the sidebar → [25](.scratch/sopsdeck-product/issues/25-sidebar-window-and-scroll.md)
@@ -48,17 +98,3 @@ addressed.
       landing page a docusaurus site that has the landing page, changelog, and
       documentation all in one → [29](.scratch/sopsdeck-product/issues/29-docs-site.md) (Docusaurus is a candidate)
 - [x] app beach balls if i try opening a folder → [23](.scratch/sopsdeck-product/issues/23-fix-folder-open-hang.md) (P0)
-
-## Feature Ideas
-
-- [x] Revealing secrets that aren't used anywhere → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (needs a reference rule; adjacent to scan)
-- [x] Smart renaming of secrets, if you rename a secret key that is used, it
-      should offer to update any references to use the new name → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (in-file rename is 24)
-- [x] Smart clipboard detection, if you focus the app and have secret in
-      your clipboard it should offer to capture it, same for recipient keys, by
-      showing a modal with where you want to add the secret or which
-      file/projects you want to give the key access to → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (this is issue 12 + 06, not a side channel)
-- [x] OpenBao? → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (later Sync Target; needs specify first)
-- [x] an easy way for me to copy an absolute path to a project from my terminal
-      or nvim editor or something, the go to the sopsdeck app and just open that
-      path from my clipboard or paste it into the file tree or something → [31](.scratch/sopsdeck-product/issues/31-deferred-product-ideas.md) (issue 05; blocked on 23)
