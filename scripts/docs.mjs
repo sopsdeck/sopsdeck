@@ -45,12 +45,16 @@ const phases = [
     match: /^scan/,
     names: /Scan/,
   },
+  {
+    phase: 7,
+    title: 'Paste + MCP',
+    seam: 'MCP',
+    match: /^(mcp|set_paste)/,
+    names: /MCP|Stdin/,
+  },
 ];
 
-const uncovered = [
-  { phase: 7, title: 'Paste + MCP', seam: 'MCP' },
-  { phase: 8, title: 'Signed macOS release', seam: 'release artifacts' },
-];
+const uncovered = [{ phase: 8, title: 'Signed macOS release', seam: 'release artifacts' }];
 
 function testdox(name) {
   const body = name.replace(/^Test/, '');
@@ -175,6 +179,7 @@ function seamsMarkdown(go, rust) {
     `| 5 | GitHub Publish | GitHub Publish adapter | ${(goByPhase.get(5) ?? []).join(', ') || '_none_'} |`,
   );
   lines.push(`| 6 | Scan hook | scan hook | ${(goByPhase.get(6) ?? []).join(', ') || '_none_'} |`);
+  lines.push(`| 7 | Paste + MCP | MCP | ${(goByPhase.get(7) ?? []).join(', ') || '_none_'} |`);
   for (const row of uncovered) {
     lines.push(`| ${row.phase} | ${row.title} | ${row.seam} | _none_ |`);
   }

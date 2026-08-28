@@ -4,6 +4,8 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+- Local MCP (`sopsdeck mcp`) returns metadata by default; `get_value` needs approval; `run` returns exit status only.
+- `set` reads dotenv, JSON, or YAML from stdin as a paste preview; `--yes` writes. Lone values need a KEY.
 - `scan` blocks staged cloud keys, private key PEMs, and common tokens; SOPS ciphertext is ignored; `--install` writes an opt-in pre-commit hook.
 - Inspector Publish shows repo, environment, prefix, and opt-in prune from `.sopsdeck.toml`.
 - Publish uses `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token` as the GitHub Authorization bearer.

@@ -49,9 +49,14 @@ export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
 ./sopsdeck files path/to/project
 ./sopsdeck scan
 ./sopsdeck scan --install
+./sopsdeck mcp
 ```
 
 `scan` looks at staged files only. High-confidence cloud keys, private key PEMs, and common tokens block; test tokens warn. SOPS ciphertext is ignored. `--install` writes an opt-in `.git/hooks/pre-commit` and records `scan.hook` in `.sopsdeck.toml`. `git commit --no-verify` still skips the hook.
+
+`mcp` is a local stdio MCP server. Default tools return metadata (Managed Files, key names, Recipients, Git status). `get_value` needs `SOPSDECK_MCP_APPROVE=get_value`. Prefer `run` over returning plaintext. A thin skill lives in `skills/sopsdeck-mcp/`.
+
+Pipe dotenv, JSON, or YAML into `set -f FILE` for a paste preview; `--yes` writes. A lone value needs `set KEY -f FILE`.
 
 `publish` talks to `SOPSDECK_GITHUB_API` (real GitHub or the in-process fake). Auth is `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`. Without `--yes` it is a dry-run.
 
