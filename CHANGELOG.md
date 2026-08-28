@@ -4,6 +4,8 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+- `get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.
+- Changelog and What’s new use the product layout; primary actions have icons.
 - Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.
 - `sopsdeck set -f FILE` with no KEY creates an empty encrypted Managed File.
 - Editor key rows reveal, copy, rename, and delete from icons; a composer adds `KEY` or `KEY=value`.

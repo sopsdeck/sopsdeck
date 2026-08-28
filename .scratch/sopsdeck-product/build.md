@@ -8,12 +8,11 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. **[26](issues/26-visual-polish-and-changelog-look.md)** — icons/motion; changelog look.
-2. **[27](issues/27-realistic-managed-file-fixtures.md)** fixtures, **[28](issues/28-usable-product-recordings.md)** recordings (19’s clips are unusable).
-3. **[29](issues/29-docs-site.md)** docs site, **[30](issues/30-deterministic-quality-gates.md)** hooks/lint/security.
-4. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
+1. **[28](issues/28-usable-product-recordings.md)** — webreel + CLI casts; fail sub-second clips (19’s clips are unusable).
+2. **[29](issues/29-docs-site.md)** docs site, **[30](issues/30-deterministic-quality-gates.md)** hooks/lint/security.
+3. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
 
-Tickets 19–25 are done as shipped. 19’s **pipeline** is done; watchable assets are 28. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
+Tickets 19–27 are done as shipped. 19’s **pipeline** is done; watchable assets are 28. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow.
 
 ## Already in the tree (not a phase by itself)
 
@@ -49,8 +48,8 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [23](issues/23-fix-folder-open-hang.md) | Folder picker beach-balls | **done** |
 | [24](issues/24-editor-key-row-actions.md) | Reveal, copy, rename, delete, add-key composer | **done** |
 | [25](issues/25-sidebar-window-and-scroll.md) | Add Managed File, theme icon, app identity, scroll | **done** |
-| [26](issues/26-visual-polish-and-changelog-look.md) | Icons/motion; changelog look | ready |
-| [27](issues/27-realistic-managed-file-fixtures.md) | eas.json, compose, multiline fixtures | ready |
+| [26](issues/26-visual-polish-and-changelog-look.md) | Icons/motion; changelog look | **done** |
+| [27](issues/27-realistic-managed-file-fixtures.md) | eas.json, compose, multiline fixtures | **done** |
 | [28](issues/28-usable-product-recordings.md) | webreel + CLI casts; fail sub-second clips | ready |
 | [29](issues/29-docs-site.md) | One public site: landing, changelog, docs | ready |
 | [30](issues/30-deterministic-quality-gates.md) | Markdown, security scanner, changelog/test hooks | ready |
