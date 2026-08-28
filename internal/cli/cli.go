@@ -27,7 +27,7 @@ import (
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|recipient|publish|files|drive> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|recipient|publish|files|drive> ...")
 		return 1
 	}
 	switch args[0] {
@@ -48,6 +48,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdCommit(args[1:], stdout, stderr)
 	case "sync":
 		return cmdSync(args[1:], stdout, stderr)
+	case "review":
+		return cmdReview(args[1:], stdout, stderr)
 	case "recipient":
 		return cmdRecipient(args[1:], stdout, stderr, getenv)
 	case "publish":

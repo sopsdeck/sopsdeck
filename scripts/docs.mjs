@@ -18,7 +18,7 @@ const phases = [
     phase: 3,
     title: 'Git Review / Commit / Sync',
     seam: 'Git adapter',
-    match: /^(commit|sync)/,
+    match: /^(commit|sync|review)/,
   },
   {
     phase: 4,

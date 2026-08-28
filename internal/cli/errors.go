@@ -18,6 +18,14 @@ func explainSync(err error) string {
 	}
 }
 
+func explainReview(err error) string {
+	msg := err.Error()
+	if noAccess(msg) {
+		return "review: no Access to this Managed File"
+	}
+	return "review: " + firstLine(msg)
+}
+
 func explainGet(err error) string {
 	msg := err.Error()
 	if noAccess(msg) {
