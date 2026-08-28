@@ -6,3 +6,5 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](ht
 
 - Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.
 - Desktop shows Sync, commit, and save failures next to those controls, not as a toast.
+- Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.
+- Empty Project / Managed File / key states, Sync and save loading, dark mode, and a commit message prefilled from dirty keys.

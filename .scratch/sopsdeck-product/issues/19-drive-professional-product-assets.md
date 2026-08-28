@@ -2,7 +2,7 @@
 
 Type: build
 Status: ready
-Blocked by: 20, 21
+Blocked by: None (20 and 21 are done)
 
 ## What to build
 

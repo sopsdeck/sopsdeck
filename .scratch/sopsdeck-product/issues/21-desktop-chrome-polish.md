@@ -1,7 +1,7 @@
 # Desktop chrome: motion, states, commit copy, theme, paths
 
 Type: build
-Status: ready
+Status: done
 Blocked by: None
 
 ## What to build
@@ -21,25 +21,31 @@ Issue 04 called onboarding/empty/error/keyboard “later fog”. Error placement
 
 ## Already there
 
-- Three-pane editor; `parentLabel` shows `~/parent` in the sidebar only.
-- Breadcrumb and inspector use the raw absolute `file.path`.
-- Commit message is an empty placeholder (“What changed”).
-- `./scripts/demo` stills currently leak the studio temp path.
+- Three-pane editor; display paths `~/project/rel`; empty/loading chrome; commit default; light/dark theme.
 
 ## Acceptance criteria
 
-- [ ] Playwright (drive `--demo`): breadcrumb and inspector path do not contain `..`, `/var/folders`, or `desktop/../`.
-- [ ] Empty states are distinct and copy-driven (no blank three-pane with only “Sopsdeck”).
-- [ ] A slow invoke shows loading on the control that was pressed (save or Sync at minimum).
-- [ ] After editing keys, the commit field is prefilled from those changes; Commit still sends `-m` with that text (editable).
-- [ ] Theme can switch light/dark and survive reload (`localStorage` or equivalent is fine).
-- [ ] Hover/focus states exist on file rows and primary actions (visual; concept HTML is the reference).
+- [x] Playwright (drive `--demo`): breadcrumb and inspector path do not contain `..`, `/var/folders`, or `desktop/../`.
+- [x] Empty states are distinct and copy-driven (no blank three-pane with only “Sopsdeck”).
+- [x] A slow invoke shows loading on the control that was pressed (save or Sync at minimum).
+- [x] After editing keys, the commit field is prefilled from those changes; Commit still sends `-m` with that text (editable).
+- [x] Theme can switch light/dark and survive reload (`localStorage` or equivalent is fine).
+- [x] Hover/focus states exist on file rows and primary actions (visual; concept HTML is the reference).
 
 ## Seams
 
 - Desktop UI via `sopsdeck drive` + Playwright (`data-testid` on breadcrumb, inspector path, commit field, empty/loading regions).
 - Commit still hits existing `commit_managed_file` / `sopsdeck commit -m`.
 
+## Implementation (2026-08-28)
+
+- Breadcrumb and inspector use `~/project/rel` with `..` stripped (`displayPath`). Canonical path stays on invoke payloads.
+- Empty copy: no Project (`/?empty=1`), Project with no Managed Files, open file with no keys.
+- Sync/save set `aria-busy` and a short label while the invoke runs.
+- Commit field prefills `Change KEY` / `Add KEY` from dirty rows; typing a different message sticks.
+- `data-theme` + `localStorage sopsdeck-theme`; hover/focus on file rows and primary actions.
+- Playwright: `e2e/chrome.spec.js` via `./scripts/smoke`.
+
 ## Comments
 
-Captured 2026-08-28; triaged 2026-08-28. Kind: idea → build. Paths first if 19 stills need to stop leaking temp dirs before videos.
+Captured 2026-08-28; triaged 2026-08-28; done 2026-08-28. Kind: idea → build.
