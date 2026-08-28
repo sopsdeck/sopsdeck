@@ -41,6 +41,11 @@ func cmdReview(args []string, stdout, stderr io.Writer) int {
 
 func writeReview(file string, stdout io.Writer) error {
 	format := fileFormat(file)
+	if unmerged, err := fileIsUnmerged(file); err != nil {
+		return fmt.Errorf("review: %w", err)
+	} else if unmerged {
+		return writeThreeWay(file, format, stdout)
+	}
 	workPlain, err := decrypt.File(file, formatName(format))
 	if err != nil {
 		return fmt.Errorf("%s", explainReview(err))
@@ -92,6 +97,81 @@ func headSecretPairs(file string, format formats.Format) (map[string]string, err
 		return nil, err
 	}
 	return secretPairs(plain, format)
+}
+
+func writeThreeWay(file string, format formats.Format, stdout io.Writer) error {
+	base, err := stagePairs(file, "1", format)
+	if err != nil {
+		return err
+	}
+	ours, err := stagePairs(file, "2", format)
+	if err != nil {
+		return err
+	}
+	theirs, err := stagePairs(file, "3", format)
+	if err != nil {
+		return err
+	}
+	keys := map[string]struct{}{}
+	for k := range base {
+		keys[k] = struct{}{}
+	}
+	for k := range ours {
+		keys[k] = struct{}{}
+	}
+	for k := range theirs {
+		keys[k] = struct{}{}
+	}
+	names := make([]string, 0, len(keys))
+	for k := range keys {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, k := range names {
+		b, o, th := base[k], ours[k], theirs[k]
+		if b == o && o == th {
+			continue
+		}
+		fmt.Fprintf(stdout, "%s: base=%s ours=%s theirs=%s\n", k, threeWayValue(b), threeWayValue(o), threeWayValue(th))
+	}
+	return nil
+}
+
+func threeWayValue(v string) string {
+	if v == "" {
+		return "(missing)"
+	}
+	return v
+}
+
+func stagePairs(file, stage string, format formats.Format) (map[string]string, error) {
+	raw, err := gitShowAt(file, ":"+stage)
+	if err != nil {
+		return nil, fmt.Errorf("review: leave this conflict to Git")
+	}
+	plain, err := decrypt.Data(raw, formatName(format))
+	if err != nil {
+		return nil, fmt.Errorf("review: leave this conflict to Git")
+	}
+	pairs, err := secretPairs(plain, format)
+	if err != nil {
+		return nil, fmt.Errorf("review: leave this conflict to Git")
+	}
+	return pairs, nil
+}
+
+func fileIsUnmerged(file string) (bool, error) {
+	dir, rel, err := gitTrackedRel(file)
+	if err != nil {
+		return false, err
+	}
+	cmd := exec.Command("git", "ls-files", "-u", "--", rel)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(out)) != "", nil
 }
 
 func gitShowAt(file, rev string) ([]byte, error) {
