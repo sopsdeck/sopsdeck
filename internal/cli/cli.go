@@ -27,7 +27,7 @@ import (
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive|scan> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive|scan|mcp> ...")
 		return 1
 	}
 	switch args[0] {
@@ -37,7 +37,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 	case "get":
 		return cmdGet(args[1:], stdout, stderr)
 	case "set":
-		return cmdSet(args[1:], stdout, stderr, getenv)
+		return cmdSet(args[1:], stdin, stdout, stderr, getenv)
 	case "del":
 		return cmdDel(args[1:], stdout, stderr)
 	case "run":
@@ -64,6 +64,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return cmdDrive(args[1:], stdout, stderr, getenv)
 	case "scan":
 		return cmdScan(args[1:], stdout, stderr)
+	case "mcp":
+		return cmdMCP(args[1:], stdin, stdout, stderr, getenv)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 1
@@ -180,7 +182,10 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func cmdSet(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+	if payload := readPaste(stdin); len(payload) > 0 {
+		return applyPaste(args, payload, stdout, stderr, getenv)
+	}
 	_ = stdout
 	var key, value, file string
 	var positionals []string

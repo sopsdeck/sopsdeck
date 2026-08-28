@@ -293,7 +293,7 @@ func invokeGet(path, at string) (any, error) {
 
 func invokeSet(req invokeReq, getenv func(string) string) error {
 	var stderr strings.Builder
-	return cliErr(cmdSet([]string{req.Key, req.Value, "-f", req.Path}, io.Discard, &stderr, getenv), &stderr)
+	return cliErr(cmdSet([]string{req.Key, req.Value, "-f", req.Path}, strings.NewReader(""), io.Discard, &stderr, getenv), &stderr)
 }
 
 func invokeDel(req invokeReq) error {
@@ -303,7 +303,7 @@ func invokeDel(req invokeReq) error {
 
 func invokeCreate(req invokeReq, getenv func(string) string) error {
 	var stderr strings.Builder
-	return cliErr(cmdSet([]string{"-f", req.Path}, io.Discard, &stderr, getenv), &stderr)
+	return cliErr(cmdSet([]string{"-f", req.Path}, strings.NewReader(""), io.Discard, &stderr, getenv), &stderr)
 }
 
 func invokeCommit(req invokeReq) error {
