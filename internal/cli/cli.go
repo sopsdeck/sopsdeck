@@ -276,6 +276,9 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 
 func writeAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
 	tmp, err := os.CreateTemp(dir, ".sopsdeck-*")
 	if err != nil {
 		return err

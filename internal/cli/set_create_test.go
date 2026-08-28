@@ -136,3 +136,27 @@ func TestSetRefusesEmptyCreateWhenManagedFileExists(t *testing.T) {
 		t.Fatalf("stderr=%q", stderr.String())
 	}
 }
+
+func TestSetCreatesNestedManagedFileWhenMissing(t *testing.T) {
+	state := t.TempDir()
+	t.Setenv("SOPSDECK_STATE_DIR", state)
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", state)
+	mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE")
+
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("create exit %d stderr=%q", code, stderr.String())
+	}
+	t.Setenv("SOPS_AGE_KEY_FILE", filepath.Join(state, "identity"))
+
+	envFile := filepath.Join(t.TempDir(), "apps", "web", ".env.nested")
+	stdout.Reset()
+	stderr.Reset()
+	code := Main([]string{"set", "-f", envFile}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code != 0 {
+		t.Fatalf("set exit %d stderr=%q", code, stderr.String())
+	}
+	if _, err := os.Stat(envFile); err != nil {
+		t.Fatal(err)
+	}
+}
