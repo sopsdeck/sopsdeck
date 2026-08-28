@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+if [ "$#" -ne 1 ]; then
+  printf 'usage: %s vX.Y.Z\n' "$0" >&2
+  exit 2
+fi
+go run ./internal/changelog/rnotes "$1"
