@@ -93,8 +93,17 @@
           >
             Grant Access
           </button>
+          <button
+            id="remove-access"
+            class="tool git-action"
+            type="button"
+            data-testid="remove-access"
+          >
+            Remove Access
+          </button>
           <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
           <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
+          <p class="save-note">Removing Access does not rewrite Git history</p>
         </section>
         <section class="inspect-section">
           <h2>Publish</h2>

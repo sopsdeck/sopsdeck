@@ -545,6 +545,24 @@ window.addEventListener('DOMContentLoaded', async () => {
       showError(messageOf(err), 'access');
     }
   });
+  document.getElementById('remove-access').addEventListener('click', async () => {
+    if (!selected) return;
+    const key = document.getElementById('recipient-key').value.trim();
+    showError('');
+    setStatus('access', '');
+    try {
+      const note = await withBusy(document.getElementById('remove-access'), 'Removing…', () =>
+        invoke('remove_recipient', { path: selected.path, publicKey: key }),
+      );
+      const text =
+        typeof note === 'string' && note
+          ? note.replace(/^recipient remove:\s*/u, '')
+          : 'Access dropped. Git history and copies they already have still decrypt.';
+      setStatus('access', text);
+    } catch (err) {
+      showError(messageOf(err), 'access');
+    }
+  });
   document.getElementById('publish').addEventListener('click', () => publishFile(false));
   document.getElementById('publish-yes').addEventListener('click', () => publishFile(true));
   renderWorkspace();

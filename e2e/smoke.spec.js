@@ -67,6 +67,8 @@ test('Grant Access and Publish dry-run from the inspector', async ({ page }) => 
   await expect(page.getByTestId('recipient-key')).toHaveValue(/^age1/);
   await page.getByTestId('grant-access').click();
   await expect(page.getByTestId('access-status')).toContainText('Access granted');
+  await page.getByTestId('remove-access').click();
+  await expect(page.getByTestId('access-status')).toContainText('still decrypt');
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('publish-status')).toContainText('dry-run');
 });
