@@ -1,6 +1,6 @@
 # Sopsdeck
 
-Local-first workspace for SOPS-encrypted config (dotenv, JSON, YAML). Canonical site: [sopsdeck.com](https://sopsdeck.com).
+Local-first workspace for SOPS-encrypted config (dotenv, JSON, YAML). Canonical site: [sopsdeck.com](https://sopsdeck.com). Source: [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
 
 ![Sopsdeck editor](docs/assets/editor.png)
 
@@ -94,11 +94,21 @@ The app shells out to the `sopsdeck` binary. One command builds a fresh CLI and 
 
 ## Landing page
 
+Windows and Linux CLI downloads are GitHub Release assets (`sopsdeck-windows-amd64.exe`, `sopsdeck-linux-amd64`, `sopsdeck-linux-arm64`). macOS is a local `./scripts/dev` build until Developer ID signing. Tag `vX.Y.Z` publishes notes plus those binaries.
+
 ```bash
 python3 -m http.server 4173 --directory site
 ```
 
-Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/) — [changelog.html](site/changelog.html) is generated from `CHANGELOG.md`. Docs are at [site/docs/](site/docs/).
+Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/) — [changelog.html](site/changelog.html) is generated from `CHANGELOG.md`. Docs are at [site/docs/](site/docs/). Clone from [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
+
+Deploy the same `site/` tree with Wrangler (Cloudflare Workers static assets; custom domain sopsdeck.com in the dashboard):
+
+```bash
+bunx wrangler@4 deploy
+```
+
+Needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Push to `main` on [sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck) runs [`.github/workflows/site.yml`](.github/workflows/site.yml) when those secrets are set.
 
 ## Quality
 

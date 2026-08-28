@@ -18,7 +18,17 @@ jobs:
           go-version-file: go.mod
       - name: Changelog section
         run: ./scripts/release-notes "${GITHUB_REF_NAME}" > notes.md
+      - name: Build Windows and Linux CLIs
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-linux-amd64 ./cmd/sopsdeck
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-linux-arm64 ./cmd/sopsdeck
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-windows-amd64.exe ./cmd/sopsdeck
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file notes.md
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file notes.md \
+            dist/sopsdeck-linux-amd64 \
+            dist/sopsdeck-linux-arm64 \
+            dist/sopsdeck-windows-amd64.exe

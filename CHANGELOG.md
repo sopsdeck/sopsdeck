@@ -6,6 +6,9 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Added
 
+- Windows and Linux CLI binaries attach to GitHub Releases; macOS is a local `./scripts/dev` build until Developer ID.
+- Landing download points at those artifacts; the hero plays the catalog walkthrough.
+- Public site deploys with Wrangler from `site/`.
 - Notes show type tags, group by Added/Fixed/Changed, and platform when a bullet names macOS, Windows, or Linux.
 - Nested Project folders collapse; recents reopen a folder from this machine; long lists use Show more.
 - Inspector sections collapse; reveal/hide values sits on the Value heading. Add secret is gone (composer remains).

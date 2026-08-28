@@ -4,6 +4,25 @@
   "date": "",
   "notes": [
     {
+      "text": "Windows and Linux CLI binaries attach to GitHub Releases; macOS is a local `./scripts/dev` build until Developer ID.",
+      "type": "feature",
+      "platforms": [
+        "macOS",
+        "Windows",
+        "Linux"
+      ]
+    },
+    {
+      "text": "Landing download points at those artifacts; the hero plays the catalog walkthrough.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Public site deploys with Wrangler from `site/`.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Notes show type tags, group by Added/Fixed/Changed, and platform when a bullet names macOS, Windows, or Linux.",
       "type": "feature",
       "platforms": [

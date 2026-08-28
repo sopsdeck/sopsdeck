@@ -1,0 +1,11 @@
+{
+  // Public site at sopsdeck.com. Deploy: bunx wrangler@4 deploy
+  "name": "sopsdeck",
+  "compatibility_date": "2026-08-28",
+  "preview_urls": true,
+  "workers_dev": true,
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "404-page",
+  },
+}

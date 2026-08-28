@@ -1,6 +1,13 @@
 #!/usr/bin/env bun
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -243,6 +250,7 @@ function requiredAssetFiles(catalog) {
   ]);
   files.push(`docs/assets/${catalog.walkthrough}`);
   files.push('site/assets/editor.png');
+  files.push(`site/assets/${catalog.walkthrough}`);
   for (const item of catalogCasts(catalog)) {
     files.push(`docs/assets/${item.cast}`);
   }
@@ -477,6 +485,13 @@ for (const [rel, body] of Object.entries(files)) {
   }
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, body);
+}
+
+const walkthroughSrc = join(root, 'docs/assets', catalog.walkthrough);
+const walkthroughDest = join(root, 'site/assets', catalog.walkthrough);
+if (!check && existsSync(walkthroughSrc)) {
+  mkdirSync(join(root, 'site/assets'), { recursive: true });
+  copyFileSync(walkthroughSrc, walkthroughDest);
 }
 
 if (check) {
