@@ -240,6 +240,63 @@ test('sidebar rejects a Managed File path outside the Project', async ({ page })
   await expect(error).toContainText('inside the Project');
 });
 
+test('nested folders group and collapse', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('add-file-name').fill('apps/web/.env.nested');
+  await page.getByTestId('add-file').click();
+  await expect(page.getByTestId('editor-error')).toBeHidden();
+  const folder = page.getByTestId('tree-folder').filter({ hasText: 'apps/web' });
+  await expect(folder).toBeVisible();
+  const nested = page.getByTestId('managed-file').filter({ hasText: '.env.nested' });
+  await expect(nested).toBeVisible();
+  await folder.click();
+  await expect(nested).toBeHidden();
+});
+
+test('recents reopen a Project without the folder picker', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.goto('/?empty=1');
+  await expect(page.getByTestId('empty-state')).toBeVisible();
+  await page.getByTestId('recent-project').click();
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(
+    page.getByTestId('managed-file').filter({ hasText: '.env.production' }),
+  ).toBeVisible();
+});
+
+test('long file lists truncate with Show more', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const data = route.request().postDataJSON();
+    if (data?.cmd !== 'list_managed_files') {
+      await route.continue();
+      return;
+    }
+
+    const response = await route.fetch();
+    const payload = await response.json();
+    const files = [...(payload.result || [])];
+    const root = files[0]?.path?.replace(/\/[^/]+$/u, '') || '/tmp';
+    for (let i = 0; i < 10; i++) {
+      const name = `.env.zz-${String(i).padStart(2, '0')}`;
+      files.push({ name, path: `${root}/${name}`, rel: name });
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ result: files }),
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  const extra = page.getByTestId('managed-file').filter({ hasText: '.env.zz-09' });
+  await expect(extra).toHaveCount(0);
+  await page.getByTestId('tree-show-more').click();
+  await expect(extra).toBeVisible();
+});
+
 test('Publish inspector shows mapping and prune off', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');

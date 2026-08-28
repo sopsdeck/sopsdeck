@@ -3,6 +3,9 @@ import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.
 const invoke = globalThis.__TAURI__?.core?.invoke ?? invokeOverHTTP;
 const THEME_KEY = 'sopsdeck-theme';
 const INSPECTOR_KEY = 'sopsdeck-inspector';
+const RECENTS_KEY = 'sopsdeck-recents';
+const TREE_FOLDERS_KEY = 'sopsdeck-tree-folders';
+const TREE_LIMIT = 8;
 
 async function invokeOverHTTP(cmd, args = {}) {
   const response = await fetch('/invoke', {
@@ -42,6 +45,7 @@ let lastAuto = '';
 let historyRev = '';
 let composerFocus = false;
 let pendingPaste = null;
+const treeShowAll = new Set();
 
 function messageOf(err) {
   if (err instanceof Error) return err.message;
@@ -446,6 +450,37 @@ function safeRel(rel, name) {
   return cleaned || name || '';
 }
 
+function fileLabel(rel, name) {
+  const cleaned = safeRel(rel, name);
+  const parts = cleaned.split('/');
+  return parts.at(-1) || cleaned;
+}
+
+function fileDir(rel, name) {
+  const parts = safeRel(rel, name).split('/');
+  if (parts.length < 2) return '';
+  return parts.slice(0, -1).join('/');
+}
+
+function readJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function rememberRecent(project) {
+  const items = readJSON(RECENTS_KEY, []).filter(
+    (item) => item && item.path && item.path !== project.path,
+  );
+  items.unshift({ path: project.path, name: project.name });
+  localStorage.setItem(RECENTS_KEY, JSON.stringify(items.slice(0, TREE_LIMIT)));
+}
+
 function displayPath(project, file) {
   const name = project?.name || 'project';
   return `~/${name}/${safeRel(file.rel, file.name)}`;
@@ -520,6 +555,7 @@ function resetEditorChrome() {
 function renderWorkspace() {
   if (projects.length === 0) {
     resetEditorChrome();
+    renderTree();
     crumbEl().textContent = 'Add a project folder to begin';
     headlineEl().textContent = 'Sopsdeck';
     sublineEl().textContent = 'Encrypted files stay on this machine';
@@ -598,9 +634,112 @@ function toggleReveal() {
   renderKeys();
 }
 
+function groupFiles(files) {
+  const groups = new Map();
+  const sorted = [...files].sort((a, b) =>
+    safeRel(a.rel, a.name).localeCompare(safeRel(b.rel, b.name)),
+  );
+  for (const file of sorted) {
+    const dir = fileDir(file.rel, file.name);
+    const list = groups.get(dir) || [];
+    list.push(file);
+    groups.set(dir, list);
+  }
+
+  return groups;
+}
+
+function folderStorageKey(projectPath, dir) {
+  return `${projectPath}\n${dir}`;
+}
+
+function appendManagedFile(parent, project, file) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'file' + (selected && file.path === selected.path ? ' selected' : '');
+  btn.dataset.testid = 'managed-file';
+  btn.textContent = fileLabel(file.rel, file.name);
+  btn.addEventListener('click', () => openFile(project, file));
+  parent.append(btn);
+}
+
+function appendFileGroup(parent, project, dir, files) {
+  const key = folderStorageKey(project.path, dir);
+  const stored = readJSON(TREE_FOLDERS_KEY, {});
+  const collapsed = Boolean(dir && stored[key]);
+  let body = parent;
+  if (dir) {
+    const folder = document.createElement('div');
+    folder.className = 'tree-folder' + (collapsed ? ' collapsed' : '');
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'tree-folder-toggle';
+    toggle.dataset.testid = 'tree-folder';
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.append(icon('chevron'), dir);
+    toggle.addEventListener('click', () => {
+      const next = readJSON(TREE_FOLDERS_KEY, {});
+      if (collapsed) {
+        delete next[key];
+      } else {
+        next[key] = true;
+      }
+
+      localStorage.setItem(TREE_FOLDERS_KEY, JSON.stringify(next));
+      renderTree();
+    });
+    folder.append(toggle);
+    body = document.createElement('div');
+    body.className = 'files';
+    folder.append(body);
+    parent.append(folder);
+    if (collapsed) return;
+  }
+
+  const showAll = treeShowAll.has(key);
+  const visible = showAll ? files : files.slice(0, TREE_LIMIT);
+  for (const file of visible) appendManagedFile(body, project, file);
+  if (!showAll && files.length > TREE_LIMIT) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'tree-show-more';
+    more.dataset.testid = 'tree-show-more';
+    more.textContent = `Show ${files.length - TREE_LIMIT} more`;
+    more.addEventListener('click', () => {
+      treeShowAll.add(key);
+      renderTree();
+    });
+    body.append(more);
+  }
+}
+
+function renderRecents(nav) {
+  const items = readJSON(RECENTS_KEY, []).filter((item) => item?.path && item?.name);
+  if (items.length === 0) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'recents';
+  wrap.dataset.testid = 'recents';
+  const title = document.createElement('div');
+  title.className = 'kicker';
+  title.textContent = 'Recents';
+  wrap.append(title);
+  for (const item of items) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'recent-project';
+    btn.dataset.testid = 'recent-project';
+    btn.textContent = item.name;
+    btn.addEventListener('click', () => addProjectFromPath(item.path));
+    wrap.append(btn);
+  }
+
+  nav.append(wrap);
+}
+
 function renderTree() {
   const nav = treeEl();
   nav.replaceChildren();
+  renderRecents(nav);
   for (const project of projects) {
     const wrap = document.createElement('div');
     const title = document.createElement('div');
@@ -613,14 +752,10 @@ function renderTree() {
     wrap.append(title);
     const files = document.createElement('div');
     files.className = 'files';
-    for (const file of project.files) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'file' + (selected && file.path === selected.path ? ' selected' : '');
-      btn.dataset.testid = 'managed-file';
-      btn.textContent = safeRel(file.rel, file.name);
-      btn.addEventListener('click', () => openFile(project, file));
-      files.append(btn);
+    const groups = groupFiles(project.files || []);
+    const dirs = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+    for (const dir of dirs) {
+      appendFileGroup(files, project, dir, groups.get(dir));
     }
 
     wrap.append(files);
@@ -822,6 +957,7 @@ async function addProjectFromPath(path) {
   const name = path.split('/').findLast(Boolean) || path;
   const existing = projects.findIndex((p) => p.path === path);
   const project = { name, path, files };
+  rememberRecent(project);
   if (existing === -1) {
     projects.push(project);
   } else {

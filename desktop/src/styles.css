@@ -200,6 +200,68 @@ input {
   background: var(--file-selected);
   box-shadow: inset 2px 0 var(--blue);
 }
+.tree-folder {
+  margin: 4px 0 6px;
+}
+.tree-folder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 2px 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--slate);
+  font:
+    600 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  text-align: left;
+  cursor: pointer;
+}
+.tree-folder-toggle svg {
+  flex: none;
+  transition: transform 0.12s ease;
+}
+.tree-folder.collapsed .tree-folder-toggle svg {
+  transform: rotate(-90deg);
+}
+.tree-folder .files {
+  margin-left: 10px;
+}
+.tree-show-more,
+.recent-project {
+  display: block;
+  width: 100%;
+  margin: 2px 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font:
+    500 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  text-align: left;
+  cursor: pointer;
+}
+.tree-show-more:hover,
+.recent-project:hover,
+.tree-folder-toggle:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+.recents {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.recents .kicker {
+  padding: 4px 7px 6px;
+}
 .side-foot {
   padding: 10px;
   border-top: 1px solid var(--line);
