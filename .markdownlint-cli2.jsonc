@@ -1,0 +1,17 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD033": false,
+    "MD036": false,
+  },
+  "globs": [
+    "README.md",
+    "CHANGELOG.md",
+    "CONTEXT.md",
+    "docs/README.md",
+    "docs/versioning.md",
+    "desktop/README.md",
+  ],
+  "ignores": ["docs/features.md", "docs/seams.md", "docs/assets.md"],
+}

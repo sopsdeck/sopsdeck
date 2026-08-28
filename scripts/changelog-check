@@ -1,0 +1,59 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+
+# Mechanical: user-facing paths in a commit/diff require CHANGELOG.md too.
+# Not an LLM judge. Tests, generated docs, scripts, and .scratch do not count.
+
+user_facing_path() {
+  case "$1" in
+    *_test.go | *_test.rs) return 1 ;;
+    e2e/* | scripts/* | .scratch/* | .github/*) return 1 ;;
+    docs/features.md | docs/seams.md | docs/assets.md | docs/assets/*) return 1 ;;
+    site/changelog.html | site/docs/* | desktop/src/whats-new.json) return 1 ;;
+    desktop/src-tauri/target/* | desktop/src-tauri/gen/* | desktop/src-tauri/Cargo.lock) return 1 ;;
+    cmd/* | internal/* | desktop/src/* | desktop/src-tauri/*) return 0 ;;
+    site/index.html | README.md | CONTEXT.md | docs/* | desktop/README.md | desktop/package.json) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+list_paths() {
+  if [ "${1:-}" = "--staged" ]; then
+    git diff --cached --name-only --diff-filter=ACMR
+    return
+  fi
+
+  from="${SOPSDECK_CHANGELOG_BASE:-}"
+  if [ -z "$from" ] || [ "$from" = "0000000000000000000000000000000000000000" ]; then
+    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+      from="$(git merge-base HEAD origin/main)"
+    elif git rev-parse --verify main >/dev/null 2>&1; then
+      from="$(git merge-base HEAD main)"
+    else
+      from="$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)"
+    fi
+  fi
+
+  git diff --name-only --diff-filter=ACMR "$from" HEAD
+}
+
+user_facing=0
+has_changelog=0
+while IFS= read -r path; do
+  [ -z "$path" ] && continue
+  if [ "$path" = "CHANGELOG.md" ]; then
+    has_changelog=1
+  fi
+  if user_facing_path "$path"; then
+    user_facing=1
+  fi
+done <<EOF
+$(list_paths "${1:-}")
+EOF
+
+if [ "$user_facing" -eq 1 ] && [ "$has_changelog" -eq 0 ]; then
+  printf 'CHANGELOG.md was not updated with this user-facing change.\n' >&2
+  printf 'Add a Keep a Changelog bullet under ## Unreleased, or pass --no-verify.\n' >&2
+  exit 1
+fi

@@ -12,16 +12,19 @@
     "mutate": "./scripts/mutate",
     "check": "./scripts/check",
     "smoke": "./scripts/smoke",
-    "demo": "./scripts/demo"
+    "demo": "./scripts/demo",
+    "scan": "./scripts/scan"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "globals": "^16",
+    "markdownlint-cli2": "^0.23.2",
     "prettier": "^3.6.2",
     "typescript": "~5.9.2",
     "xo": "^1.2.2"
   },
   "overrides": {
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "@eslint/plugin-kit": "^0.3.5"
   }
 }

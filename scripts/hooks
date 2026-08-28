@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+
+# Opt-in. git commit --no-verify still skips hooks (issue 10 / git).
+git config core.hooksPath .githooks
+printf 'core.hooksPath=.githooks\n'
+printf 'pre-commit runs changelog-check --staged then ./scripts/lint\n'
+printf 'disable: git config --unset core.hooksPath\n'
+printf 'skip one commit: git commit --no-verify\n'

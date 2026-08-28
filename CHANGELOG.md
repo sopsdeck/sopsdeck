@@ -4,6 +4,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+- Markdown in `docs/`, README, and CHANGELOG is linted; `./scripts/scan` runs govulncheck and bun audit. CI runs `./scripts/check`; opt-in hooks require a CHANGELOG bullet on user-facing commits.
 - Docs, notes, and living pages share one public site under `site/` (landing, changelog, `site/docs/`).
 - Product clips hold for seconds with typed motion; `./scripts/demo --check` fails sub-second videos. CLI casts cover get, set, commit, and Sync.
 - `get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.

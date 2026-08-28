@@ -1,0 +1,59 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.21'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          install-only: true
+      - name: gofumpt
+        run: go install mvdan.cc/gofumpt@latest
+      - name: Tauri Linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: bun install --frozen-lockfile
+      - name: Quality gate
+        run: ./scripts/check
+      - name: Changelog
+        env:
+          SOPSDECK_CHANGELOG_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: ./scripts/changelog-check
+
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.21'
+      - name: govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: bun install --frozen-lockfile
+      - name: Vulnerability scan
+        run: ./scripts/scan

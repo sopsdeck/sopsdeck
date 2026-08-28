@@ -35,5 +35,8 @@ printf '== clippy ==\n'
 printf '== prettier ==\n'
 bunx prettier --check .
 
+printf '== markdownlint ==\n'
+bunx markdownlint-cli2
+
 printf '== xo ==\n'
 bunx xo

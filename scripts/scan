@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+export PATH="$(go env GOPATH)/bin:${PATH}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'missing %s — %s\n' "$1" "$2" >&2
+    exit 1
+  fi
+}
+
+need go "https://go.dev/dl/"
+need bun "https://bun.sh"
+need govulncheck "go install golang.org/x/vuln/cmd/govulncheck@latest"
+
+printf '== govulncheck ==\n'
+set +e
+govulncheck ./cmd/... ./internal/...
+govuln_code=$?
+set -e
+if [ "$govuln_code" -eq 3 ]; then
+  printf 'govulncheck reported findings (often stdlib toolchain or SOPS transitives). Review the log.\n'
+  printf 'Exit 3 is not a merge blocker; analysis errors are.\n'
+elif [ "$govuln_code" -ne 0 ]; then
+  exit "$govuln_code"
+fi
+
+printf '== bun audit (root) ==\n'
+bun audit
+
+if [ -f desktop/package.json ]; then
+  printf '== bun audit (desktop) ==\n'
+  (cd desktop && bun audit)
+fi
