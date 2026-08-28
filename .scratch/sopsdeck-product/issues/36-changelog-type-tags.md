@@ -1,7 +1,7 @@
 # Changelog type tags and grouping
 
 Type: build
-Status: open
+Status: done
 Blocked by: [22](22-epoch-semver-and-changelog.md)
 
 ## What to build
@@ -12,13 +12,17 @@ Keep a Changelog already uses added/fixed/changed. Map those to tags rather than
 
 ## Acceptance criteria
 
-- [ ] Generated What’s new and `site/changelog.html` show type tags/badges.
-- [ ] Grouping is by version (existing) plus type; platform shown when the bullet names one.
-- [ ] `CHANGELOG.md` remains the source; `./scripts/docs --check` still fails when generated pages are stale.
+- [x] Generated What’s new and `site/changelog.html` show type tags/badges.
+- [x] Grouping is by version (existing) plus type; platform shown when the bullet names one.
+- [x] `CHANGELOG.md` remains the source; `./scripts/docs --check` still fails when generated pages are stale.
 
 ## Seams
 
 - `./scripts/docs`, `CHANGELOG.md`, [22](22-epoch-semver-and-changelog.md), [26](26-visual-polish-and-changelog-look.md).
+
+## Implementation (2026-08-28)
+
+Unreleased notes use Keep a Changelog `### Added` / `### Fixed` / `### Changed`. `scripts/changelog-notes.mjs` maps those to Feature / Bug fix / Changed (and Performance when that heading exists), parses `## X.Y.Z - YYYY-MM-DD`, and badges macOS/Windows/Linux only when the bullet names them. `./scripts/docs` writes tags into `site/changelog.html` and `whats-new.json`.
 
 ## Comments
 

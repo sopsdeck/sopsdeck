@@ -56,6 +56,6 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [33](issues/33-deduped-local-error-log.md) | Local error log with counts | **done** |
 | [34](issues/34-inspector-collapse-and-reveal-heading.md) | Inspector collapse; heading reveal | **done** |
 | [35](issues/35-nested-project-file-tree.md) | Nested tree, recents, show more | **done** |
-| [36](issues/36-changelog-type-tags.md) | Changelog type tags and grouping | open |
+| [36](issues/36-changelog-type-tags.md) | Changelog type tags and grouping | **done** |
 | [37](issues/37-public-site-download-and-hosting.md) | Download, Cloudflare, hero video | open |
 | [38](issues/38-multi-project-demo-seed.md) | Multi-project demo seed for stills | open |
