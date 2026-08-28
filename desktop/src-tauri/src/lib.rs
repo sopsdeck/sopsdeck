@@ -57,6 +57,16 @@ fn set_managed_key(path: String, key: String, value: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+fn del_managed_key(path: String, key: String) -> Result<(), String> {
+    run_sopsdeck(&["del", &key, "-f", &path]).map(|_| ())
+}
+
+#[tauri::command]
+fn create_managed_file(path: String) -> Result<(), String> {
+    run_sopsdeck(&["set", "-f", &path]).map(|_| ())
+}
+
+#[tauri::command]
 fn commit_managed_file(path: String, message: String) -> Result<(), String> {
     let message = message.trim();
     if message.is_empty() {
@@ -114,8 +124,9 @@ fn publish_managed_file(path: String, prefix: String, yes: bool) -> Result<Strin
     run_sopsdeck(&refs)
 }
 
+#[allow(clippy::unused_async)]
 #[tauri::command]
-fn pick_project_folder(app: tauri::AppHandle) -> Option<String> {
+async fn pick_project_folder(app: tauri::AppHandle) -> Option<String> {
     let folder = app
         .dialog()
         .file()
@@ -152,6 +163,8 @@ pub fn run() {
             list_managed_files,
             get_managed_file,
             set_managed_key,
+            del_managed_key,
+            create_managed_file,
             commit_managed_file,
             sync_project,
             add_recipient,
