@@ -1,0 +1,122 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "outDir": "docs/assets",
+  "baseUrl": "http://127.0.0.1:4174",
+  "viewport": { "width": 1440, "height": 900 },
+  "defaultDelay": 450,
+  "theme": {
+    "cursor": { "fill": "#3157f6" }
+  },
+  "videos": {
+    "open": {
+      "url": "/",
+      "waitFor": "[data-testid='headline']",
+      "output": "open.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "pause", "ms": 1400 },
+        { "action": "moveTo", "selector": "[data-testid='headline']" },
+        { "action": "pause", "ms": 1200 }
+      ]
+    },
+    "reveal": {
+      "url": "/",
+      "waitFor": "[data-testid='reveal']",
+      "output": "reveal.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "pause", "ms": 700 },
+        { "action": "click", "selector": "[data-testid='reveal']" },
+        { "action": "pause", "ms": 1400 }
+      ]
+    },
+    "save": {
+      "url": "/",
+      "waitFor": "[data-testid='key-value']",
+      "output": "save.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "click", "selector": "[data-testid='reveal']" },
+        { "action": "click", "selector": "[data-testid='key-value']" },
+        { "action": "key", "key": "cmd+a" },
+        { "action": "type", "text": "sk_clip_save", "charDelay": 50 },
+        { "action": "click", "selector": "[data-testid='save']" },
+        { "action": "pause", "ms": 1200 }
+      ]
+    },
+    "commit": {
+      "url": "/",
+      "waitFor": "[data-testid='commit']",
+      "output": "commit.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "click", "selector": "[data-testid='reveal']" },
+        { "action": "click", "selector": "[data-testid='key-value']" },
+        { "action": "key", "key": "cmd+a" },
+        { "action": "type", "text": "sk_clip_commit", "charDelay": 50 },
+        { "action": "click", "selector": "[data-testid='save']" },
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": "[data-testid='commit']" },
+        { "action": "pause", "ms": 1200 }
+      ]
+    },
+    "sync": {
+      "url": "/",
+      "waitFor": "[data-testid='sync']",
+      "output": "sync.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": "[data-testid='sync']" },
+        { "action": "pause", "ms": 1400 }
+      ]
+    },
+    "grant": {
+      "url": "/",
+      "waitFor": "[data-testid='grant-access']",
+      "output": "grant.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": "[data-testid='grant-access']" },
+        { "action": "wait", "text": "Access granted" },
+        { "action": "pause", "ms": 1200 }
+      ]
+    },
+    "publish": {
+      "url": "/",
+      "waitFor": "[data-testid='publish']",
+      "output": "publish.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": "[data-testid='publish']" },
+        { "action": "wait", "text": "dry-run" },
+        { "action": "pause", "ms": 1200 }
+      ]
+    },
+    "walkthrough": {
+      "url": "/",
+      "waitFor": "[data-testid='headline']",
+      "output": "walkthrough.webm",
+      "thumbnail": { "enabled": false },
+      "steps": [
+        { "action": "click", "selector": "[data-testid='reveal']" },
+        { "action": "click", "selector": "[data-testid='key-value']" },
+        { "action": "key", "key": "cmd+a" },
+        { "action": "type", "text": "sk_walkthrough", "charDelay": 45 },
+        { "action": "click", "selector": "[data-testid='save']" },
+        { "action": "pause", "ms": 400 },
+        { "action": "click", "selector": "[data-testid='commit']" },
+        { "action": "pause", "ms": 400 },
+        { "action": "click", "selector": "[data-testid='sync']" },
+        { "action": "pause", "ms": 400 },
+        { "action": "click", "selector": "[data-testid='grant-access']" },
+        { "action": "wait", "text": "Access granted" },
+        { "action": "click", "selector": "[data-testid='publish-yes']" },
+        { "action": "wait", "text": "published" },
+        { "action": "pause", "ms": 1200 }
+      ]
+    }
+  }
+}

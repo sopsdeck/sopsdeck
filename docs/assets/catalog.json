@@ -43,5 +43,27 @@
       "still": "publish.png",
       "clip": "publish.webm"
     }
+  ],
+  "cli": [
+    {
+      "id": "cli-get",
+      "title": "get a value",
+      "cast": "cli-get.cast"
+    },
+    {
+      "id": "cli-set",
+      "title": "set a value",
+      "cast": "cli-set.cast"
+    },
+    {
+      "id": "cli-commit",
+      "title": "commit a Managed File",
+      "cast": "cli-commit.cast"
+    },
+    {
+      "id": "cli-sync",
+      "title": "Sync",
+      "cast": "cli-sync.cast"
+    }
   ]
 }

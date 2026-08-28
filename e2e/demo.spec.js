@@ -10,6 +10,7 @@ const stillOf = Object.fromEntries(
 const clipOf = Object.fromEntries(
   catalog.items.map((item) => [item.id, `docs/assets/${item.clip}`]),
 );
+const skipClips = process.env.SOPSDECK_SKIP_CLIPS === '1';
 
 function assertReadablePaths(page) {
   return Promise.all(
@@ -22,11 +23,22 @@ function assertReadablePaths(page) {
   );
 }
 
+async function hold(page, ms) {
+  await page.waitForTimeout(ms);
+}
+
 async function boot(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await assertReadablePaths(page);
+}
+
+async function typeValue(page, value) {
+  const field = page.getByTestId('key-value');
+  await field.click();
+  await field.fill('');
+  await field.pressSequentially(value, { delay: 55 });
 }
 
 async function recordClip(browser, dest, run) {
@@ -36,7 +48,9 @@ async function recordClip(browser, dest, run) {
     recordVideo: { dir: 'test-results/clips', size: { width: 1440, height: 900 } },
   });
   const page = await context.newPage();
+  await hold(page, 900);
   await run(page);
+  await hold(page, 1600);
   const video = page.video();
   await page.close();
   await video.saveAs(dest);
@@ -81,27 +95,32 @@ test('product stills', async ({ page }) => {
 });
 
 test('product clips', async ({ browser }) => {
+  test.skip(skipClips, 'clips recorded by webreel');
+  test.setTimeout(180_000);
   mkdirSync('docs/assets', { recursive: true });
   await recordClip(browser, clipOf.open, boot);
   await recordClip(browser, clipOf.reveal, async (page) => {
     await boot(page);
+    await hold(page, 400);
     await page.getByTestId('reveal').click();
     await expect(page.getByTestId('key-value')).not.toHaveValue(/^•+$/);
+    await hold(page, 700);
   });
   await recordClip(browser, clipOf.save, async (page) => {
     await boot(page);
     await page.getByTestId('reveal').click();
-    await page.getByTestId('key-value').fill('sk_clip_save');
+    await typeValue(page, 'sk_clip_save');
     await page.getByTestId('save').click();
     await expect(page.getByTestId('save')).toBeDisabled();
   });
   await recordClip(browser, clipOf.commit, async (page) => {
     await boot(page);
     await page.getByTestId('reveal').click();
-    await page.getByTestId('key-value').fill('sk_clip_commit');
+    await typeValue(page, 'sk_clip_commit');
     await page.getByTestId('save').click();
     await expect(page.getByTestId('save')).toBeDisabled();
     await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
+    await hold(page, 500);
     await page.getByTestId('commit').click();
     await expect(page.getByTestId('git-error')).toBeHidden();
   });
@@ -123,19 +142,25 @@ test('product clips', async ({ browser }) => {
 });
 
 test('walkthrough', async ({ browser }) => {
+  test.skip(skipClips, 'clips recorded by webreel');
+  test.setTimeout(180_000);
   mkdirSync('docs/assets', { recursive: true });
   await recordClip(browser, `docs/assets/${catalog.walkthrough}`, async (page) => {
     await boot(page);
     await page.getByTestId('reveal').click();
-    await page.getByTestId('key-value').fill('sk_walkthrough');
+    await typeValue(page, 'sk_walkthrough');
     await page.getByTestId('save').click();
     await expect(page.getByTestId('save')).toBeDisabled();
+    await hold(page, 400);
     await page.getByTestId('commit').click();
     await expect(page.getByTestId('git-error')).toBeHidden();
+    await hold(page, 400);
     await page.getByTestId('sync').click();
     await expect(page.getByTestId('git-error')).toBeHidden();
+    await hold(page, 400);
     await page.getByTestId('grant-access').click();
     await expect(page.getByTestId('access-status')).toContainText('Access granted');
+    await hold(page, 400);
     await page.getByTestId('publish-yes').click();
     await expect(page.getByTestId('publish-status')).toContainText('published');
   });

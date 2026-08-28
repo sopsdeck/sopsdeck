@@ -19,5 +19,6 @@ site/changelog.html
 desktop/src/whats-new.json
 *.png
 *.webm
+*.cast
 *.ico
 *.icns

@@ -3,12 +3,13 @@ set -eu
 cd "$(dirname "$0")/.."
 
 if [ "${1:-}" = "--check" ]; then
-  bun scripts/docs.mjs --check
+  bun scripts/docs.mjs --check --clips
   exit 0
 fi
 
-printf '== product stills, clips, and walkthrough ==\n'
+printf '== product stills, clips, walkthrough, and CLI casts ==\n'
 export CI=1
 bunx playwright install chromium
 bunx playwright test --project=demo --workers=1
-printf 'wrote docs/assets stills, clips, walkthrough, and site/assets/editor.png\n'
+bun scripts/cli-demo.mjs
+printf 'wrote docs/assets stills, clips, walkthrough, CLI casts, and site/assets/editor.png\n'

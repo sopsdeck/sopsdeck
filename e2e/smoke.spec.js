@@ -4,7 +4,9 @@ import { expect, test } from '@playwright/test';
 test('demo boots a Managed File and reveals a secret', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await expect(page.getByTestId('managed-file').filter({ hasText: '.env.production' })).toBeVisible();
+  await expect(
+    page.getByTestId('managed-file').filter({ hasText: '.env.production' }),
+  ).toBeVisible();
   await page.getByTestId('reveal').click();
   await expect(page.getByTestId('key-name')).toHaveValue('STRIPE_SECRET');
   await expect(page.getByTestId('key-value')).toHaveValue('sk_test_demo');
