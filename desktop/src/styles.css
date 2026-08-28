@@ -357,6 +357,10 @@ input {
   list-style: none;
 }
 .whats-new-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: start;
   margin: 0 0 8px;
   padding: 10px 12px;
   color: var(--slate);
@@ -365,6 +369,29 @@ input {
   border-radius: 10px;
   font-size: 12px;
   line-height: 1.45;
+}
+.note-tag,
+.note-platform {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 99px;
+  font:
+    600 9px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.note-tag {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+}
+.note-platform {
+  color: var(--ink);
+  border: 1px solid var(--line-soft);
 }
 .whats-new-item:last-child {
   margin-bottom: 0;

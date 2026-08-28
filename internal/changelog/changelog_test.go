@@ -57,3 +57,11 @@ func TestBulletsFromUnreleased(t *testing.T) {
 		t.Fatalf("got %#v", got)
 	}
 }
+
+func TestBulletsUnderAddedHeading(t *testing.T) {
+	md := "## Unreleased\n\n### Added\n\n- Nested folders\n\n### Fixed\n\n- Folder picker hang\n"
+	got := Bullets(md, "Unreleased")
+	if len(got) != 2 || got[0] != "Nested folders" || got[1] != "Folder picker hang" {
+		t.Fatalf("got %#v", got)
+	}
+}

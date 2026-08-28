@@ -11,6 +11,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Notes For Tag Fails When Missing (`TestNotesForTagFailsWhenMissing`)
 - Notes For Tag Fails When Only Unreleased (`TestNotesForTagFailsWhenOnlyUnreleased`)
 - Bullets From Unreleased (`TestBulletsFromUnreleased`)
+- Bullets Under Added Heading (`TestBulletsUnderAddedHeading`)
 - Commit Stages Managed File And Records Message (`TestCommitStagesManagedFileAndRecordsMessage`)
 - Del Removes Key (`TestDelRemovesKey`)
 - Dev Script Build Only Writes CLI (`TestDevScriptBuildOnlyWritesCLI`)

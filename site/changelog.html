@@ -119,6 +119,11 @@
         color: var(--ink);
       }
       .release > .kicker { color: var(--slate); }
+      .release-date {
+        margin: -10px 0 18px;
+        color: var(--slate);
+        font: 500 12px 'IBM Plex Mono', ui-monospace, monospace;
+      }
       .notes {
         margin: 0;
         padding: 0;
@@ -128,8 +133,9 @@
       .notes li {
         counter-increment: note;
         display: grid;
-        grid-template-columns: 2.2em 1fr;
-        gap: 12px;
+        grid-template-columns: 2.2em auto 1fr auto;
+        gap: 8px 12px;
+        align-items: start;
         margin: 0 0 10px;
         padding: 14px 16px;
         border: 1px solid rgba(16, 24, 40, 0.08);
@@ -143,6 +149,29 @@
         color: var(--blue);
         font: 600 11px 'IBM Plex Mono', ui-monospace, monospace;
       }
+      .note-tag,
+      .note-platform {
+        display: inline-flex;
+        align-items: center;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 99px;
+        font: 600 10px 'IBM Plex Mono', ui-monospace, monospace;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .note-tag {
+        color: var(--blue);
+        background: rgba(49, 87, 246, 0.1);
+      }
+      .note-platform {
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      .note-platforms { display: flex; flex-wrap: wrap; gap: 6px; justify-self: end; }
+      .note-text { min-width: 0; }
       footer { padding: 8px 0 48px; color: var(--slate); font-size: 13px; }
     </style>
   </head>
@@ -177,41 +206,43 @@
       <section class="release">
         <p class="kicker">In development</p>
         <h2>Unreleased</h2>
+        
         <ol class="notes">
-          <li>Nested Project folders collapse; recents reopen a folder from this machine; long lists use Show more.</li>
-          <li>Inspector sections collapse; reveal/hide values sits on the Value heading. Add secret is gone (composer remains).</li>
-          <li>Failed CLI commands append to `$SOPSDECK_STATE_DIR/errors.json`; repeats increment a count. Messages never include private keys or ciphertext.</li>
-          <li>`./scripts/dev` builds a fresh CLI and launches the desktop app against it.</li>
-          <li>`identity create` / `import` store the Age private key in the OS keychain; `SOPS_AGE_KEY_CMD='sopsdeck identity key'` decrypts. Existing `SOPS_AGE_KEY_FILE` still works.</li>
-          <li>Editor paste sniffs dotenv, JSON, or YAML and previews key names until Apply paste.</li>
-          <li>Local MCP (`sopsdeck mcp`) returns metadata by default; `get_value` needs approval; `run` returns exit status only.</li>
-          <li>`set` reads dotenv, JSON, or YAML from stdin as a paste preview; `--yes` writes. Lone values need a KEY.</li>
-          <li>`scan` blocks staged cloud keys, private key PEMs, and common tokens; SOPS ciphertext is ignored; `--install` writes an opt-in pre-commit hook.</li>
-          <li>Inspector Publish shows repo, environment, prefix, and opt-in prune from `.sopsdeck.toml`.</li>
-          <li>Publish uses `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token` as the GitHub Authorization bearer.</li>
-          <li>Publish reads `.sopsdeck.toml` for repo, environment, prefix, keys, and last-published names; prune deletes only names Sopsdeck previously published.</li>
-          <li>Markdown in `docs/`, README, and CHANGELOG is linted; `./scripts/scan` runs govulncheck and bun audit. CI runs `./scripts/check`; opt-in hooks require a CHANGELOG bullet on user-facing commits.</li>
-          <li>Docs, notes, and living pages share one public site under `site/` (landing, changelog, `site/docs/`).</li>
-          <li>Product clips hold for seconds with typed motion; `./scripts/demo --check` fails sub-second videos. CLI casts cover get, set, commit, and Sync.</li>
-          <li>`get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.</li>
-          <li>Changelog and What’s new use the product layout; primary actions have icons.</li>
-          <li>Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.</li>
-          <li>`sopsdeck set -f FILE` with no KEY creates an empty encrypted Managed File.</li>
-          <li>Editor key rows reveal, copy, rename, and delete from icons; a composer adds `KEY` or `KEY=value`.</li>
-          <li>The sidebar can add a Managed File; theme is an icon; panes scroll inside the window.</li>
-          <li>Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.</li>
-          <li>Desktop shows Sync, commit, and save failures next to those controls, not as a toast.</li>
-          <li>Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.</li>
-          <li>Empty Project / Managed File / key states, Sync and save loading, dark mode, and a commit message prefilled from dirty keys.</li>
-          <li>Inspector can Grant Access and dry-run or Publish to a Sync Target.</li>
-          <li>`recipient remove` drops Access, rotates the data key, and warns that Git history still decrypts.</li>
-          <li>Review shows a plaintext semantic diff of uncommitted Managed File keys.</li>
-          <li>Secret History lists commits on a Managed File; `get --at` decrypts a revision.</li>
-          <li>Restore copies a revision’s values into the worktree and leaves them uncommitted.</li>
-          <li>Review of a decryptable merge conflict shows base / ours / theirs for each key.</li>
-          <li>Inspector Review, History, and Restore call those CLI commands.</li>
-          <li>Product stills, clips, and a studio walkthrough are generated by `./scripts/demo`.</li>
-          <li>`sopsdeck --version` matches the desktop app; What’s new is bundled from this file.</li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Notes show type tags, group by Added/Fixed/Changed, and platform when a bullet names macOS, Windows, or Linux.</span><span class="note-platforms"><span class="note-platform">macOS</span><span class="note-platform">Windows</span><span class="note-platform">Linux</span></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Nested Project folders collapse; recents reopen a folder from this machine; long lists use Show more.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Inspector sections collapse; reveal/hide values sits on the Value heading. Add secret is gone (composer remains).</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Failed CLI commands append to `$SOPSDECK_STATE_DIR/errors.json`; repeats increment a count. Messages never include private keys or ciphertext.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`./scripts/dev` builds a fresh CLI and launches the desktop app against it.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`identity create` / `import` store the Age private key in the OS keychain; `SOPS_AGE_KEY_CMD='sopsdeck identity key'` decrypts. Existing `SOPS_AGE_KEY_FILE` still works.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Editor paste sniffs dotenv, JSON, or YAML and previews key names until Apply paste.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Local MCP (`sopsdeck mcp`) returns metadata by default; `get_value` needs approval; `run` returns exit status only.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`set` reads dotenv, JSON, or YAML from stdin as a paste preview; `--yes` writes. Lone values need a KEY.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`scan` blocks staged cloud keys, private key PEMs, and common tokens; SOPS ciphertext is ignored; `--install` writes an opt-in pre-commit hook.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Inspector Publish shows repo, environment, prefix, and opt-in prune from `.sopsdeck.toml`.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Publish uses `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token` as the GitHub Authorization bearer.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Publish reads `.sopsdeck.toml` for repo, environment, prefix, keys, and last-published names; prune deletes only names Sopsdeck previously published.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Markdown in `docs/`, README, and CHANGELOG is linted; `./scripts/scan` runs govulncheck and bun audit. CI runs `./scripts/check`; opt-in hooks require a CHANGELOG bullet on user-facing commits.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Docs, notes, and living pages share one public site under `site/` (landing, changelog, `site/docs/`).</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Product clips hold for seconds with typed motion; `./scripts/demo --check` fails sub-second videos. CLI casts cover get, set, commit, and Sync.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`sopsdeck set -f FILE` with no KEY creates an empty encrypted Managed File.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Editor key rows reveal, copy, rename, and delete from icons; a composer adds `KEY` or `KEY=value`.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">The sidebar can add a Managed File; theme is an icon; panes scroll inside the window.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Inspector can Grant Access and dry-run or Publish to a Sync Target.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`recipient remove` drops Access, rotates the data key, and warns that Git history still decrypts.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Review shows a plaintext semantic diff of uncommitted Managed File keys.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Secret History lists commits on a Managed File; `get --at` decrypts a revision.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Restore copies a revision’s values into the worktree and leaves them uncommitted.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Review of a decryptable merge conflict shows base / ours / theirs for each key.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Inspector Review, History, and Restore call those CLI commands.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">Product stills, clips, and a studio walkthrough are generated by `./scripts/demo`.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Feature</span><span class="note-text">`sopsdeck --version` matches the desktop app; What’s new is bundled from this file.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Bug fix</span><span class="note-text">Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Bug fix</span><span class="note-text">Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Bug fix</span><span class="note-text">Desktop shows Sync, commit, and save failures next to those controls, not as a toast.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Bug fix</span><span class="note-text">`get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Bug fix</span><span class="note-text">Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Changed</span><span class="note-text">Changelog and What’s new use the product layout; primary actions have icons.</span><span class="note-platforms"></span></li>
+          <li><span class="note-tag">Changed</span><span class="note-text">Empty Project / Managed File / key states, Sync and save loading, dark mode, and a commit message prefilled from dirty keys.</span><span class="note-platforms"></span></li>
         </ol>
       </section>
       </div>

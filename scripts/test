@@ -18,7 +18,7 @@ printf '== go test ==\n'
 go test ./cmd/... ./internal/...
 
 printf '== bun test ==\n'
-bun test desktop/src
+bun test desktop/src scripts/changelog-notes.test.js
 
 printf '== rust test ==\n'
 (

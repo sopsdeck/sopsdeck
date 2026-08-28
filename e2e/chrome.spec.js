@@ -117,6 +117,8 @@ test("What's new shows bundled notes", async ({ page }) => {
   await expect(page.getByTestId('whats-new-list').locator('li').first()).toHaveClass(
     /whats-new-item/,
   );
+  await expect(page.getByTestId('whats-new-tag').first()).toHaveText('Feature');
+  await expect(page.getByTestId('whats-new-platform').first()).toHaveText('macOS');
 });
 
 test('Review shows a plaintext secret diff after save', async ({ page }) => {

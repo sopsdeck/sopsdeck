@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { mediaDurationSeconds, minClipSeconds } from './clip-duration.mjs';
+import { changelogSectionNotes, parseChangelog, typeLabel } from './changelog-notes.mjs';
 import { mdToHtml, sitePage } from './site-pages.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -289,43 +290,6 @@ function appVersion() {
   return match[1];
 }
 
-function changelogSection(md, heading) {
-  const lines = md.split('\n');
-  let start = -1;
-  for (const [i, raw] of lines.entries()) {
-    const line = raw.trim();
-    if (
-      line === `## ${heading}` ||
-      line.startsWith(`## ${heading} `) ||
-      line.startsWith(`## [${heading}]`)
-    ) {
-      start = i;
-      break;
-    }
-  }
-
-  if (start < 0) return;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i += 1) {
-    if (lines[i].trim().startsWith('## ')) {
-      end = i;
-      break;
-    }
-  }
-
-  return lines.slice(start, end).join('\n');
-}
-
-function changelogBullets(md, heading) {
-  const body = changelogSection(md, heading);
-  if (!body) return [];
-  return body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith('- '))
-    .map((line) => line.slice(2).trim());
-}
-
 function escapeHtml(text) {
   return text
     .replaceAll('&', '&amp;')
@@ -335,18 +299,26 @@ function escapeHtml(text) {
 }
 
 function changelogPage(md) {
-  const headings = [...md.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
-  const sections = headings.map((heading) => {
-    const items = changelogBullets(md, heading);
+  const sections = parseChangelog(md).map((section) => {
+    const items = section.notes;
     const bullets =
       items.length === 0
         ? '          <li>No notes.</li>'
-        : items.map((item) => `          <li>${escapeHtml(item)}</li>`).join('\n');
-    const kicker = heading === 'Unreleased' ? 'In development' : 'Release';
-    const title = heading === 'Unreleased' ? 'Unreleased' : heading;
+        : items
+            .map((item) => {
+              const tag = `<span class="note-tag">${escapeHtml(typeLabel(item.type))}</span>`;
+              const platforms = `<span class="note-platforms">${item.platforms
+                .map((name) => `<span class="note-platform">${escapeHtml(name)}</span>`)
+                .join('')}</span>`;
+              return `          <li>${tag}<span class="note-text">${escapeHtml(item.text)}</span>${platforms}</li>`;
+            })
+            .join('\n');
+    const kicker = section.heading === 'Unreleased' ? 'In development' : 'Release';
+    const date = section.date ? `<p class="release-date">${escapeHtml(section.date)}</p>` : '';
     return `      <section class="release">
         <p class="kicker">${escapeHtml(kicker)}</p>
-        <h2>${escapeHtml(title)}</h2>
+        <h2>${escapeHtml(section.heading)}</h2>
+        ${date}
         <ol class="notes">
 ${bullets}
         </ol>
@@ -403,14 +375,12 @@ function docsHubPage() {
 }
 
 function whatsNewPayload(md, version) {
-  let heading = version;
-  let notes = changelogBullets(md, version);
-  if (notes.length === 0) {
-    heading = 'Unreleased';
-    notes = changelogBullets(md, 'Unreleased');
-  }
-
-  return `${JSON.stringify({ version, heading, notes }, null, 2)}\n`;
+  const parsed = parseChangelog(md);
+  const section =
+    changelogSectionNotes(md, version) || parsed.find((item) => item.heading === 'Unreleased');
+  const heading = section?.heading || 'Unreleased';
+  const notes = section?.notes || [];
+  return `${JSON.stringify({ version, heading, date: section?.date || '', notes }, null, 2)}\n`;
 }
 
 function checkVersionDrift(version, bundled) {

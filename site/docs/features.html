@@ -119,6 +119,11 @@
         color: var(--ink);
       }
       .release > .kicker { color: var(--slate); }
+      .release-date {
+        margin: -10px 0 18px;
+        color: var(--slate);
+        font: 500 12px 'IBM Plex Mono', ui-monospace, monospace;
+      }
       .notes {
         margin: 0;
         padding: 0;
@@ -128,8 +133,9 @@
       .notes li {
         counter-increment: note;
         display: grid;
-        grid-template-columns: 2.2em 1fr;
-        gap: 12px;
+        grid-template-columns: 2.2em auto 1fr auto;
+        gap: 8px 12px;
+        align-items: start;
         margin: 0 0 10px;
         padding: 14px 16px;
         border: 1px solid rgba(16, 24, 40, 0.08);
@@ -143,6 +149,29 @@
         color: var(--blue);
         font: 600 11px 'IBM Plex Mono', ui-monospace, monospace;
       }
+      .note-tag,
+      .note-platform {
+        display: inline-flex;
+        align-items: center;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 99px;
+        font: 600 10px 'IBM Plex Mono', ui-monospace, monospace;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .note-tag {
+        color: var(--blue);
+        background: rgba(49, 87, 246, 0.1);
+      }
+      .note-platform {
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      .note-platforms { display: flex; flex-wrap: wrap; gap: 6px; justify-self: end; }
+      .note-text { min-width: 0; }
       footer { padding: 8px 0 48px; color: var(--slate); font-size: 13px; }
     </style>
   </head>
@@ -183,6 +212,7 @@
         <li>Notes For Tag Fails When Missing (<code>TestNotesForTagFailsWhenMissing</code>)</li>
         <li>Notes For Tag Fails When Only Unreleased (<code>TestNotesForTagFailsWhenOnlyUnreleased</code>)</li>
         <li>Bullets From Unreleased (<code>TestBulletsFromUnreleased</code>)</li>
+        <li>Bullets Under Added Heading (<code>TestBulletsUnderAddedHeading</code>)</li>
         <li>Commit Stages Managed File And Records Message (<code>TestCommitStagesManagedFileAndRecordsMessage</code>)</li>
         <li>Del Removes Key (<code>TestDelRemovesKey</code>)</li>
         <li>Dev Script Build Only Writes CLI (<code>TestDevScriptBuildOnlyWritesCLI</code>)</li>
