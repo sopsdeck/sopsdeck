@@ -4,6 +4,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+- Product clips hold for seconds with typed motion; `./scripts/demo --check` fails sub-second videos. CLI casts cover get, set, commit, and Sync.
 - `get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.
 - Changelog and What’s new use the product layout; primary actions have icons.
 - Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.

@@ -1,7 +1,7 @@
 # Usable product recordings (desktop + CLI)
 
 Type: build
-Status: ready
+Status: done
 Blocked by: [21](21-desktop-chrome-polish.md) display paths (done)
 
 ## What to build
@@ -14,10 +14,10 @@ CLI recordings are new. They must show real `sopsdeck` commands against testdata
 
 ## Acceptance criteria
 
-- [ ] Each public video is long enough to follow (seconds, not a single frame); a check fails sub-second clips.
-- [ ] Desktop walkthrough + per-feature clips are regenerated with a recorder that produces usable motion (webreel or equivalent).
-- [ ] At least a few CLI casts exist (get/set/commit/sync or the current proved subset) and are linked from docs/README.
-- [ ] Asset jobs remain outside `./scripts/check`; `--check` still asserts files exist and are linked.
+- [x] Each public video is long enough to follow (seconds, not a single frame); a check fails sub-second clips.
+- [x] Desktop walkthrough + per-feature clips are regenerated with a recorder that produces usable motion (webreel or equivalent).
+- [x] At least a few CLI casts exist (get/set/commit/sync or the current proved subset) and are linked from docs/README.
+- [x] Asset jobs remain outside `./scripts/check`; `--check` still asserts files exist and are linked.
 
 ## Seams
 
@@ -27,3 +27,5 @@ CLI recordings are new. They must show real `sopsdeck` commands against testdata
 ## Comments
 
 Captured 2026-08-28 from human-found review. Kind: bug against 19’s quality bar. 19’s check only proved files exist.
+
+Shipped: Playwright `slowMo` + start/end holds + typed values (webreel-equivalent motion). `webreel.config.json` is there for cursor-overlay re-records against `sopsdeck drive --demo`. CLI is asciinema v2 from real `sopsdeck` (`scripts/cli-demo.mjs`). `./scripts/demo --check` fails clips under 1s; `./scripts/docs --check` (in `./scripts/check`) only asserts files exist and are linked.

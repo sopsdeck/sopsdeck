@@ -9,8 +9,10 @@ This folder is the readable layer over the spec, glossary, and tests. Agents sho
 3. **What to implement next** — [build.md](../.scratch/sopsdeck-product/build.md). Phase status plus ready tickets.
 4. **Public seams** — [seams.md](seams.md) (generated). Where tests must live, and which delivery phases still have none.
 5. **Living features** — [features.md](features.md) (generated from test names). If a behavior is not named here, it is not specified by a test yet.
-6. **Product stills and clips** — [assets.md](assets.md) (generated catalog). Created by `./scripts/demo`; `./scripts/docs --check` fails when files are missing or unlinked.
+6. **Product stills and clips** — [assets.md](assets.md) (generated catalog). Created by `./scripts/demo`; `./scripts/docs --check` fails when files are missing or unlinked. `./scripts/demo --check` also fails sub-second clips.
 7. **Versioning** — [versioning.md](versioning.md). Epoch SemVer; `CHANGELOG.md` is canonical.
+
+CLI casts (get, set, commit, Sync) live next to the desktop clips in [assets.md](assets.md).
 
 Regenerate the living files with `./scripts/docs`. `./scripts/check` fails when they are stale.
 
@@ -24,7 +26,7 @@ Regenerate the living files with `./scripts/docs`. `./scripts/check` fails when 
 | `./scripts/cover`  | Go coverage floor; rust `cargo llvm-cov` when installed                    |
 | `./scripts/docs`   | Regenerates features, seams, assets catalog, landing changelog, What’s new |
 | `./scripts/smoke`  | Local teammates + Playwright against `sopsdeck drive`                      |
-| `./scripts/demo`   | Product stills, clips, and walkthrough into `docs/assets/`                 |
+| `./scripts/demo`   | Product stills, clips, walkthrough, and CLI casts into `docs/assets/`      |
 | `./scripts/mutate` | Mutation testing (slow; not in `./scripts/check`)                          |
 | `./scripts/check`  | lint + test + cover + docs --check                                         |
 
