@@ -212,6 +212,10 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 		return invokeGet(req.Path, req.At)
 	case "set_managed_key":
 		return nil, invokeSet(req, getenv)
+	case "del_managed_key":
+		return nil, invokeDel(req)
+	case "create_managed_file":
+		return nil, invokeCreate(req, getenv)
 	case "commit_managed_file":
 		return nil, invokeCommit(req)
 	case "sync_project":
@@ -269,6 +273,16 @@ func invokeGet(path, at string) (any, error) {
 func invokeSet(req invokeReq, getenv func(string) string) error {
 	var stderr strings.Builder
 	return cliErr(cmdSet([]string{req.Key, req.Value, "-f", req.Path}, io.Discard, &stderr, getenv), &stderr)
+}
+
+func invokeDel(req invokeReq) error {
+	var stderr strings.Builder
+	return cliErr(cmdDel([]string{req.Key, "-f", req.Path}, io.Discard, &stderr), &stderr)
+}
+
+func invokeCreate(req invokeReq, getenv func(string) string) error {
+	var stderr strings.Builder
+	return cliErr(cmdSet([]string{"-f", req.Path}, io.Discard, &stderr, getenv), &stderr)
 }
 
 func invokeCommit(req invokeReq) error {

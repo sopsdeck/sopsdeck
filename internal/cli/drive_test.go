@@ -362,3 +362,68 @@ func TestDriveInvokeReviewHistoryAndRestore(t *testing.T) {
 		t.Fatalf("restored=%s", after)
 	}
 }
+
+func TestDriveInvokeCreatesEmptyManagedFile(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
+	t.Cleanup(srv.Close)
+
+	staging := filepath.Join(alice.Home, ".env.staging")
+	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "create_managed_file", Path: staging})
+
+	list := postInvoke(t, srv.URL, invokeReq{Cmd: "list_managed_files", Path: alice.Home})
+	if !bytes.Contains(list, []byte(".env.staging")) {
+		t.Fatalf("list=%s", list)
+	}
+
+	got := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: staging})
+	var body struct {
+		Result []map[string]string `json:"result"`
+	}
+	if err := json.Unmarshal(got, &body); err != nil {
+		t.Fatalf("get=%s: %v", got, err)
+	}
+	if len(body.Result) != 0 {
+		t.Fatalf("get=%s", got)
+	}
+}
+
+func TestDriveInvokeDeletesManagedKey(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	if err := aliceCLI(alice, "set", "KEEP", "yes", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
+	t.Cleanup(srv.Close)
+
+	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "del_managed_key", Path: env, Key: "HELLO"})
+	got := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: env})
+	if bytes.Contains(got, []byte("HELLO")) {
+		t.Fatalf("get still has deleted key: %s", got)
+	}
+	if !bytes.Contains(got, []byte("KEEP")) {
+		t.Fatalf("get=%s", got)
+	}
+}

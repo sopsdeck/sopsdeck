@@ -198,8 +198,22 @@ func cmdSet(args []string, stdout, stderr io.Writer, getenv func(string) string)
 			positionals = append(positionals, args[i])
 		}
 	}
-	if len(positionals) != 2 || file == "" {
-		fmt.Fprintln(stderr, "usage: sopsdeck set KEY VALUE -f FILE")
+	if file == "" {
+		fmt.Fprintln(stderr, "usage: sopsdeck set [KEY VALUE] -f FILE")
+		return 1
+	}
+	if len(positionals) == 0 {
+		if _, err := os.Stat(file); err == nil {
+			fmt.Fprintf(stderr, "set: %s already exists\n", file)
+			return 1
+		} else if !os.IsNotExist(err) {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		return setCreate(file, "", "", stderr, getenv)
+	}
+	if len(positionals) != 2 {
+		fmt.Fprintln(stderr, "usage: sopsdeck set [KEY VALUE] -f FILE")
 		return 1
 	}
 	key, value = positionals[0], positionals[1]
@@ -622,6 +636,10 @@ func setCreate(file, key, value string, stderr io.Writer, getenv func(string) st
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
 	}
+	branch := sops.TreeBranch{}
+	if key != "" {
+		branch = append(branch, sops.TreeItem{Key: key, Value: value})
+	}
 	tree := sops.Tree{
 		FilePath: file,
 		Metadata: sops.Metadata{
@@ -629,11 +647,7 @@ func setCreate(file, key, value string, stderr io.Writer, getenv func(string) st
 			UnencryptedSuffix: sops.DefaultUnencryptedSuffix,
 			KeyGroups:         []sops.KeyGroup{{mk}},
 		},
-		Branches: sops.TreeBranches{
-			sops.TreeBranch{
-				{Key: key, Value: value},
-			},
-		},
+		Branches: sops.TreeBranches{branch},
 	}
 	svcs := []keyservice.KeyServiceClient{keyservice.NewLocalClient()}
 	dataKey, errs := tree.GenerateDataKeyWithKeyServices(svcs)
