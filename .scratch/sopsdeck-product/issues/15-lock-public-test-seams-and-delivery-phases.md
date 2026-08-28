@@ -31,7 +31,7 @@ Spec above is unchanged. Vertical build status lives on [build.md](../build.md).
 | --- | --- | --- |
 | 1 | get/set/del/run; identity create/import gated on `--confirmed-backup`; Age file under `SOPSDECK_STATE_DIR` | Keychain / `SOPS_AGE_KEY_CMD` (06) |
 | 2 | Tauri + drive UI: list, open, edit, atomic save, boot folder | Paste (12); chrome (21); errors (20) |
-| 3 | commit; Sync fetch + ff-only pull + push; refuse diverge and dirty; `review` plaintext semantic diff | Secret History; Restore; three-way (07) |
+| 3 | commit; Sync; refuse diverge/dirty; `review`; `history` + `get --at` | Restore; three-way (07) |
 | 4 | `recipient add` / `recipient remove` + data-key rotate; studio teammate after Sync / after remove | Request PR; re-encrypt PR (06) |
 | 5 | `publish` prefix, dry-run, `--yes`, `--prune` vs `internal/githubfake` | Manifest mappings; `gh` auth; environment secrets; desktop Publish (09) |
 | 6–8 | changelog/versioning [22](22-epoch-semver-and-changelog.md) (tag notes; tree still `0.1.0`) | 10, 11–12, 14 signed artifacts |

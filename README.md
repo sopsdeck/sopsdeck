@@ -34,6 +34,8 @@ export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
 ./sopsdeck run -f path/to/.env.production -- your-command
 ./sopsdeck commit -m "rotate stripe" -f path/to/.env.production
 ./sopsdeck review -f path/to/.env.production
+./sopsdeck history -f path/to/.env.production
+./sopsdeck get KEY -f path/to/.env.production --at REV
 ./sopsdeck sync
 ```
 
