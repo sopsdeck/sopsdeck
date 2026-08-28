@@ -20,5 +20,5 @@ Conflicts: if base, ours, and theirs all decrypt and parse, show a secret-aware 
 
 ## Implementation (2026-08-28)
 
-`sopsdeck commit -m … -f` and `sopsdeck sync` (fetch, `pull --ff-only`, push) are tested, including diverge refusal. Desktop Commit/Sync invoke those commands. Sync still forwards raw Git stderr (build [20](20-contextual-failure-ux.md)). Commit message is user-supplied; prefill is [21](21-desktop-chrome-polish.md). Not done: Review, Secret History, Restore, dirty-worktree stop, three-way.
+`sopsdeck commit -m … -f` and `sopsdeck sync` (fetch, `pull --ff-only`, push) are tested, including diverge refusal and dirty-worktree stop. `sopsdeck review -f` prints a plaintext semantic diff of uncommitted keys vs HEAD. Desktop Commit/Sync invoke those commands. Commit message is user-supplied; prefill is [21](21-desktop-chrome-polish.md). Not done: Secret History, Restore, three-way.
 

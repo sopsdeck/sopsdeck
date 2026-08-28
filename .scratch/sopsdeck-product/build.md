@@ -26,7 +26,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | --- | --- | --- | --- | --- |
 | 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` to a state-dir Age file | OS keychain / `SOPS_AGE_KEY_CMD` (issue 06) |
 | 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20) | paste (12) |
-| 3 | Git Commit / Sync | in progress | commit `-m` `-f`; Sync = fetch + ff-only pull + push; refuse diverge | Review semantic diff; Secret History; Restore; dirty-worktree stop; three-way (07) |
+| 3 | Git Commit / Sync | in progress | commit `-m` `-f`; Sync = fetch + ff-only pull + push; refuse dirty/diverge; Review semantic diff | Secret History; Restore; three-way (07) |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
 | 5 | GitHub Publish | in progress | `publish` prefix, dry-run default, `--yes`, `--prune` against `internal/githubfake` | `.sopsdeck.toml` mappings; `gh` auth; environment secrets; last-published names; desktop Publish (09) |
 | 6 | Scan hook | not started | — | issue 10 |
