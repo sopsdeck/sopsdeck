@@ -81,4 +81,16 @@ func TestRecipientAddLetsSecondIdentityDecrypt(t *testing.T) {
 	if got := strings.TrimSpace(stdout.String()); got != "world" {
 		t.Fatalf("bob get stdout=%q", stdout.String())
 	}
+
+	t.Setenv("SOPS_AGE_KEY_FILE", aliceKey)
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "add", bobPub, "-f", envFile}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("second add exit %d stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"get", "HELLO", "-f", envFile}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("alice get after second add exit %d stderr=%q", code, stderr.String())
+	}
 }

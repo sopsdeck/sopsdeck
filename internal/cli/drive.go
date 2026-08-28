@@ -119,9 +119,6 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 	if err := aliceCLI(alice, "set", "STRIPE_SECRET", "sk_test_demo", "-f", env); err != nil {
 		return nil, nil, err
 	}
-	if err := aliceCLI(alice, "recipient", "add", bob.PublicKey, "-f", env); err != nil {
-		return nil, nil, err
-	}
 	if err := aliceCLI(alice, "commit", "-m", "seed production", "-f", env); err != nil {
 		return nil, nil, err
 	}

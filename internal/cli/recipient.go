@@ -60,6 +60,9 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
+	if hasRecipient(*tree, pub) {
+		return 0
+	}
 	svcs := []keyservice.KeyServiceClient{keyservice.NewLocalClient()}
 	dataKey, err := common.DecryptTree(common.DecryptTreeOpts{
 		Tree:        tree,
@@ -101,4 +104,20 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		return 1
 	}
 	return 0
+}
+
+func hasRecipient(tree sops.Tree, pub string) bool {
+	want := strings.ToLower(strings.TrimSpace(pub))
+	if want == "" {
+		return false
+	}
+	for _, group := range tree.Metadata.KeyGroups {
+		for _, key := range group {
+			got := strings.ToLower(key.ToString())
+			if got == want || strings.Contains(got, want) {
+				return true
+			}
+		}
+	}
+	return false
 }
