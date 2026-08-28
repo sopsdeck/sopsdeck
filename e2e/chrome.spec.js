@@ -105,3 +105,12 @@ test('theme survives reload', async ({ page }) => {
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
+
+test("What's new shows bundled notes", async ({ page }) => {
+  await page.goto('/?empty=1');
+  await page.getByTestId('whats-new').click();
+  const dialog = page.getByTestId('whats-new-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Unreleased');
+  await expect(page.getByTestId('whats-new-list').locator('li')).not.toHaveCount(0);
+});

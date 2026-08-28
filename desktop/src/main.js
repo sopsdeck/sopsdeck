@@ -438,8 +438,49 @@ async function loadDemoHints() {
   }
 }
 
+async function loadWhatsNew() {
+  if (globalThis.__TAURI__?.core?.invoke) {
+    return invoke('whats_new');
+  }
+
+  const response = await fetch('/whats-new.json');
+  if (!response.ok) {
+    throw new Error(response.statusText);
+  }
+
+  return response.json();
+}
+
+async function showWhatsNew() {
+  const dialog = document.getElementById('whats-new-dialog');
+  try {
+    const payload = await loadWhatsNew();
+    document.getElementById('whats-new-heading').textContent = payload.heading || "What's new";
+    document.getElementById('whats-new-version').textContent = payload.version
+      ? `Sopsdeck ${payload.version}`
+      : '';
+    const list = document.getElementById('whats-new-list');
+    list.replaceChildren();
+    for (const note of payload.notes || []) {
+      const item = document.createElement('li');
+      item.textContent = note;
+      list.append(item);
+    }
+
+    dialog.showModal();
+  } catch (err) {
+    showError(messageOf(err));
+  }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   applyTheme(currentTheme());
+  document.getElementById('whats-new').addEventListener('click', () => {
+    showWhatsNew();
+  });
+  document.getElementById('whats-new-close').addEventListener('click', () => {
+    document.getElementById('whats-new-dialog').close();
+  });
   document.getElementById('theme-toggle').addEventListener('click', () => {
     applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
   });

@@ -203,6 +203,27 @@ input {
   background: var(--hover);
   color: var(--ink);
 }
+.whats-new-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--editor);
+}
+.whats-new-dialog::backdrop {
+  background: rgba(16, 24, 40, 0.35);
+}
+.whats-new-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.whats-new-dialog ul {
+  margin: 12px 0 16px;
+  padding-left: 18px;
+  color: var(--slate);
+  font-size: 12px;
+}
 .editor {
   display: flex;
   flex-direction: column;

@@ -97,7 +97,17 @@ fn boot_project() -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[tauri::command]
+fn whats_new() -> Result<serde_json::Value, String> {
+    serde_json::from_str(include_str!("../../src/whats-new.json"))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -111,11 +121,27 @@ pub fn run() {
             add_recipient,
             publish_managed_file,
             pick_project_folder,
-            boot_project
+            boot_project,
+            whats_new,
+            app_version
         ])
         .run(tauri::generate_context!());
     if let Err(error) = result {
         eprintln!("error while running tauri application: {error}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod version_tests {
+    #[test]
+    fn cargo_pkg_version_matches_whats_new() {
+        let parsed: serde_json::Value =
+            serde_json::from_str(include_str!("../../src/whats-new.json")).expect("json");
+        let version = parsed
+            .get("version")
+            .and_then(serde_json::Value::as_str)
+            .expect("version");
+        assert_eq!(version, env!("CARGO_PKG_VERSION"));
     }
 }

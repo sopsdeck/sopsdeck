@@ -30,6 +30,9 @@
         </div>
         <nav id="tree" class="tree" aria-label="Local projects" data-testid="tree"></nav>
         <div class="side-foot">
+          <button id="whats-new" class="add-project" type="button" data-testid="whats-new">
+            What's new
+          </button>
           <button id="add-project" class="add-project" type="button" data-testid="add-project">
             Add folder from disk
           </button>
@@ -132,5 +135,13 @@
         </div>
       </aside>
     </div>
+    <dialog id="whats-new-dialog" class="whats-new-dialog" data-testid="whats-new-dialog">
+      <h2 id="whats-new-heading">What's new</h2>
+      <p id="whats-new-version" class="save-note" data-testid="whats-new-version"></p>
+      <ul id="whats-new-list" data-testid="whats-new-list"></ul>
+      <button id="whats-new-close" class="tool" type="button" data-testid="whats-new-close">
+        Close
+      </button>
+    </dialog>
   </body>
 </html>
