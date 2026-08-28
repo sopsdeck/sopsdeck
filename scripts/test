@@ -12,9 +12,13 @@ need() {
 
 need go "https://go.dev/dl/"
 need cargo "https://rustup.rs"
+need bun "https://bun.sh"
 
 printf '== go test ==\n'
 go test ./cmd/... ./internal/...
+
+printf '== bun test ==\n'
+bun test desktop/src
 
 printf '== rust test ==\n'
 (

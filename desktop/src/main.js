@@ -1,3 +1,5 @@
+import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.js';
+
 const invoke = globalThis.__TAURI__?.core?.invoke ?? invokeOverHTTP;
 const THEME_KEY = 'sopsdeck-theme';
 
@@ -40,6 +42,7 @@ let commitAuto = true;
 let lastAuto = '';
 let historyRev = '';
 let composerFocus = false;
+let pendingPaste = null;
 
 function messageOf(err) {
   if (err instanceof Error) return err.message;
@@ -215,6 +218,145 @@ function resolveManagedPath(projectPath, name) {
   }
 
   return abs;
+}
+
+function currentPasteKeys() {
+  const out = {};
+  for (const row of visibleRows()) {
+    if (row.key) out[row.key] = row.value;
+  }
+
+  return out;
+}
+
+function applyPastePairs(pairs) {
+  for (const key of Object.keys(pairs).sort()) {
+    const value = pairs[key];
+    const existing = rows.find((r) => !r.deleted && r.key === key);
+    if (existing) {
+      existing.value = value;
+      continue;
+    }
+
+    rows.push({
+      key,
+      value,
+      origKey: '',
+      origValue: '',
+      added: true,
+      deleted: false,
+      revealed: true,
+    });
+  }
+}
+
+function renderPasteChrome(box) {
+  if (!pendingPaste) return;
+  const preview = document.createElement('div');
+  preview.className = 'paste-preview';
+  if (pendingPaste.kind === 'bulk') {
+    preview.dataset.testid = 'paste-preview';
+    const body = document.createElement('pre');
+    body.textContent = pastePreviewText(pendingPaste.adds, pendingPaste.changes);
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'tool';
+    confirm.dataset.testid = 'paste-confirm';
+    confirm.textContent = 'Apply paste';
+    confirm.addEventListener('click', () => {
+      applyPastePairs(pendingPaste.pairs);
+      pendingPaste = null;
+      renderKeys();
+    });
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'tool';
+    cancel.dataset.testid = 'paste-cancel';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => {
+      pendingPaste = null;
+      renderKeys();
+    });
+    const actions = document.createElement('div');
+    actions.className = 'paste-preview-actions';
+    actions.append(confirm, cancel);
+    preview.append(body, actions);
+    box.append(preview);
+    return;
+  }
+
+  preview.dataset.testid = 'paste-key-prompt';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.dataset.testid = 'paste-key-name';
+  input.placeholder = 'Key for paste';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  const apply = () => {
+    const key = input.value.trim();
+    if (!key) return;
+    applyPastePairs({ [key]: pendingPaste.value });
+    pendingPaste = null;
+    renderKeys();
+  };
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    apply();
+  });
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.className = 'tool';
+  confirm.dataset.testid = 'paste-key-apply';
+  confirm.textContent = 'Add';
+  confirm.addEventListener('click', apply);
+  preview.append(input, confirm);
+  box.append(preview);
+}
+
+function applyLoneToFocused(input, text) {
+  const line = input.closest('[data-testid="key-row"]');
+  const name = line?.querySelector('[data-testid="key-name"]')?.value;
+  const row = rows.find((r) => !r.deleted && r.key === name);
+  if (!row) return;
+  row.value = text;
+  row.revealed = true;
+  renderKeys();
+}
+
+function onEditorPaste(event) {
+  if (!selected) return;
+  const box = keysEl();
+  if (!box || box.hidden) return;
+  const { target } = event;
+  if (!(target instanceof Node) || !box.contains(target)) return;
+
+  const text = event.clipboardData?.getData('text/plain') ?? '';
+  if (!text.trim()) return;
+
+  try {
+    const pairs = parsePastePayload(text);
+    if (Object.keys(pairs).length === 0) return;
+    event.preventDefault();
+    const { adds, changes } = classifyPasteKeys(currentPasteKeys(), pairs);
+    pendingPaste = { kind: 'bulk', pairs, adds, changes };
+    renderKeys();
+  } catch (err) {
+    if (err?.code !== 'LONE_KEY') {
+      if (text.trim().startsWith('{')) event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    if (target?.dataset?.testid === 'key-value') {
+      applyLoneToFocused(target, text);
+      return;
+    }
+
+    pendingPaste = { kind: 'lone', value: text };
+    renderKeys();
+  }
 }
 
 function parseComposerLine(text) {
@@ -442,6 +584,7 @@ function renderTree() {
 
 async function openFile(project, file) {
   selected = { project, ...file };
+  pendingPaste = null;
   revealed = false;
   commitAuto = true;
   lastAuto = '';
@@ -492,6 +635,7 @@ function renderKeys() {
   const box = keysEl();
   box.hidden = false;
   box.replaceChildren();
+  renderPasteChrome(box);
   const head = document.createElement('div');
   head.className = 'key-head';
   for (const label of ['Key', 'Value', 'Type', '']) {
@@ -858,6 +1002,7 @@ async function showWhatsNew() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   decorateChrome();
+  document.addEventListener('paste', onEditorPaste);
   applyTheme(currentTheme());
   document.getElementById('whats-new').addEventListener('click', () => {
     showWhatsNew();

@@ -18,7 +18,16 @@ const xoConfig = [
     ],
   },
   {
+    files: ['desktop/src/**/*.test.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
     files: ['desktop/src/**/*.js'],
+    ignores: ['desktop/src/**/*.test.js'],
     languageOptions: {
       globals: {
         ...globals.browser,

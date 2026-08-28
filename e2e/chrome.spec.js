@@ -258,3 +258,27 @@ test('window does not scroll empty body chrome', async ({ page }) => {
   });
   expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 8);
 });
+
+async function dispatchPaste(page, text) {
+  await page.getByTestId('keys').evaluate((el, value) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', value);
+    const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', { value: dt });
+    el.dispatchEvent(event);
+  }, text);
+}
+
+test('bulk paste previews key names without values', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await dispatchPaste(page, 'NEW=supersecretvalue\n');
+  const preview = page.getByTestId('paste-preview');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('NEW');
+  await expect(preview).not.toContainText('supersecretvalue');
+  await page.getByTestId('paste-confirm').click();
+  await expect(preview).toBeHidden();
+  await expect.poll(async () => keyNames(page)).toContain('NEW');
+  await expect(page.getByTestId('save')).toBeEnabled();
+});

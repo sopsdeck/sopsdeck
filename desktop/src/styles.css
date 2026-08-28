@@ -497,6 +497,43 @@ h1 {
   overflow: auto;
   padding: 13px 24px 30px;
 }
+.paste-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+}
+.paste-preview pre {
+  flex: 1 1 220px;
+  margin: 0;
+  font:
+    400 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  white-space: pre-wrap;
+}
+.paste-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+.paste-preview input {
+  flex: 1;
+  min-width: 0;
+  height: 31px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  font:
+    400 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
 .key-head,
 .key-row {
   display: grid;
