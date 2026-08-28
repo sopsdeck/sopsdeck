@@ -23,13 +23,30 @@
         <div class="side-head">
           <div class="side-head-row">
             <span class="kicker">Projects</span>
-            <button id="theme-toggle" class="theme-toggle" type="button" data-testid="theme-toggle">
-              Dark mode
-            </button>
+            <button
+              id="theme-toggle"
+              class="icon-button theme-toggle"
+              type="button"
+              data-testid="theme-toggle"
+              aria-label="Switch to dark theme"
+            ></button>
           </div>
         </div>
         <nav id="tree" class="tree" aria-label="Local projects" data-testid="tree"></nav>
         <div class="side-foot">
+          <div class="add-file">
+            <input
+              id="add-file-name"
+              type="text"
+              placeholder=".env.staging"
+              autocomplete="off"
+              spellcheck="false"
+              data-testid="add-file-name"
+            />
+            <button id="add-file" class="add-file-btn" type="button" data-testid="add-file">
+              Add file
+            </button>
+          </div>
           <button id="whats-new" class="add-project" type="button" data-testid="whats-new">
             What's new
           </button>
@@ -65,90 +82,97 @@
         <div class="inspect-head">
           <span class="kicker">Environment</span>
         </div>
-        <section class="inspect-section">
-          <h2>File</h2>
-          <div class="meta">
-            <span>Path</span><strong id="meta-path" data-testid="inspector-path">—</strong>
-            <span>Format</span><strong id="meta-format">—</strong> <span>Encryption</span
-            ><strong id="meta-enc">—</strong>
-          </div>
-        </section>
-        <section class="inspect-section">
-          <h2>Access</h2>
-          <label class="commit-label">
-            Recipient
-            <input
-              id="recipient-key"
-              type="text"
-              placeholder="age1…"
-              autocomplete="off"
-              data-testid="recipient-key"
-            />
-          </label>
-          <button
-            id="grant-access"
-            class="tool git-action"
-            type="button"
-            data-testid="grant-access"
-          >
-            Grant Access
-          </button>
-          <button
-            id="remove-access"
-            class="tool git-action"
-            type="button"
-            data-testid="remove-access"
-          >
-            Remove Access
-          </button>
-          <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
-          <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
-          <p class="save-note">Removing Access does not rewrite Git history</p>
-        </section>
-        <section class="inspect-section">
-          <h2>Publish</h2>
-          <button id="publish" class="tool git-action" type="button" data-testid="publish">
-            Dry run
-          </button>
-          <button id="publish-yes" class="tool git-action" type="button" data-testid="publish-yes">
-            Publish
-          </button>
-          <p id="publish-status" class="control-status" hidden data-testid="publish-status"></p>
-          <p id="publish-error" class="control-error" hidden data-testid="publish-error"></p>
-          <p class="save-note">Dry run lists names; Publish writes to the Sync Target</p>
-        </section>
-        <section class="inspect-section">
-          <h2>Git</h2>
-          <label class="commit-label">
-            Message
-            <input
-              id="commit-message"
-              type="text"
-              placeholder="What changed"
-              data-testid="commit-message"
-            />
-          </label>
-          <button id="commit" class="tool git-action" type="button" data-testid="commit">
-            Commit
-          </button>
-          <button id="sync" class="tool git-action" type="button" data-testid="sync">Sync</button>
-          <button id="review" class="tool git-action" type="button" data-testid="review">
-            Review
-          </button>
-          <button id="history" class="tool git-action" type="button" data-testid="history">
-            History
-          </button>
-          <button id="restore" class="tool git-action" type="button" data-testid="restore">
-            Restore
-          </button>
-          <pre id="review-out" class="review-out" hidden data-testid="review-out"></pre>
-          <ul id="history-list" class="history-list" hidden data-testid="history-list"></ul>
-          <p id="git-status" class="control-status" hidden data-testid="git-status"></p>
-          <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
-          <p class="save-note">
-            Restore copies a revision into the editor; save and commit to keep it
-          </p>
-        </section>
+        <div class="inspect-body">
+          <section class="inspect-section">
+            <h2>File</h2>
+            <div class="meta">
+              <span>Path</span><strong id="meta-path" data-testid="inspector-path">—</strong>
+              <span>Format</span><strong id="meta-format">—</strong> <span>Encryption</span
+              ><strong id="meta-enc">—</strong>
+            </div>
+          </section>
+          <section class="inspect-section">
+            <h2>Access</h2>
+            <label class="commit-label">
+              Recipient
+              <input
+                id="recipient-key"
+                type="text"
+                placeholder="age1…"
+                autocomplete="off"
+                data-testid="recipient-key"
+              />
+            </label>
+            <button
+              id="grant-access"
+              class="tool git-action"
+              type="button"
+              data-testid="grant-access"
+            >
+              Grant Access
+            </button>
+            <button
+              id="remove-access"
+              class="tool git-action"
+              type="button"
+              data-testid="remove-access"
+            >
+              Remove Access
+            </button>
+            <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
+            <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
+            <p class="save-note">Removing Access does not rewrite Git history</p>
+          </section>
+          <section class="inspect-section">
+            <h2>Publish</h2>
+            <button id="publish" class="tool git-action" type="button" data-testid="publish">
+              Dry run
+            </button>
+            <button
+              id="publish-yes"
+              class="tool git-action"
+              type="button"
+              data-testid="publish-yes"
+            >
+              Publish
+            </button>
+            <p id="publish-status" class="control-status" hidden data-testid="publish-status"></p>
+            <p id="publish-error" class="control-error" hidden data-testid="publish-error"></p>
+            <p class="save-note">Dry run lists names; Publish writes to the Sync Target</p>
+          </section>
+          <section class="inspect-section">
+            <h2>Git</h2>
+            <label class="commit-label">
+              Message
+              <input
+                id="commit-message"
+                type="text"
+                placeholder="What changed"
+                data-testid="commit-message"
+              />
+            </label>
+            <button id="commit" class="tool git-action" type="button" data-testid="commit">
+              Commit
+            </button>
+            <button id="sync" class="tool git-action" type="button" data-testid="sync">Sync</button>
+            <button id="review" class="tool git-action" type="button" data-testid="review">
+              Review
+            </button>
+            <button id="history" class="tool git-action" type="button" data-testid="history">
+              History
+            </button>
+            <button id="restore" class="tool git-action" type="button" data-testid="restore">
+              Restore
+            </button>
+            <pre id="review-out" class="review-out" hidden data-testid="review-out"></pre>
+            <ul id="history-list" class="history-list" hidden data-testid="history-list"></ul>
+            <p id="git-status" class="control-status" hidden data-testid="git-status"></p>
+            <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
+            <p class="save-note">
+              Restore copies a revision into the editor; save and commit to keep it
+            </p>
+          </section>
+        </div>
         <div class="save-zone">
           <button id="save" class="save" type="button" disabled data-testid="save">
             Encrypt &amp; save

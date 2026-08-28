@@ -39,6 +39,7 @@ let revealed = false;
 let commitAuto = true;
 let lastAuto = '';
 let historyRev = '';
+let composerFocus = false;
 
 function messageOf(err) {
   if (err instanceof Error) return err.message;
@@ -47,6 +48,153 @@ function messageOf(err) {
 
 function skipBoot() {
   return new URLSearchParams(location.search).has('empty');
+}
+
+const stroke = {
+  fill: 'none',
+  stroke: 'currentColor',
+  'stroke-width': '1.8',
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round',
+};
+
+function svgEl(name, attrs, children = []) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+  for (const [key, value] of Object.entries(attrs)) {
+    el.setAttribute(key, value);
+  }
+
+  for (const child of children) el.append(child);
+  return el;
+}
+
+function icon(kind) {
+  const parts = {
+    eye: [
+      svgEl('path', { d: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z', ...stroke }),
+      svgEl('circle', { cx: '12', cy: '12', r: '2.5', ...stroke }),
+    ],
+    'eye-off': [
+      svgEl('path', { d: 'M3 3l18 18', ...stroke }),
+      svgEl('path', { d: 'M10.6 10.6a2.5 2.5 0 0 0 3.5 3.5', ...stroke }),
+      svgEl('path', {
+        d: 'M9.9 5.1A11 11 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.2 3.8',
+        ...stroke,
+      }),
+      svgEl('path', { d: 'M6.1 6.1C3.6 8 2 12 2 12s3.5 7 10 7a10 10 0 0 0 4.2-.9', ...stroke }),
+    ],
+    copy: [
+      svgEl('rect', { x: '9', y: '9', width: '13', height: '13', rx: '2', ...stroke }),
+      svgEl('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1', ...stroke }),
+    ],
+    trash: [
+      svgEl('path', { d: 'M4 7h16', ...stroke }),
+      svgEl('path', { d: 'M10 11v6M14 11v6', ...stroke }),
+      svgEl('path', { d: 'M6 7l1 14h10l1-14', ...stroke }),
+      svgEl('path', { d: 'M9 7V4h6v3', ...stroke }),
+    ],
+    plus: [svgEl('path', { d: 'M12 5v14M5 12h14', ...stroke })],
+    sun: [
+      svgEl('circle', { cx: '12', cy: '12', r: '4', ...stroke }),
+      svgEl('path', {
+        d: 'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+        ...stroke,
+      }),
+    ],
+    moon: [svgEl('path', { d: 'M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z', ...stroke })],
+  };
+  return svgEl(
+    'svg',
+    { viewBox: '0 0 24 24', width: '14', height: '14', 'aria-hidden': 'true' },
+    parts[kind] || [],
+  );
+}
+
+function iconButton(testid, label, kind, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'icon-button';
+  btn.dataset.testid = testid;
+  btn.setAttribute('aria-label', label);
+  btn.append(icon(kind));
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function copyText(text) {
+  const clip = navigator.clipboard;
+  if (!clip?.writeText) return;
+  (async () => {
+    try {
+      await clip.writeText(String(text));
+    } catch {
+      // Clipboard can fail without permission or a secure context.
+    }
+  })();
+}
+
+function normalizePosix(path) {
+  const parts = [];
+  for (const part of String(path || '').split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      parts.pop();
+      continue;
+    }
+
+    parts.push(part);
+  }
+
+  return `/${parts.join('/')}`;
+}
+
+function resolveManagedPath(projectPath, name) {
+  const raw = String(name || '')
+    .trim()
+    .replaceAll('\\', '/');
+  if (!raw) {
+    throw new Error('Name a Managed File');
+  }
+
+  const root = String(projectPath || '').replace(/\/+$/u, '');
+  if (!root) {
+    throw new Error('Open a Project first');
+  }
+
+  if (raw.split('/').includes('..')) {
+    throw new Error('Path stays inside the Project');
+  }
+
+  const isAbs = raw.startsWith('/');
+  const abs = normalizePosix(isAbs ? raw : `${root}/${raw}`);
+  if (abs !== root && !abs.startsWith(`${root}/`)) {
+    throw new Error('Path stays inside the Project');
+  }
+
+  return abs;
+}
+
+function parseComposerLine(text) {
+  const line = String(text || '')
+    .split('\n')[0]
+    .trim();
+  if (!line) return null;
+  const eq = line.indexOf('=');
+  if (eq === -1) {
+    return { key: line, value: '' };
+  }
+
+  return { key: line.slice(0, eq).trim(), value: line.slice(eq + 1) };
+}
+
+function rowDirty(row) {
+  return Boolean(
+    row.deleted || row.added || row.key !== row.origKey || row.value !== row.origValue,
+  );
+}
+
+function visibleRows() {
+  return rows.filter((row) => !row.deleted);
 }
 
 function clearErrors() {
@@ -119,13 +267,19 @@ function displayPath(project, file) {
 }
 
 function dirtyCount() {
-  return rows.filter((r) => r.key !== r.origKey || r.value !== r.origValue || r.added).length;
+  return rows.filter((r) => rowDirty(r)).length;
 }
 
 function defaultCommitMessage(current) {
   const added = [];
   const changed = [];
+  const removed = [];
   for (const row of current) {
+    if (row.deleted) {
+      if (row.origKey) removed.push(row.origKey);
+      continue;
+    }
+
     if (row.added && row.key) {
       added.push(row.key);
       continue;
@@ -139,6 +293,7 @@ function defaultCommitMessage(current) {
   const parts = [];
   if (added.length > 0) parts.push(`Add ${added.join(', ')}`);
   if (changed.length > 0) parts.push(`Change ${changed.join(', ')}`);
+  if (removed.length > 0) parts.push(`Remove ${removed.join(', ')}`);
   return parts.join('; ');
 }
 
@@ -154,7 +309,6 @@ function showEmpty(message) {
   const empty = emptyEl();
   empty.hidden = !message;
   empty.textContent = message || '';
-  keysEl().hidden = Boolean(message);
 }
 
 function resetEditorChrome() {
@@ -163,6 +317,8 @@ function resetEditorChrome() {
   revealed = false;
   badgeEl().hidden = true;
   toolbarEl().hidden = true;
+  keysEl().hidden = true;
+  keysEl().replaceChildren();
   document.getElementById('meta-path').textContent = '—';
   document.getElementById('meta-format').textContent = '—';
   document.getElementById('meta-enc').textContent = '—';
@@ -197,7 +353,10 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem(THEME_KEY, theme);
   const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+  if (!btn) return;
+  const next = theme === 'dark' ? 'light' : 'dark';
+  btn.replaceChildren(icon(theme === 'dark' ? 'sun' : 'moon'));
+  btn.setAttribute('aria-label', `Switch to ${next} theme`);
 }
 
 function renderTree() {
@@ -254,6 +413,8 @@ async function openFile(project, file) {
       origKey: p.key,
       origValue: p.value,
       added: false,
+      deleted: false,
+      revealed: false,
     }));
     sublineEl().textContent = `${rows.length} secrets · never uploaded`;
     renderKeys();
@@ -268,24 +429,19 @@ async function openFile(project, file) {
 
 function renderKeys() {
   if (!selected) {
+    keysEl().hidden = true;
     renderWorkspace();
     return;
   }
 
-  if (rows.length === 0) {
-    showEmpty('No keys in this file.');
-    saveEl().disabled = true;
-    sublineEl().textContent = '0 secrets · never uploaded';
-    return;
-  }
-
-  showEmpty('');
+  const visible = visibleRows();
+  showEmpty(visible.length === 0 ? 'No keys in this file.' : '');
   const box = keysEl();
   box.hidden = false;
   box.replaceChildren();
   const head = document.createElement('div');
   head.className = 'key-head';
-  for (const label of ['Key', 'Value', 'Type']) {
+  for (const label of ['Key', 'Value', 'Type', '']) {
     const span = document.createElement('span');
     span.textContent = label;
     head.append(span);
@@ -293,49 +449,119 @@ function renderKeys() {
 
   box.append(head);
 
-  for (const row of rows) {
+  for (const row of visible) {
     const line = document.createElement('div');
-    const changed = row.key !== row.origKey || row.value !== row.origValue || row.added;
+    const changed = rowDirty(row);
     line.className = 'key-row' + (changed ? ' changed' : '');
     line.dataset.testid = 'key-row';
+    const keyCell = document.createElement('div');
+    keyCell.className = 'key-cell';
     const name = document.createElement('input');
     name.className = 'key-name';
     name.dataset.testid = 'key-name';
     name.value = row.key;
-    name.readOnly = !row.added;
-    name.addEventListener('input', () => {
-      row.key = name.value;
-      const dirty = row.key !== row.origKey || row.value !== row.origValue || row.added;
-      line.classList.toggle('changed', dirty);
-      kind.textContent = dirty ? 'changed' : 'secret';
-      saveEl().disabled = dirtyCount() === 0;
-      syncCommitMessage();
-    });
-    const input = document.createElement('input');
-    input.className = 'value' + (revealed ? '' : ' masked');
-    input.dataset.testid = 'key-value';
-    input.value = revealed ? row.value : '••••••••••••••••••••••••••••';
-    input.readOnly = !revealed;
-    input.addEventListener('input', () => {
-      row.value = input.value;
-      const dirty = row.key !== row.origKey || row.value !== row.origValue || row.added;
-      line.classList.toggle('changed', dirty);
-      kind.textContent = dirty ? 'changed' : 'secret';
-      saveEl().disabled = dirtyCount() === 0;
-      syncCommitMessage();
-    });
+    name.autocomplete = 'off';
+    name.spellcheck = false;
     const kind = document.createElement('span');
     kind.className = 'kind';
     kind.textContent = changed ? 'changed' : 'secret';
-    line.append(name, input, kind);
+    const mark = () => {
+      line.classList.toggle('changed', rowDirty(row));
+      kind.textContent = rowDirty(row) ? 'changed' : 'secret';
+      saveEl().disabled = dirtyCount() === 0;
+      syncCommitMessage();
+    };
+
+    name.addEventListener('input', () => {
+      row.key = name.value;
+      mark();
+    });
+    keyCell.append(
+      name,
+      iconButton('copy-key', 'Copy key', 'copy', () => copyText(row.key)),
+    );
+    const valueCell = document.createElement('div');
+    valueCell.className = 'value-cell';
+    const input = document.createElement('input');
+    const shown = Boolean(row.revealed);
+    input.className = 'value' + (shown ? '' : ' masked');
+    input.dataset.testid = 'key-value';
+    input.value = shown ? row.value : '••••••••••••••••••••••••••••';
+    input.readOnly = !shown;
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.addEventListener('input', () => {
+      row.value = input.value;
+      mark();
+    });
+    valueCell.append(input);
+    const actions = document.createElement('div');
+    actions.className = 'key-actions';
+    const remove = iconButton('delete-key', 'Delete key', 'trash', () => {
+      if (row.added && !row.origKey) {
+        rows = rows.filter((item) => item !== row);
+      } else {
+        row.deleted = true;
+      }
+
+      renderKeys();
+    });
+    remove.classList.add('danger');
+    actions.append(
+      iconButton(
+        'reveal-key',
+        shown ? 'Hide value' : 'Reveal value',
+        shown ? 'eye-off' : 'eye',
+        () => {
+          row.revealed = !row.revealed;
+          renderKeys();
+        },
+      ),
+      iconButton('copy-value', 'Copy value', 'copy', () => copyText(row.value)),
+      remove,
+    );
+    line.append(keyCell, valueCell, kind, actions);
     box.append(line);
   }
 
+  const composer = document.createElement('div');
+  composer.className = 'key-composer';
+  const composerInput = document.createElement('input');
+  composerInput.type = 'text';
+  composerInput.dataset.testid = 'key-composer';
+  composerInput.placeholder = 'KEY=value';
+  composerInput.autocomplete = 'off';
+  composerInput.spellcheck = false;
+  const addFromComposer = () => {
+    const parsed = parseComposerLine(composerInput.value);
+    if (!parsed) return;
+    rows.push({
+      key: parsed.key,
+      value: parsed.value,
+      origKey: '',
+      origValue: '',
+      added: true,
+      deleted: false,
+      revealed: true,
+    });
+    composerFocus = true;
+    renderKeys();
+  };
+
+  composerInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addFromComposer();
+  });
+  composer.append(composerInput, iconButton('composer-add', 'Add key', 'plus', addFromComposer));
+  box.append(composer);
   saveEl().disabled = dirtyCount() === 0;
   syncCommitMessage();
-  sublineEl().textContent = selected
-    ? `${rows.length} secrets · ${dirtyCount() ? 'edited locally' : 'never uploaded'}`
-    : sublineEl().textContent;
+  sublineEl().textContent = `${visible.length} secrets · ${dirtyCount() ? 'edited locally' : 'never uploaded'}`;
+  if (composerFocus) {
+    composerFocus = false;
+    composerInput.focus();
+  }
 }
 
 async function addProjectFromPath(path) {
@@ -388,23 +614,73 @@ async function withBusy(el, label, fn) {
 async function saveFile() {
   if (!selected) return;
   showError('');
-  const pending = rows.filter(
+  const toDelete = rows.filter((r) => r.deleted && r.origKey);
+  const live = rows.filter((r) => !r.deleted);
+  const toSet = live.filter(
     (r) => r.key && (r.key !== r.origKey || r.value !== r.origValue || r.added),
   );
   try {
     await withBusy(saveEl(), 'Saving…', async () => {
-      for (const row of pending) {
+      for (const row of toDelete) {
+        await invoke('del_managed_key', { path: selected.path, key: row.origKey });
+      }
+
+      for (const row of toSet) {
+        const renamed = Boolean(row.origKey) && row.key !== row.origKey;
+        if (renamed) {
+          await invoke('del_managed_key', { path: selected.path, key: row.origKey });
+        }
+
         await invoke('set_managed_key', { path: selected.path, key: row.key, value: row.value });
         row.origKey = row.key;
         row.origValue = row.value;
         row.added = false;
       }
+
+      rows = live;
     });
 
     renderKeys();
   } catch (err) {
     showError(messageOf(err), 'save');
     saveEl().disabled = dirtyCount() === 0;
+  }
+}
+
+function currentProject() {
+  return selected?.project ?? projects[0];
+}
+
+async function addManagedFile() {
+  const project = currentProject();
+  showError('');
+  if (!project) {
+    showError('Open a Project first');
+    return;
+  }
+
+  const name = document.getElementById('add-file-name').value;
+  try {
+    const abs = resolveManagedPath(project.path, name);
+    await invoke('create_managed_file', { path: abs });
+    const files = await invoke('list_managed_files', { path: project.path });
+    project.files = files;
+    const idx = projects.findIndex((item) => item.path === project.path);
+    if (idx !== -1) projects[idx] = project;
+    renderTree();
+    const rel = String(name || '')
+      .trim()
+      .replaceAll('\\', '/');
+    const created =
+      files.find((file) => file.path === abs) ||
+      files.find((file) => safeRel(file.rel, file.name) === rel);
+    if (created) {
+      await openFile(project, created);
+    }
+
+    document.getElementById('add-file-name').value = '';
+  } catch (err) {
+    showError(messageOf(err));
   }
 }
 
@@ -490,16 +766,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     commitAuto = value === '' || value === lastAuto;
   });
   document.getElementById('add-project').addEventListener('click', addProject);
+  document.getElementById('add-file').addEventListener('click', addManagedFile);
+  document.getElementById('add-file-name').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addManagedFile();
+  });
   document.getElementById('add-secret').addEventListener('click', () => {
     if (!selected) return;
-    rows.push({ key: '', value: '', origKey: '', origValue: '', added: true });
-    revealed = true;
-    revealEl().textContent = 'Hide values';
-    renderKeys();
+    const composer = keysEl().querySelector('[data-testid="key-composer"]');
+    if (composer) composer.focus();
   });
   revealEl().addEventListener('click', () => {
     revealed = !revealed;
     revealEl().textContent = revealed ? 'Hide values' : 'Reveal values';
+    for (const row of rows) row.revealed = revealed;
     renderKeys();
   });
   saveEl().addEventListener('click', saveFile);

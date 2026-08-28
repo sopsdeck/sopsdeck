@@ -55,6 +55,8 @@ html[data-theme='dark'] {
 html,
 body {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 body {
   margin: 0;
@@ -73,12 +75,14 @@ input {
 .app {
   display: grid;
   grid-template-columns: 280px minmax(420px, 1fr) 272px;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }
 .sidebar {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   border-right: 1px solid var(--line);
   background: var(--sidebar);
 }
@@ -91,23 +95,36 @@ input {
   justify-content: space-between;
   gap: 8px;
 }
-.theme-toggle {
-  padding: 4px 8px;
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   color: var(--slate);
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 6px;
   background: transparent;
-  font-size: 10px;
-  font-weight: 600;
   cursor: pointer;
   transition:
     background 0.12s ease,
     color 0.12s ease;
 }
-.theme-toggle:hover,
-.theme-toggle:focus-visible {
+.icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+.icon-button:hover,
+.icon-button:focus-visible {
   color: var(--ink);
   background: var(--hover);
+}
+.icon-button.danger:hover,
+.icon-button.danger:focus-visible {
+  color: var(--signal);
+}
+.theme-toggle {
+  flex: none;
 }
 .kicker {
   color: var(--kind-fg);
@@ -120,6 +137,7 @@ input {
 }
 .tree {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 8px;
 }
@@ -184,6 +202,44 @@ input {
 .side-foot {
   padding: 10px;
   border-top: 1px solid var(--line);
+}
+.add-file {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.add-file input {
+  flex: 1;
+  min-width: 0;
+  height: 31px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  font:
+    400 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
+.add-file-btn {
+  flex: none;
+  height: 31px;
+  padding: 0 9px;
+  color: var(--slate);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.add-file-btn:hover,
+.add-file-btn:focus-visible {
+  color: var(--ink);
+  background: var(--hover);
 }
 .add-project {
   width: 100%;
@@ -267,8 +323,10 @@ input {
 .editor {
   display: flex;
   flex-direction: column;
-  background: var(--editor);
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--editor);
 }
 .editor-head {
   padding: 20px 24px 16px;
@@ -364,7 +422,7 @@ h1 {
   line-height: 1.35;
 }
 .empty-state {
-  margin: 32px 24px;
+  margin: 16px 24px 0;
   color: var(--slate);
   font-size: 14px;
   line-height: 1.5;
@@ -378,7 +436,7 @@ h1 {
 .key-head,
 .key-row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) minmax(200px, 1.45fr) 80px;
+  grid-template-columns: minmax(140px, 0.8fr) minmax(160px, 1.4fr) 72px auto;
   align-items: center;
   column-gap: 13px;
 }
@@ -404,8 +462,24 @@ h1 {
   background: var(--changed-bg);
   box-shadow: inset 2px 0 var(--signal);
 }
+.key-cell,
+.value-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.key-cell .icon-button {
+  flex: none;
+  opacity: 0;
+}
+.key-cell:hover .icon-button,
+.key-cell:focus-within .icon-button {
+  opacity: 1;
+}
 .key-name {
   width: 100%;
+  min-width: 0;
   border: 0;
   background: transparent;
   font:
@@ -414,8 +488,31 @@ h1 {
     monospace;
   color: inherit;
 }
-.key-name[readonly] {
-  outline: none;
+.key-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-self: end;
+}
+.key-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+}
+.key-composer input {
+  flex: 1;
+  min-width: 0;
+  height: 31px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  font:
+    400 11px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
 }
 .value {
   width: 100%;
@@ -452,8 +549,15 @@ h1 {
 .inspector {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   border-left: 1px solid var(--line);
   background: var(--inspector);
+}
+.inspect-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .inspect-head {
   padding: 17px 16px 12px;
@@ -550,4 +654,21 @@ h1 {
 }
 html[data-theme='dark'] .save {
   color: var(--paper);
+}
+.tree,
+.keys,
+.inspect-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.tree::-webkit-scrollbar,
+.keys::-webkit-scrollbar,
+.inspect-body::-webkit-scrollbar {
+  width: 8px;
+}
+.tree::-webkit-scrollbar-thumb,
+.keys::-webkit-scrollbar-thumb,
+.inspect-body::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 99px;
 }
