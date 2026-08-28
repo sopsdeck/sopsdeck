@@ -60,6 +60,25 @@ fn sync_project(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn add_recipient(path: String, public_key: String) -> Result<(), String> {
+    run_sopsdeck(&["recipient", "add", &public_key, "-f", &path]).map(|_| ())
+}
+
+#[tauri::command]
+fn publish_managed_file(path: String, prefix: String, yes: bool) -> Result<String, String> {
+    let mut args = vec!["publish".to_string(), "-f".to_string(), path];
+    if !prefix.is_empty() {
+        args.push("--prefix".to_string());
+        args.push(prefix);
+    }
+    if yes {
+        args.push("--yes".to_string());
+    }
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    run_sopsdeck(&refs)
+}
+
+#[tauri::command]
 fn pick_project_folder(app: tauri::AppHandle) -> Option<String> {
     let folder = app
         .dialog()
@@ -89,6 +108,8 @@ pub fn run() {
             set_managed_key,
             commit_managed_file,
             sync_project,
+            add_recipient,
+            publish_managed_file,
             pick_project_folder,
             boot_project
         ])

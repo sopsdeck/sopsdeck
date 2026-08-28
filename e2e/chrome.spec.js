@@ -92,6 +92,9 @@ test('commit message prefills from edited keys', async ({ page }) => {
   await page.getByTestId('reveal').click();
   await page.getByTestId('key-value').fill('sk_live_demo');
   await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
+  await page.getByTestId('save').click();
+  await expect(page.getByTestId('save')).toBeDisabled();
+  await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
 });
 
 test('theme survives reload', async ({ page }) => {

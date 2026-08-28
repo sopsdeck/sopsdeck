@@ -24,6 +24,8 @@ const sublineEl = () => document.getElementById('subline');
 const errorEl = () => document.getElementById('error');
 const gitErrorEl = () => document.getElementById('git-error');
 const saveErrorEl = () => document.getElementById('save-error');
+const accessErrorEl = () => document.getElementById('access-error');
+const publishErrorEl = () => document.getElementById('publish-error');
 const badgeEl = () => document.getElementById('badge');
 const toolbarEl = () => document.getElementById('toolbar');
 const saveEl = () => document.getElementById('save');
@@ -47,7 +49,7 @@ function skipBoot() {
 }
 
 function clearErrors() {
-  for (const el of [errorEl(), gitErrorEl(), saveErrorEl()]) {
+  for (const el of [errorEl(), gitErrorEl(), saveErrorEl(), accessErrorEl(), publishErrorEl()]) {
     if (!el) continue;
     el.hidden = true;
     el.textContent = '';
@@ -57,11 +59,22 @@ function clearErrors() {
 function showError(msg, region = 'editor') {
   clearErrors();
   if (!msg) return;
-  let el = errorEl();
-  if (region === 'git') el = gitErrorEl();
-  if (region === 'save') el = saveErrorEl();
+  const el =
+    {
+      git: gitErrorEl(),
+      save: saveErrorEl(),
+      access: accessErrorEl(),
+      publish: publishErrorEl(),
+    }[region] ?? errorEl();
   el.hidden = false;
   el.textContent = msg;
+}
+
+function setStatus(kind, text) {
+  const el = document.getElementById(`${kind}-status`);
+  if (!el) return;
+  el.hidden = !text;
+  el.textContent = text || '';
 }
 
 function formatOf(path) {
@@ -130,7 +143,9 @@ function defaultCommitMessage(current) {
 
 function syncCommitMessage() {
   if (!commitAuto) return;
-  lastAuto = defaultCommitMessage(rows);
+  const next = defaultCommitMessage(rows);
+  if (next === '') return;
+  lastAuto = next;
   commitEl().value = lastAuto;
 }
 
@@ -392,6 +407,37 @@ async function saveFile() {
   }
 }
 
+async function publishFile(yes) {
+  if (!selected) return;
+  showError('');
+  setStatus('publish', '');
+  const btn = document.getElementById(yes ? 'publish-yes' : 'publish');
+  try {
+    const result = await withBusy(btn, yes ? 'Publishing…' : 'Checking…', () =>
+      invoke('publish_managed_file', {
+        path: selected.path,
+        prefix: 'SD_',
+        yes,
+      }),
+    );
+    setStatus('publish', String(result || '').trim());
+  } catch (err) {
+    showError(messageOf(err), 'publish');
+  }
+}
+
+async function loadDemoHints() {
+  try {
+    const response = await fetch('/demo');
+    if (!response.ok) return;
+    const info = await response.json();
+    const input = document.getElementById('recipient-key');
+    if (input && info.bobPublicKey) input.value = info.bobPublicKey;
+  } catch {
+    // Tauri has no /demo endpoint.
+  }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   applyTheme(currentTheme());
   document.getElementById('theme-toggle').addEventListener('click', () => {
@@ -444,11 +490,28 @@ window.addEventListener('DOMContentLoaded', async () => {
       showError(messageOf(err), 'git');
     }
   });
+  document.getElementById('grant-access').addEventListener('click', async () => {
+    if (!selected) return;
+    const key = document.getElementById('recipient-key').value.trim();
+    showError('');
+    setStatus('access', '');
+    try {
+      await withBusy(document.getElementById('grant-access'), 'Granting…', () =>
+        invoke('add_recipient', { path: selected.path, publicKey: key }),
+      );
+      setStatus('access', 'Access granted');
+    } catch (err) {
+      showError(messageOf(err), 'access');
+    }
+  });
+  document.getElementById('publish').addEventListener('click', () => publishFile(false));
+  document.getElementById('publish-yes').addEventListener('click', () => publishFile(true));
   renderWorkspace();
   if (skipBoot()) return;
   try {
     const boot = await invoke('boot_project');
     if (boot) await addProjectFromPath(boot);
+    await loadDemoHints();
   } catch (err) {
     showError(messageOf(err));
   }

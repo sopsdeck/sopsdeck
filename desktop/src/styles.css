@@ -480,6 +480,13 @@ h1 {
   text-align: center;
   font-size: 9px;
 }
+.control-status {
+  margin: 8px 0;
+  color: var(--encrypted-fg);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
 html[data-theme='dark'] .save {
   color: var(--paper);
 }

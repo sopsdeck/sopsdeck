@@ -71,6 +71,41 @@
           </div>
         </section>
         <section class="inspect-section">
+          <h2>Access</h2>
+          <label class="commit-label">
+            Recipient
+            <input
+              id="recipient-key"
+              type="text"
+              placeholder="age1…"
+              autocomplete="off"
+              data-testid="recipient-key"
+            />
+          </label>
+          <button
+            id="grant-access"
+            class="tool git-action"
+            type="button"
+            data-testid="grant-access"
+          >
+            Grant Access
+          </button>
+          <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
+          <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
+        </section>
+        <section class="inspect-section">
+          <h2>Publish</h2>
+          <button id="publish" class="tool git-action" type="button" data-testid="publish">
+            Dry run
+          </button>
+          <button id="publish-yes" class="tool git-action" type="button" data-testid="publish-yes">
+            Publish
+          </button>
+          <p id="publish-status" class="control-status" hidden data-testid="publish-status"></p>
+          <p id="publish-error" class="control-error" hidden data-testid="publish-error"></p>
+          <p class="save-note">Dry run lists names; Publish writes to the Sync Target</p>
+        </section>
+        <section class="inspect-section">
           <h2>Git</h2>
           <label class="commit-label">
             Message

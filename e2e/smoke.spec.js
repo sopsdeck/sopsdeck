@@ -60,3 +60,13 @@ test('Sync failure sits next to Sync', async ({ page, request }) => {
   await page.getByTestId('sync').click();
   await expect(gitError).toBeVisible();
 });
+
+test('Grant Access and Publish dry-run from the inspector', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('recipient-key')).toHaveValue(/^age1/);
+  await page.getByTestId('grant-access').click();
+  await expect(page.getByTestId('access-status')).toContainText('Access granted');
+  await page.getByTestId('publish').click();
+  await expect(page.getByTestId('publish-status')).toContainText('dry-run');
+});
