@@ -33,7 +33,7 @@ Spec above is unchanged. Vertical build status lives on [build.md](../build.md).
 | 2 | Tauri + drive UI: list, open, edit, atomic save, boot folder | Paste (12); chrome (21); errors (20) |
 | 3 | commit; Sync; refuse diverge/dirty; `review` (incl. three-way); `history` + `get --at`; `restore --at` | — |
 | 4 | `recipient add` / `recipient remove` + data-key rotate; studio teammate after Sync / after remove | Request PR; re-encrypt PR (06) |
-| 5 | `publish` prefix, dry-run, `--yes`, `--prune` vs `internal/githubfake` | Manifest mappings; `gh` auth; environment secrets; desktop Publish (09) |
+| 5 | `publish` prefix, dry-run, `--yes`, `--prune`; `.sopsdeck.toml` mappings and last-published prune vs `internal/githubfake` | `gh` auth; desktop Publish (09) |
 | 6–8 | changelog/versioning [22](22-epoch-semver-and-changelog.md) (tag notes; tree still `0.1.0`) | 10, 11–12, 14 signed artifacts |
 
 **Studio / drive** (not a phase): local two-User git world + fake GitHub + `sopsdeck drive` + Playwright. Proof: studio tests, `drive_test.go`, `./scripts/smoke`. Public assets: [19](19-drive-professional-product-assets.md).

@@ -16,5 +16,5 @@ Auth is existing `gh` / GitHub CLI / OS-backed token — not a Sopsdeck cloud OA
 
 ## Implementation (2026-08-28)
 
-`sopsdeck publish -f FILE [--prefix] [--yes] [--prune]` talks to `SOPSDECK_GITHUB_API` (studio uses `internal/githubfake`). Dry-run unless `--yes`. Drive invoke `publish_managed_file`. Not done: `.sopsdeck.toml` mappings, `gh` auth, GitHub environment secrets, last-published names in the manifest, desktop Publish chrome. Fake PUT bodies are not GitHub-encrypted values — fine for the local fake, not for real GitHub.
+`sopsdeck publish -f FILE [--prefix] [--yes] [--prune]` talks to `SOPSDECK_GITHUB_API` (studio uses `internal/githubfake`). Dry-run unless `--yes`. Drive invoke `publish_managed_file`. `.sopsdeck.toml` maps a Managed File to `repo`, optional `environment`, `prefix`, `keys`, and last-published `published` names; CLI `--prefix` overrides the mapping; prune deletes only previously published prefixed names. Environment mappings `PUT` `/repos/{owner}/{repo}/environments/{environment}/secrets/{name}`. Not done: `gh` auth, desktop Publish chrome. Fake PUT bodies are not GitHub-encrypted values — fine for the local fake, not for real GitHub.
 

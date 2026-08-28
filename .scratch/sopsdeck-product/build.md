@@ -8,7 +8,7 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. Incomplete tracer-bullet phases in issue 15 (`.sopsdeck.toml` Publish mappings, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
+1. Incomplete tracer-bullet phases in issue 15 (`gh` auth and desktop Publish chrome, scan, MCP, signed macOS release). Request PR / re-encrypt PR still open on recipients. [31](issues/31-deferred-product-ideas.md) is backlog (clipboard/paste path ride with 12/05; OpenBao needs spec).
 
 Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow. Check CI is [`.github/workflows/check.yml`](../../.github/workflows/check.yml).
 
@@ -30,7 +30,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25) | paste (12) |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
-| 5 | GitHub Publish | in progress | `publish` prefix, dry-run default, `--yes`, `--prune` against `internal/githubfake` | `.sopsdeck.toml` mappings; `gh` auth; environment secrets; last-published names; desktop Publish (09) |
+| 5 | GitHub Publish | in progress | `publish` prefix, dry-run, `--yes`, `--prune`; `.sopsdeck.toml` repo/environment/prefix/keys; last-published prune vs `internal/githubfake` | `gh` auth; desktop Publish chrome (09) |
 | 6 | Scan hook | not started | — | issue 10; unused-key analysis is [31](issues/31-deferred-product-ideas.md) |
 | 7 | Paste + MCP | not started | — | issues 11, 12; clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
 | 8 | Signed macOS release | not started | — | issue 14; tag notes already from [22](issues/22-epoch-semver-and-changelog.md) |
