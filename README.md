@@ -84,18 +84,13 @@ The desktop UI is the same HTML/JS as Tauri. `sopsdeck drive` serves it on local
 
 ## Desktop
 
-The app shells out to the `sopsdeck` binary. Build that first, then:
+The app shells out to the `sopsdeck` binary. One command builds a fresh CLI and launches Tauri against it:
 
 ```bash
-cd desktop
-bun install
-SOPSDECK_BIN="$(pwd)/../sopsdeck" \
-SOPS_AGE_KEY_FILE="$(pwd)/../testdata/age.txt" \
-SOPSDECK_DEV_PROJECT="$(pwd)/../testdata" \
-bun run tauri -- dev
+./scripts/dev
 ```
 
-`SOPSDECK_DEV_PROJECT` auto-opens a folder (handy with `testdata`). Omit it and use **Add folder from disk**. `testdata/age.txt` is a throwaway test key, not a personal identity.
+`./scripts/dev --build-only` stops after `go build`. Optional: `SOPSDECK_DEV_PROJECT` auto-opens a folder. `testdata/age.txt` is a throwaway test key, not a personal identity.
 
 ## Landing page
 

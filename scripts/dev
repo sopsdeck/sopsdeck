@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+root="$(pwd)"
+bin="$root/sopsdeck"
+
+go build -o "$bin" ./cmd/sopsdeck
+
+if [ "${1:-}" = "--build-only" ]; then
+  printf '%s\n' "$bin"
+  exit 0
+fi
+
+export SOPSDECK_BIN="$bin"
+cd desktop
+if [ ! -d node_modules ]; then
+  bun install
+fi
+exec bun run tauri -- dev

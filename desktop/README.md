@@ -1,10 +1,9 @@
 # Desktop
 
-Tauri 2 app. Build the CLI first, then from this directory:
+Tauri 2 app. From the repo root:
 
 ```bash
-bun install
-SOPSDECK_BIN="$(pwd)/../sopsdeck" bun run tauri -- dev
+./scripts/dev
 ```
 
-Use bun, not npm. Full instructions are in the repo-root README.
+That builds `./sopsdeck` and runs Tauri with `SOPSDECK_BIN` set to it. Use bun, not npm. Full instructions are in the repo-root README.

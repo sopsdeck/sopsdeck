@@ -13,6 +13,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Bullets From Unreleased (`TestBulletsFromUnreleased`)
 - Commit Stages Managed File And Records Message (`TestCommitStagesManagedFileAndRecordsMessage`)
 - Del Removes Key (`TestDelRemovesKey`)
+- Dev Script Build Only Writes CLI (`TestDevScriptBuildOnlyWritesCLI`)
 - Drive Invoke Lists And Reads Managed File (`TestDriveInvokeListsAndReadsManagedFile`)
 - Drive Listen Must Be Localhost (`TestDriveListenMustBeLocalhost`)
 - Drive Invoke Publishes To Fake Git Hub (`TestDriveInvokePublishesToFakeGitHub`)
