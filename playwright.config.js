@@ -16,6 +16,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'smoke', testMatch: 'smoke.spec.js' },
+    { name: 'chrome', testMatch: 'chrome.spec.js' },
     { name: 'demo', testMatch: 'demo.spec.js' },
   ],
 });

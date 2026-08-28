@@ -9,4 +9,4 @@ go test ./internal/studio/ ./internal/cli/ -count=1 \
 printf '== UI smoke ==\n'
 export CI=1
 bunx playwright install chromium
-bunx playwright test --project=smoke
+bunx playwright test --project=smoke --project=chrome

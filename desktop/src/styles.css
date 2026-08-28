@@ -5,6 +5,49 @@
   --paper: #f7f9fc;
   --slate: #475467;
   --signal: #ff6b57;
+  --sidebar: #f0f3f7;
+  --editor: #fff;
+  --inspector: #f8fafc;
+  --line: #d8dee8;
+  --line-soft: #e1e6ed;
+  --hover: #e7ebf3;
+  --file-selected: #dde4ff;
+  --muted: #7b8798;
+  --encrypted-fg: #087857;
+  --encrypted-bg: #e9faf4;
+  --encrypted-bd: rgba(8, 120, 87, 0.2);
+  --changed-bg: #fff7f5;
+  --input-bg: #fff;
+  --value-fg: #344054;
+  --kind-fg: #667085;
+  --kind-bd: #e1e6ed;
+  --changed-kind-fg: #b42318;
+  --changed-kind-bd: #ffd6cf;
+  --changed-kind-bg: #fff0ed;
+}
+html[data-theme='dark'] {
+  --ink: #f7f9fc;
+  --paper: #101828;
+  --slate: #98a2b3;
+  --sidebar: #0c121c;
+  --editor: #131b28;
+  --inspector: #0e1520;
+  --line: #243044;
+  --line-soft: #1c2736;
+  --hover: #1a2433;
+  --file-selected: #1c2a55;
+  --muted: #8a94a4;
+  --encrypted-fg: #46d6a8;
+  --encrypted-bg: #12352c;
+  --encrypted-bd: rgba(70, 214, 168, 0.35);
+  --changed-bg: #2a1512;
+  --input-bg: #1a2330;
+  --value-fg: #e4e7ec;
+  --kind-fg: #98a2b3;
+  --kind-bd: #243044;
+  --changed-kind-fg: #ff9b8a;
+  --changed-kind-bd: #5a241c;
+  --changed-kind-bg: #3a1814;
 }
 * {
   box-sizing: border-box;
@@ -22,6 +65,11 @@ body {
     system-ui,
     sans-serif;
 }
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
 .app {
   display: grid;
   grid-template-columns: 280px minmax(420px, 1fr) 272px;
@@ -31,14 +79,38 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid #d8dee8;
-  background: #f0f3f7;
+  border-right: 1px solid var(--line);
+  background: var(--sidebar);
 }
 .side-head {
   padding: 16px 14px 8px;
 }
+.side-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.theme-toggle {
+  padding: 4px 8px;
+  color: var(--slate);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  color: var(--ink);
+  background: var(--hover);
+}
 .kicker {
-  color: #667085;
+  color: var(--kind-fg);
   font:
     600 10px 'IBM Plex Mono',
     ui-monospace,
@@ -60,7 +132,7 @@ body {
 }
 .project-path {
   margin-left: auto;
-  color: #98a2b3;
+  color: var(--muted);
   font:
     400 9px 'IBM Plex Mono',
     ui-monospace,
@@ -78,7 +150,7 @@ body {
   top: 0;
   bottom: 4px;
   width: 1px;
-  background: #d3dae4;
+  background: var(--line);
 }
 .file {
   display: block;
@@ -95,15 +167,23 @@ body {
     ui-monospace,
     monospace;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.file:hover,
+.file:focus-visible {
+  color: var(--ink);
+  background: var(--hover);
 }
 .file.selected {
   color: var(--ink);
-  background: #dde4ff;
+  background: var(--file-selected);
   box-shadow: inset 2px 0 var(--blue);
 }
 .side-foot {
   padding: 10px;
-  border-top: 1px solid #d8dee8;
+  border-top: 1px solid var(--line);
 }
 .add-project {
   width: 100%;
@@ -114,24 +194,28 @@ body {
   font-weight: 600;
   color: var(--slate);
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
-.add-project:hover {
-  background: #e3e8ef;
+.add-project:hover,
+.add-project:focus-visible {
+  background: var(--hover);
   color: var(--ink);
 }
 .editor {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--editor);
   min-width: 0;
 }
 .editor-head {
   padding: 20px 24px 16px;
-  border-bottom: 1px solid #e1e6ed;
+  border-bottom: 1px solid var(--line-soft);
 }
 .breadcrumb {
   margin: 0;
-  color: #7b8798;
+  color: var(--muted);
   font:
     500 10px 'IBM Plex Mono',
     ui-monospace,
@@ -159,10 +243,10 @@ h1 {
   align-items: center;
   gap: 6px;
   padding: 6px 9px;
-  color: #087857;
-  border: 1px solid rgba(8, 120, 87, 0.2);
+  color: var(--encrypted-fg);
+  border: 1px solid var(--encrypted-bd);
   border-radius: 99px;
-  background: #e9faf4;
+  background: var(--encrypted-bg);
   font-size: 10px;
   font-weight: 700;
 }
@@ -171,23 +255,42 @@ h1 {
   align-items: center;
   gap: 7px;
   padding: 10px 24px;
-  border-bottom: 1px solid #e6eaf0;
+  border-bottom: 1px solid var(--line-soft);
 }
 .tool {
   height: 29px;
   padding: 0 9px;
   color: var(--slate);
-  border: 1px solid #d9dfe7;
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--input-bg);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    opacity 0.12s ease;
+}
+.tool:hover,
+.tool:focus-visible {
+  color: var(--ink);
+  border-color: var(--blue);
 }
 .tool.primary {
   color: #fff;
   border-color: var(--blue);
   background: var(--blue);
+}
+.tool.primary:hover,
+.tool.primary:focus-visible {
+  color: #fff;
+  filter: brightness(1.06);
+}
+.tool[aria-busy='true'] {
+  opacity: 0.7;
+  cursor: default;
 }
 .error {
   margin: 12px 24px 0;
@@ -198,6 +301,12 @@ h1 {
   color: var(--signal);
   font-size: 11px;
   line-height: 1.35;
+}
+.empty-state {
+  margin: 32px 24px;
+  color: var(--slate);
+  font-size: 14px;
+  line-height: 1.5;
 }
 .keys {
   flex: 1;
@@ -215,8 +324,8 @@ h1 {
 .key-head {
   height: 31px;
   padding: 0 10px;
-  color: #7b8798;
-  border-bottom: 1px solid #e6eaf0;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line-soft);
   font:
     600 9px 'IBM Plex Mono',
     ui-monospace,
@@ -227,10 +336,11 @@ h1 {
 .key-row {
   min-height: 54px;
   padding: 8px 10px;
-  border-bottom: 1px solid #eef1f5;
+  border-bottom: 1px solid var(--line-soft);
+  transition: background 0.12s ease;
 }
 .key-row.changed {
-  background: #fff7f5;
+  background: var(--changed-bg);
   box-shadow: inset 2px 0 var(--signal);
 }
 .key-name {
@@ -249,23 +359,24 @@ h1 {
 .value {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid #d9dfe7;
+  border: 1px solid var(--line);
   border-radius: 6px;
+  background: var(--input-bg);
   font:
     400 11px 'IBM Plex Mono',
     ui-monospace,
     monospace;
-  color: #344054;
+  color: var(--value-fg);
 }
 .masked {
   letter-spacing: 0.12em;
-  color: #98a2b3;
+  color: var(--muted);
 }
 .kind {
   width: max-content;
   padding: 3px 6px;
-  color: #667085;
-  border: 1px solid #e1e6ed;
+  color: var(--kind-fg);
+  border: 1px solid var(--kind-bd);
   border-radius: 4px;
   font:
     500 9px 'IBM Plex Mono',
@@ -273,22 +384,22 @@ h1 {
     monospace;
 }
 .key-row.changed .kind {
-  color: #b42318;
-  border-color: #ffd6cf;
-  background: #fff0ed;
+  color: var(--changed-kind-fg);
+  border-color: var(--changed-kind-bd);
+  background: var(--changed-kind-bg);
 }
 .inspector {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #d8dee8;
-  background: #f8fafc;
+  border-left: 1px solid var(--line);
+  background: var(--inspector);
 }
 .inspect-head {
   padding: 17px 16px 12px;
 }
 .inspect-section {
   padding: 15px 16px;
-  border-top: 1px solid #e1e6ed;
+  border-top: 1px solid var(--line-soft);
 }
 .inspect-section h2 {
   margin: 0 0 11px;
@@ -321,8 +432,9 @@ h1 {
 .commit-label input {
   height: 31px;
   padding: 0 9px;
-  border: 1px solid #d4dae4;
+  border: 1px solid var(--line);
   border-radius: 6px;
+  background: var(--input-bg);
   font:
     400 11px 'IBM Plex Mono',
     ui-monospace,
@@ -335,7 +447,7 @@ h1 {
 .save-zone {
   margin-top: auto;
   padding: 14px 16px;
-  border-top: 1px solid #d8dee8;
+  border-top: 1px solid var(--line);
 }
 .save {
   width: 100%;
@@ -346,14 +458,28 @@ h1 {
   background: var(--ink);
   font-weight: 700;
   cursor: pointer;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+.save:hover:not(:disabled),
+.save:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
 }
 .save:disabled {
   opacity: 0.45;
   cursor: default;
+  transform: none;
+}
+.save[aria-busy='true'] {
+  opacity: 0.7;
 }
 .save-note {
   margin-top: 8px;
-  color: #7b8798;
+  color: var(--muted);
   text-align: center;
   font-size: 9px;
+}
+html[data-theme='dark'] .save {
+  color: var(--paper);
 }

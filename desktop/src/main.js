@@ -1,4 +1,5 @@
 const invoke = globalThis.__TAURI__?.core?.invoke ?? invokeOverHTTP;
+const THEME_KEY = 'sopsdeck-theme';
 
 async function invokeOverHTTP(cmd, args = {}) {
   const response = await fetch('/invoke', {
@@ -16,6 +17,7 @@ async function invokeOverHTTP(cmd, args = {}) {
 
 const treeEl = () => document.getElementById('tree');
 const keysEl = () => document.getElementById('keys');
+const emptyEl = () => document.getElementById('empty-state');
 const crumbEl = () => document.getElementById('breadcrumb');
 const headlineEl = () => document.getElementById('headline');
 const sublineEl = () => document.getElementById('subline');
@@ -26,15 +28,22 @@ const badgeEl = () => document.getElementById('badge');
 const toolbarEl = () => document.getElementById('toolbar');
 const saveEl = () => document.getElementById('save');
 const revealEl = () => document.getElementById('reveal');
+const commitEl = () => document.getElementById('commit-message');
 
 const projects = [];
 let selected = null;
 let rows = [];
 let revealed = false;
+let commitAuto = true;
+let lastAuto = '';
 
 function messageOf(err) {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+function skipBoot() {
+  return new URLSearchParams(location.search).has('empty');
 }
 
 function clearErrors() {
@@ -81,8 +90,98 @@ function parentLabel(path) {
   return `~/${parts.at(-2)}`;
 }
 
+function safeRel(rel, name) {
+  const raw = String(rel || name || '').replaceAll('\\', '/');
+  const cleaned = raw
+    .split('/')
+    .filter((part) => part && part !== '.' && part !== '..')
+    .join('/');
+  return cleaned || name || '';
+}
+
+function displayPath(project, file) {
+  const name = project?.name || 'project';
+  return `~/${name}/${safeRel(file.rel, file.name)}`;
+}
+
 function dirtyCount() {
   return rows.filter((r) => r.key !== r.origKey || r.value !== r.origValue || r.added).length;
+}
+
+function defaultCommitMessage(current) {
+  const added = [];
+  const changed = [];
+  for (const row of current) {
+    if (row.added && row.key) {
+      added.push(row.key);
+      continue;
+    }
+
+    if (row.key !== row.origKey || row.value !== row.origValue) {
+      changed.push(row.key || row.origKey);
+    }
+  }
+
+  const parts = [];
+  if (added.length > 0) parts.push(`Add ${added.join(', ')}`);
+  if (changed.length > 0) parts.push(`Change ${changed.join(', ')}`);
+  return parts.join('; ');
+}
+
+function syncCommitMessage() {
+  if (!commitAuto) return;
+  lastAuto = defaultCommitMessage(rows);
+  commitEl().value = lastAuto;
+}
+
+function showEmpty(message) {
+  const empty = emptyEl();
+  empty.hidden = !message;
+  empty.textContent = message || '';
+  keysEl().hidden = Boolean(message);
+}
+
+function resetEditorChrome() {
+  selected = null;
+  rows = [];
+  revealed = false;
+  badgeEl().hidden = true;
+  toolbarEl().hidden = true;
+  document.getElementById('meta-path').textContent = '—';
+  document.getElementById('meta-format').textContent = '—';
+  document.getElementById('meta-enc').textContent = '—';
+  saveEl().disabled = true;
+}
+
+function renderWorkspace() {
+  if (projects.length === 0) {
+    resetEditorChrome();
+    crumbEl().textContent = 'Add a project folder to begin';
+    headlineEl().textContent = 'Sopsdeck';
+    sublineEl().textContent = 'Encrypted files stay on this machine';
+    showEmpty('No Project yet. Add a folder from disk.');
+    return;
+  }
+
+  const project = selected?.project ?? projects[0];
+  if (!selected && (!project.files || project.files.length === 0)) {
+    resetEditorChrome();
+    crumbEl().textContent = `~/${project.name}`;
+    headlineEl().textContent = project.name;
+    sublineEl().textContent = 'No Managed Files in this Project';
+    showEmpty('This Project has no Managed Files.');
+  }
+}
+
+function currentTheme() {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem(THEME_KEY, theme);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
 }
 
 function renderTree() {
@@ -105,7 +204,7 @@ function renderTree() {
       btn.type = 'button';
       btn.className = 'file' + (selected && file.path === selected.path ? ' selected' : '');
       btn.dataset.testid = 'managed-file';
-      btn.textContent = file.rel || file.name;
+      btn.textContent = safeRel(file.rel, file.name);
       btn.addEventListener('click', () => openFile(project, file));
       files.append(btn);
     }
@@ -118,14 +217,17 @@ function renderTree() {
 async function openFile(project, file) {
   selected = { project, ...file };
   revealed = false;
+  commitAuto = true;
+  lastAuto = '';
+  commitEl().value = '';
   revealEl().textContent = 'Reveal values';
   renderTree();
-  crumbEl().textContent = file.path;
+  crumbEl().textContent = displayPath(project, file);
   headlineEl().textContent = titleOf(file.name);
   showError('');
   badgeEl().hidden = false;
   toolbarEl().hidden = false;
-  document.getElementById('meta-path').textContent = file.rel || file.name;
+  document.getElementById('meta-path').textContent = displayPath(project, file);
   document.getElementById('meta-format').textContent = formatOf(file.path);
   document.getElementById('meta-enc').textContent = 'age + SOPS';
   try {
@@ -143,12 +245,27 @@ async function openFile(project, file) {
     rows = [];
     keysEl().replaceChildren();
     saveEl().disabled = true;
+    showEmpty('');
     showError(messageOf(err));
   }
 }
 
 function renderKeys() {
+  if (!selected) {
+    renderWorkspace();
+    return;
+  }
+
+  if (rows.length === 0) {
+    showEmpty('No keys in this file.');
+    saveEl().disabled = true;
+    sublineEl().textContent = '0 secrets · never uploaded';
+    return;
+  }
+
+  showEmpty('');
   const box = keysEl();
+  box.hidden = false;
   box.replaceChildren();
   const head = document.createElement('div');
   head.className = 'key-head';
@@ -159,12 +276,6 @@ function renderKeys() {
   }
 
   box.append(head);
-  if (rows.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'subline';
-    empty.textContent = 'No keys in this file.';
-    box.append(empty);
-  }
 
   for (const row of rows) {
     const line = document.createElement('div');
@@ -182,6 +293,7 @@ function renderKeys() {
       line.classList.toggle('changed', dirty);
       kind.textContent = dirty ? 'changed' : 'secret';
       saveEl().disabled = dirtyCount() === 0;
+      syncCommitMessage();
     });
     const input = document.createElement('input');
     input.className = 'value' + (revealed ? '' : ' masked');
@@ -194,6 +306,7 @@ function renderKeys() {
       line.classList.toggle('changed', dirty);
       kind.textContent = dirty ? 'changed' : 'secret';
       saveEl().disabled = dirtyCount() === 0;
+      syncCommitMessage();
     });
     const kind = document.createElement('span');
     kind.className = 'kind';
@@ -203,6 +316,7 @@ function renderKeys() {
   }
 
   saveEl().disabled = dirtyCount() === 0;
+  syncCommitMessage();
   sublineEl().textContent = selected
     ? `${rows.length} secrets · ${dirtyCount() ? 'edited locally' : 'never uploaded'}`
     : sublineEl().textContent;
@@ -220,7 +334,13 @@ async function addProjectFromPath(path) {
   }
 
   renderTree();
-  if (files[0]) openFile(project, files[0]);
+  if (files[0]) {
+    await openFile(project, files[0]);
+    return;
+  }
+
+  selected = null;
+  renderWorkspace();
 }
 
 async function addProject() {
@@ -234,6 +354,21 @@ async function addProject() {
   }
 }
 
+async function withBusy(el, label, fn) {
+  const origText = el.textContent;
+  const origDisabled = el.disabled;
+  el.setAttribute('aria-busy', 'true');
+  el.disabled = true;
+  if (label) el.textContent = label;
+  try {
+    return await fn();
+  } finally {
+    el.removeAttribute('aria-busy');
+    el.textContent = origText;
+    el.disabled = origDisabled;
+  }
+}
+
 async function saveFile() {
   if (!selected) return;
   showError('');
@@ -241,20 +376,31 @@ async function saveFile() {
     (r) => r.key && (r.key !== r.origKey || r.value !== r.origValue || r.added),
   );
   try {
-    for (const row of pending) {
-      await invoke('set_managed_key', { path: selected.path, key: row.key, value: row.value });
-      row.origKey = row.key;
-      row.origValue = row.value;
-      row.added = false;
-    }
+    await withBusy(saveEl(), 'Saving…', async () => {
+      for (const row of pending) {
+        await invoke('set_managed_key', { path: selected.path, key: row.key, value: row.value });
+        row.origKey = row.key;
+        row.origValue = row.value;
+        row.added = false;
+      }
+    });
 
     renderKeys();
   } catch (err) {
     showError(messageOf(err), 'save');
+    saveEl().disabled = dirtyCount() === 0;
   }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  applyTheme(currentTheme());
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+  commitEl().addEventListener('input', () => {
+    const { value } = commitEl();
+    commitAuto = value === '' || value === lastAuto;
+  });
   document.getElementById('add-project').addEventListener('click', addProject);
   document.getElementById('add-secret').addEventListener('click', () => {
     if (!selected) return;
@@ -278,9 +424,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     showError('');
     try {
-      const message = document.getElementById('commit-message').value;
+      const message = commitEl().value;
       await invoke('commit_managed_file', { path: selected.path, message });
-      document.getElementById('commit-message').value = '';
+      commitEl().value = '';
+      commitAuto = true;
+      lastAuto = '';
     } catch (err) {
       showError(messageOf(err), 'git');
     }
@@ -289,11 +437,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!selected) return;
     showError('');
     try {
-      await invoke('sync_project', { path: selected.path });
+      await withBusy(document.getElementById('sync'), 'Syncing…', () =>
+        invoke('sync_project', { path: selected.path }),
+      );
     } catch (err) {
       showError(messageOf(err), 'git');
     }
   });
+  renderWorkspace();
+  if (skipBoot()) return;
   try {
     const boot = await invoke('boot_project');
     if (boot) await addProjectFromPath(boot);

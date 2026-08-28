@@ -11,13 +11,22 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sopsdeck</title>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem('sopsdeck-theme') === 'dark' ? 'dark' : 'light';
+    </script>
     <script type="module" src="/main.js" defer></script>
   </head>
   <body>
     <div class="app">
       <aside class="sidebar">
         <div class="side-head">
-          <span class="kicker">Projects</span>
+          <div class="side-head-row">
+            <span class="kicker">Projects</span>
+            <button id="theme-toggle" class="theme-toggle" type="button" data-testid="theme-toggle">
+              Dark mode
+            </button>
+          </div>
         </div>
         <nav id="tree" class="tree" aria-label="Local projects" data-testid="tree"></nav>
         <div class="side-foot">
@@ -28,7 +37,9 @@
       </aside>
       <section class="editor">
         <header class="editor-head">
-          <p id="breadcrumb" class="breadcrumb">Add a project folder to begin</p>
+          <p id="breadcrumb" class="breadcrumb" data-testid="breadcrumb">
+            Add a project folder to begin
+          </p>
           <div class="headline">
             <div>
               <h1 id="headline" data-testid="headline">Sopsdeck</h1>
@@ -44,6 +55,7 @@
           <button id="reveal" class="tool" type="button" data-testid="reveal">Reveal values</button>
         </div>
         <p id="error" class="error" hidden data-testid="editor-error"></p>
+        <p id="empty-state" class="empty-state" hidden data-testid="empty-state"></p>
         <div id="keys" class="keys" data-testid="keys"></div>
       </section>
       <aside class="inspector">
@@ -53,8 +65,8 @@
         <section class="inspect-section">
           <h2>File</h2>
           <div class="meta">
-            <span>Path</span><strong id="meta-path">—</strong> <span>Format</span
-            ><strong id="meta-format">—</strong> <span>Encryption</span
+            <span>Path</span><strong id="meta-path" data-testid="inspector-path">—</strong>
+            <span>Format</span><strong id="meta-format">—</strong> <span>Encryption</span
             ><strong id="meta-enc">—</strong>
           </div>
         </section>
