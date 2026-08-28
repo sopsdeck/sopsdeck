@@ -14,11 +14,12 @@ import (
 type Server struct {
 	mu      sync.Mutex
 	secrets map[string]string
+	envs    map[string]map[string]string
 	http    *httptest.Server
 }
 
 func New() *Server {
-	s := &Server{secrets: map[string]string{}}
+	s := &Server{secrets: map[string]string{}, envs: map[string]map[string]string{}}
 	s.http = httptest.NewServer(http.HandlerFunc(s.serve))
 	return s
 }
@@ -39,34 +40,98 @@ func (s *Server) Names() []string {
 
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	switch {
-	case r.Method == http.MethodGet && strings.HasSuffix(path, "/actions/secrets/public-key"):
+	if r.Method == http.MethodGet && strings.HasSuffix(path, "/actions/secrets/public-key") {
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"key_id": "studio",
 			"key":    "dGVzdA==",
 		})
-	case r.Method == http.MethodGet && strings.Contains(path, "/actions/secrets"):
+		return
+	}
+	kind, env, name, ok := parseGitHubSecretsPath(path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		if name != "" {
+			http.NotFound(w, r)
+			return
+		}
 		s.mu.Lock()
 		var list []map[string]string
-		for name := range s.secrets {
-			list = append(list, map[string]string{"name": name})
+		if kind == "env" {
+			for n := range s.envs[env] {
+				list = append(list, map[string]string{"name": n})
+			}
+		} else {
+			for n := range s.secrets {
+				list = append(list, map[string]string{"name": n})
+			}
 		}
 		s.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(map[string]any{"secrets": list})
-	case r.Method == http.MethodPut && strings.Contains(path, "/actions/secrets/"):
-		name := path[strings.LastIndex(path, "/")+1:]
+	case http.MethodPut:
+		if name == "" {
+			http.NotFound(w, r)
+			return
+		}
 		body, _ := io.ReadAll(r.Body)
 		s.mu.Lock()
-		s.secrets[name] = string(body)
+		if kind == "env" {
+			if s.envs[env] == nil {
+				s.envs[env] = map[string]string{}
+			}
+			s.envs[env][name] = string(body)
+		} else {
+			s.secrets[name] = string(body)
+		}
 		s.mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
-	case r.Method == http.MethodDelete && strings.Contains(path, "/actions/secrets/"):
-		name := path[strings.LastIndex(path, "/")+1:]
+	case http.MethodDelete:
+		if name == "" {
+			http.NotFound(w, r)
+			return
+		}
 		s.mu.Lock()
-		delete(s.secrets, name)
+		if kind == "env" {
+			delete(s.envs[env], name)
+		} else {
+			delete(s.secrets, name)
+		}
 		s.mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func parseGitHubSecretsPath(path string) (kind, env, name string, ok bool) {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) < 5 || parts[0] != "repos" {
+		return "", "", "", false
+	}
+	switch parts[3] {
+	case "actions":
+		if parts[4] != "secrets" {
+			return "", "", "", false
+		}
+		switch len(parts) {
+		case 5:
+			return "repo", "", "", true
+		case 6:
+			return "repo", "", parts[5], true
+		}
+	case "environments":
+		if len(parts) < 6 || parts[5] != "secrets" {
+			return "", "", "", false
+		}
+		switch len(parts) {
+		case 6:
+			return "env", parts[4], "", true
+		case 7:
+			return "env", parts[4], parts[6], true
+		}
+	}
+	return "", "", "", false
 }

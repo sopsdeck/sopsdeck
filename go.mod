@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	filippo.io/age v1.2.1
 	github.com/getsops/sops/v3 v3.11.0
+	github.com/pelletier/go-toml/v2 v2.4.3
 	go.yaml.in/yaml/v3 v3.0.4
 )
 

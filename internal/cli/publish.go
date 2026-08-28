@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -21,25 +22,13 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 		fmt.Fprintln(stderr, "publish: SOPSDECK_GITHUB_API is required (local fake or GitHub api root)")
 		return 1
 	}
-	repo := getenv("SOPSDECK_GITHUB_REPO")
-	if repo == "" {
-		repo = "studio/demo"
-	}
-	var dump bytes.Buffer
-	var errBuf bytes.Buffer
-	if code := cmdGet([]string{"-f", file, "--output", "json"}, &dump, &errBuf); code != 0 {
-		fmt.Fprintf(stderr, "publish: %s", errBuf.String())
+	mapping, prefix, repo, manifestPath := resolvePublishMapping(file, prefix, getenv)
+	pairs, errMsg := decryptPublishPairs(file)
+	if errMsg != "" {
+		fmt.Fprintf(stderr, "publish: %s", errMsg)
 		return 1
 	}
-	var pairs map[string]string
-	if err := json.Unmarshal(dump.Bytes(), &pairs); err != nil {
-		fmt.Fprintf(stderr, "publish: %v\n", err)
-		return 1
-	}
-	var names []string
-	for key := range pairs {
-		names = append(names, prefix+key)
-	}
+	names := prefixedNames(selectKeys(pairs, mapping.Keys), prefix)
 	if !yes {
 		fmt.Fprintf(stdout, "dry-run %d secrets for %s\n", len(names), repo)
 		for _, n := range names {
@@ -48,18 +37,84 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 		return 0
 	}
 	client := &http.Client{}
-	if err := putSecrets(client, base, repo, names); err != nil {
+	if err := putSecrets(client, base, repo, mapping.Environment, names); err != nil {
 		fmt.Fprintln(stderr, explainPublish(err))
 		return 1
 	}
 	if prune {
-		if err := pruneSecrets(client, base, repo, prefix, names, stderr); err != nil {
+		if err := pruneSecrets(client, base, repo, mapping.Environment, prefix, names, mapping.Published); err != nil {
 			fmt.Fprintf(stderr, "publish: %v\n", err)
 			return 1
 		}
 	}
+	if err := recordPublished(mapping, manifestPath, names); err != nil {
+		fmt.Fprintf(stderr, "publish: %v\n", err)
+		return 1
+	}
 	fmt.Fprintf(stdout, "published %d secrets to %s\n", len(names), repo)
 	return 0
+}
+
+func resolvePublishMapping(file, prefix string, getenv func(string) string) (manifestFile, string, string, string) {
+	mapping, _, manifestPath := mappingFor(file)
+	if prefix == "" {
+		prefix = mapping.Prefix
+	}
+	repo := mapping.Repo
+	if repo == "" {
+		repo = getenv("SOPSDECK_GITHUB_REPO")
+	}
+	if repo == "" {
+		repo = "studio/demo"
+	}
+	return mapping, prefix, repo, manifestPath
+}
+
+func decryptPublishPairs(file string) (map[string]string, string) {
+	var dump bytes.Buffer
+	var errBuf bytes.Buffer
+	if code := cmdGet([]string{"-f", file, "--output", "json"}, &dump, &errBuf); code != 0 {
+		return nil, errBuf.String()
+	}
+	var pairs map[string]string
+	if err := json.Unmarshal(dump.Bytes(), &pairs); err != nil {
+		return nil, err.Error() + "\n"
+	}
+	return pairs, ""
+}
+
+func selectKeys(pairs map[string]string, keys []string) map[string]string {
+	if len(keys) == 0 {
+		return pairs
+	}
+	want := map[string]struct{}{}
+	for _, k := range keys {
+		want[k] = struct{}{}
+	}
+	selected := map[string]string{}
+	for k, v := range pairs {
+		if _, ok := want[k]; ok {
+			selected[k] = v
+		}
+	}
+	return selected
+}
+
+func prefixedNames(pairs map[string]string, prefix string) []string {
+	var names []string
+	for key := range pairs {
+		names = append(names, prefix+key)
+	}
+	return names
+}
+
+func recordPublished(mapping manifestFile, manifestPath string, names []string) error {
+	if mapping.Path == "" || manifestPath == "" {
+		return nil
+	}
+	recorded := append([]string(nil), names...)
+	sort.Strings(recorded)
+	return setPublished(manifestPath, mapping.Path, recorded)
 }
 
 func parsePublishFlags(args []string) (file, prefix string, yes, prune bool, errMsg string) {
@@ -92,9 +147,9 @@ func parsePublishFlags(args []string) (file, prefix string, yes, prune bool, err
 	return file, prefix, yes, prune, ""
 }
 
-func putSecrets(client *http.Client, base, repo string, names []string) error {
+func putSecrets(client *http.Client, base, repo, environment string, names []string) error {
 	for _, name := range names {
-		endpoint, err := url.JoinPath(base, "repos", repo, "actions", "secrets", name)
+		endpoint, err := secretURL(base, repo, environment, name)
 		if err != nil {
 			return err
 		}
@@ -120,37 +175,19 @@ func putSecrets(client *http.Client, base, repo string, names []string) error {
 	return nil
 }
 
-func pruneSecrets(client *http.Client, base, repo, prefix string, keep []string, stderr io.Writer) error {
-	_ = stderr
+func pruneSecrets(client *http.Client, base, repo, environment, prefix string, keep, previously []string) error {
 	want := map[string]struct{}{}
 	for _, n := range keep {
 		want[n] = struct{}{}
 	}
-	listURL, err := url.JoinPath(base, "repos", repo, "actions", "secrets")
-	if err != nil {
-		return err
-	}
-	resp, err := client.Get(listURL)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	var payload struct {
-		Secrets []struct {
-			Name string `json:"name"`
-		} `json:"secrets"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return err
-	}
-	for _, sec := range payload.Secrets {
-		if prefix != "" && !strings.HasPrefix(sec.Name, prefix) {
+	for _, name := range previously {
+		if prefix != "" && !strings.HasPrefix(name, prefix) {
 			continue
 		}
-		if _, ok := want[sec.Name]; ok {
+		if _, ok := want[name]; ok {
 			continue
 		}
-		delURL, err := url.JoinPath(base, "repos", repo, "actions", "secrets", sec.Name)
+		delURL, err := secretURL(base, repo, environment, name)
 		if err != nil {
 			return err
 		}
@@ -166,4 +203,11 @@ func pruneSecrets(client *http.Client, base, repo, prefix string, keep []string,
 		_ = delResp.Body.Close()
 	}
 	return nil
+}
+
+func secretURL(base, repo, environment, name string) (string, error) {
+	if environment != "" {
+		return url.JoinPath(base, "repos", repo, "environments", environment, "secrets", name)
+	}
+	return url.JoinPath(base, "repos", repo, "actions", "secrets", name)
 }
