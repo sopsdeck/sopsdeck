@@ -2,6 +2,7 @@
   "version": "0.1.0",
   "heading": "Unreleased",
   "notes": [
+    "`identity create` / `import` store the Age private key in the OS keychain; `SOPS_AGE_KEY_CMD='sopsdeck identity key'` decrypts. Existing `SOPS_AGE_KEY_FILE` still works.",
     "Editor paste sniffs dotenv, JSON, or YAML and previews key names until Apply paste.",
     "Local MCP (`sopsdeck mcp`) returns metadata by default; `get_value` needs approval; `run` returns exit status only.",
     "`set` reads dotenv, JSON, or YAML from stdin as a paste preview; `--yes` writes. Lone values need a KEY.",

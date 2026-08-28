@@ -29,7 +29,7 @@ Spec above is unchanged. Vertical build status lives on [build.md](../build.md).
 
 | Phase | In tree | Not in tree |
 | --- | --- | --- |
-| 1 | get/set/del/run; identity create/import gated on `--confirmed-backup`; Age file under `SOPSDECK_STATE_DIR` | Keychain / `SOPS_AGE_KEY_CMD` (06) |
+| 1 | get/set/del/run; identity create/import gated on `--confirmed-backup`; OS keychain + `identity key` (`SOPS_AGE_KEY_CMD`); existing Age files still work | — |
 | 2 | Tauri + drive UI: list, open, edit, atomic save, boot folder | Paste (12); chrome (21); errors (20) |
 | 3 | commit; Sync; refuse diverge/dirty; `review` (incl. three-way); `history` + `get --at`; `restore --at` | — |
 | 4 | `recipient add` / `recipient remove` + data-key rotate; studio teammate after Sync / after remove | Request PR; re-encrypt PR (06) |

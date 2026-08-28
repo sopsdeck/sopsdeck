@@ -25,8 +25,10 @@ First-run identity (Age key is not saved until you confirm a password-manager ba
 ```bash
 export SOPSDECK_STATE_DIR="$HOME/.sopsdeck"
 ./sopsdeck identity create --confirmed-backup
-export SOPS_AGE_KEY_FILE="$SOPSDECK_STATE_DIR/age.txt"
+export SOPS_AGE_KEY_CMD="sopsdeck identity key"
 ```
+
+The private key is stored in the OS keychain. `identity key` prints it for SOPS. Existing `SOPS_AGE_KEY_FILE` Age files still work. Restore: `identity import -f FILE --confirmed-backup`.
 
 ```bash
 ./sopsdeck get KEY -f path/to/.env.production

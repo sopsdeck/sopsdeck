@@ -26,7 +26,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 
 | Phase | Slice | Status | Proved | Still open |
 | --- | --- | --- | --- | --- |
-| 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` to a state-dir Age file | OS keychain / `SOPS_AGE_KEY_CMD` (issue 06) |
+| 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` into the OS keychain; `identity key` for `SOPS_AGE_KEY_CMD`; existing Age files still work | — |
 | 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25); in-editor paste preview | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; studio teammate after Sync | request PR; re-encrypt PR (06) |
