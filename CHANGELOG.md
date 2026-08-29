@@ -6,6 +6,9 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Added
 
+- Clipboard modal: on app focus, a sniffed secret, Age recipient, or absolute path opens a confirm modal — paste into the open Managed File, Grant Access, or open the folder as a Project.
+- `sopsdeck rename OLD NEW -f FILE` renames a key and rewrites whole-word references across the project; the editor offers the same cross-file rewrite on Encrypt & save.
+- `sopsdeck references -f FILE` lists each key with its reference count and files; `sopsdeck unused -f FILE` lists keys with zero references; the inspector shows an "unused" badge.
 - Windows and Linux CLI binaries attach to GitHub Releases; macOS is a local `./scripts/dev` build until Developer ID.
 - Landing download points at those artifacts; the hero plays the catalog walkthrough.
 - Public site deploys with Wrangler from `site/`.

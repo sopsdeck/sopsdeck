@@ -8,7 +8,7 @@ Human QA lands in [human-found-bugs-and-review.md](../../human-found-bugs-and-re
 
 ## Next
 
-1. Human QA tickets [32](issues/32-one-command-local-launch.md)–[38](issues/38-multi-project-demo-seed.md) are done. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Clipboard modal is leftover on 12 + [31](issues/31-deferred-product-ideas.md). [31](issues/31-deferred-product-ideas.md) is backlog (OpenBao needs spec).
+1. Human QA tickets [32](issues/32-one-command-local-launch.md)–[38](issues/38-multi-project-demo-seed.md) are done. Incomplete tracer-bullet phases in issue 15 (signed macOS release). Clipboard modal + paste-path + unused keys + smart rename from [31](issues/31-deferred-product-ideas.md) are done; OpenBao is parked (needs spec).
 
 Tickets 19–30 are done as shipped. Tag CI in [22](issues/22-epoch-semver-and-changelog.md) publishes changelog notes; phase 8 still owes signed artifacts on that workflow. Check CI is [`.github/workflows/check.yml`](../../.github/workflows/check.yml).
 
@@ -27,12 +27,12 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | Phase | Slice | Status | Proved | Still open |
 | --- | --- | --- | --- | --- |
 | 1 | CLI core | in progress | get/set/del/run; identity create/import with `--confirmed-backup` into the OS keychain; `identity key` for `SOPS_AGE_KEY_CMD`; existing Age files still work; local `$SOPSDECK_STATE_DIR/errors.json` with counts | — |
-| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25); in-editor paste preview; inspector collapse; Value-heading reveal; nested tree, recents, Show more | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
+| 2 | Tauri folder-first editor | in progress | discover Managed Files; open; edit; atomic save; `SOPSDECK_DEV_PROJECT` boot; chrome (21); errors (20); folder pick (23); key CRUD (24); add-file / identity / scroll (25); in-editor paste preview; inspector collapse; Value-heading reveal; nested tree, recents, Show more; unused-keys badge; smart rename with cross-file rewrite; clipboard modal (value/recipient/path) | — |
 | 3 | Git Commit / Sync | in progress | commit; Sync; refuse dirty/diverge; Review; Secret History; Restore; three-way Review | — |
 | 4 | Recipients | in progress | `recipient add` / `remove` + data-key rotate; metadata-only request PR; re-encrypt Access PR; studio teammate after Sync | — |
 | 5 | GitHub Publish | in progress | `publish` prefix, dry-run, `--yes`, `--prune`; `.sopsdeck.toml` mappings; last-published prune; `GH_TOKEN` / `gh auth token`; Libsodium sealed boxes; inspector mapping + prune vs `internal/githubfake` | — |
-| 6 | Scan hook | in progress | `scan` staged files; ciphertext ignored; allowlist; block vs warn; `--install` hook | unused-key analysis is [31](issues/31-deferred-product-ideas.md); desktop warn after `--no-verify` is optional in 10 |
-| 7 | Paste + MCP | in progress | local `mcp` metadata tools; `get_value` approval; `run` outcome-only; CLI stdin paste preview/`--yes`; in-editor paste preview | clipboard modal is 12 + [31](issues/31-deferred-product-ideas.md) |
+| 6 | Scan hook | in progress | `scan` staged files; ciphertext ignored; allowlist; block vs warn; `--install` hook; `references` / `unused` / `rename` reference analysis | desktop warn after `--no-verify` is optional in 10 |
+| 7 | Paste + MCP | in progress | local `mcp` metadata tools; `get_value` approval; `run` outcome-only; CLI stdin paste preview/`--yes`; in-editor paste preview; clipboard modal + paste-path | — |
 | 8 | Signed macOS release | not started | — | issue 14; tag notes already from [22](issues/22-epoch-semver-and-changelog.md) |
 
 ## Ready build tickets
@@ -51,7 +51,7 @@ From issue 15. “Has a test” in `docs/seams.md` means the seam is open, not t
 | [28](issues/28-usable-product-recordings.md) | webreel + CLI casts; fail sub-second clips | **done** |
 | [29](issues/29-docs-site.md) | One public site: landing, changelog, docs | **done** |
 | [30](issues/30-deterministic-quality-gates.md) | Markdown, security scanner, changelog/test hooks | **done** |
-| [31](issues/31-deferred-product-ideas.md) | Unused keys, smart rename, clipboard, OpenBao, paste-path | backlog |
+| [31](issues/31-deferred-product-ideas.md) | Unused keys, smart rename, clipboard, OpenBao, paste-path | unused keys, smart rename, clipboard, paste-path **done**; OpenBao parked (needs spec) |
 | [32](issues/32-one-command-local-launch.md) | One command: build CLI + launch app | **done** |
 | [33](issues/33-deduped-local-error-log.md) | Local error log with counts | **done** |
 | [34](issues/34-inspector-collapse-and-reveal-heading.md) | Inspector collapse; heading reveal | **done** |

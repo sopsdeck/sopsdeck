@@ -4,6 +4,21 @@
   "date": "",
   "notes": [
     {
+      "text": "Clipboard modal: on app focus, a sniffed secret, Age recipient, or absolute path opens a confirm modal — paste into the open Managed File, Grant Access, or open the folder as a Project.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "`sopsdeck rename OLD NEW -f FILE` renames a key and rewrites whole-word references across the project; the editor offers the same cross-file rewrite on Encrypt & save.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "`sopsdeck references -f FILE` lists each key with its reference count and files; `sopsdeck unused -f FILE` lists keys with zero references; the inspector shows an \"unused\" badge.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Windows and Linux CLI binaries attach to GitHub Releases; macOS is a local `./scripts/dev` build until Developer ID.",
       "type": "feature",
       "platforms": [
