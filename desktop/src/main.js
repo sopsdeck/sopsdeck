@@ -1,4 +1,6 @@
 import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.js';
+import { resetClipboardSeen, sniffClipboard } from './clipboard.js';
+import { showWhatsNew } from './whatsnew.js';
 
 const invoke = globalThis.__TAURI__?.core?.invoke ?? invokeOverHTTP;
 const THEME_KEY = 'sopsdeck-theme';
@@ -7,6 +9,8 @@ const RECENTS_KEY = 'sopsdeck-recents';
 const TREE_FOLDERS_KEY = 'sopsdeck-tree-folders';
 const TREE_PROJECTS_KEY = 'sopsdeck-tree-projects';
 const TREE_LIMIT = 8;
+let unusedKeys = new Set();
+let renameRefs = false;
 
 async function invokeOverHTTP(cmd, args = {}) {
   const response = await fetch('/invoke', {
@@ -383,6 +387,19 @@ function rowDirty(row) {
   );
 }
 
+function refreshUnusedBadge(kind, row) {
+  const existing = kind.querySelector('.unused');
+  if (row.unused && !row.added && !row.deleted) {
+    if (existing) return;
+    const badge = document.createElement('span');
+    badge.className = 'unused';
+    badge.textContent = 'unused';
+    kind.append(badge);
+  } else if (existing) {
+    existing.remove();
+  }
+}
+
 function visibleRows() {
   return rows.filter((row) => !row.deleted);
 }
@@ -489,6 +506,16 @@ function displayPath(project, file) {
 
 function dirtyCount() {
   return rows.filter((r) => rowDirty(r)).length;
+}
+
+function renamePending() {
+  return rows.some((r) => r.origKey && r.key !== r.origKey && !r.deleted);
+}
+
+function updateRenameRefsLabel() {
+  const label = document.getElementById('rename-refs-label');
+  if (!label) return;
+  label.hidden = !renamePending();
 }
 
 function defaultCommitMessage(current) {
@@ -809,11 +836,13 @@ async function openFile(project, file) {
       added: false,
       deleted: false,
       revealed: false,
+      unused: false,
     }));
     sublineEl().textContent = `${rows.length} secrets · never uploaded`;
     setFileNote(file.name === 'eas.json' ? 'eas.json: EAS CLI will not read SOPS ciphertext' : '');
     renderKeys();
     await loadPublishMapping(file.path);
+    await loadUnusedKeys(file.path);
   } catch (err) {
     rows = [];
     keysEl().replaceChildren();
@@ -874,10 +903,15 @@ function renderKeys() {
     const kind = document.createElement('span');
     kind.className = 'kind';
     kind.textContent = changed ? 'changed' : 'secret';
+    refreshUnusedBadge(kind, row);
+
     const mark = () => {
       line.classList.toggle('changed', rowDirty(row));
       kind.textContent = rowDirty(row) ? 'changed' : 'secret';
+      refreshUnusedBadge(kind, row);
+
       saveEl().disabled = dirtyCount() === 0;
+      updateRenameRefsLabel();
       syncCommitMessage();
     };
 
@@ -1071,11 +1105,21 @@ async function saveFile() {
 
       for (const row of toSet) {
         const renamed = Boolean(row.origKey) && row.key !== row.origKey;
-        if (renamed) {
-          await invoke('del_managed_key', { path: selected.path, key: row.origKey });
+        if (renamed && renameRefs) {
+          await invoke('rename_key', {
+            path: selected.path,
+            key: row.origKey,
+            value: row.key,
+            yes: true,
+          });
+        } else {
+          if (renamed) {
+            await invoke('del_managed_key', { path: selected.path, key: row.origKey });
+          }
+
+          await invoke('set_managed_key', { path: selected.path, key: row.key, value: row.value });
         }
 
-        await invoke('set_managed_key', { path: selected.path, key: row.key, value: row.value });
         row.origKey = row.key;
         row.origValue = row.value;
         row.added = false;
@@ -1084,10 +1128,13 @@ async function saveFile() {
       rows = live;
     });
 
+    renameRefs = false;
     renderKeys();
+    await loadUnusedKeys(selected.path);
   } catch (err) {
     showError(messageOf(err), 'save');
     saveEl().disabled = dirtyCount() === 0;
+    updateRenameRefsLabel();
   }
 }
 
@@ -1144,6 +1191,18 @@ async function loadPublishMapping(path) {
   }
 }
 
+async function loadUnusedKeys(path) {
+  unusedKeys = new Set();
+  try {
+    const list = await invoke('unused', { path });
+    if (Array.isArray(list)) for (const key of list) unusedKeys.add(key);
+  } catch {
+    // Unused analysis is advisory; never block the editor.
+  }
+
+  for (const row of rows) row.unused = unusedKeys.has(row.origKey);
+}
+
 async function publishFile(yes) {
   if (!selected) return;
   showError('');
@@ -1183,72 +1242,30 @@ async function loadDemoHints() {
   }
 }
 
-async function loadWhatsNew() {
-  if (globalThis.__TAURI__?.core?.invoke) {
-    return invoke('whats_new');
-  }
-
-  const response = await fetch('/whats-new.json');
-  if (!response.ok) {
-    throw new Error(response.statusText);
-  }
-
-  return response.json();
-}
-
-async function showWhatsNew() {
-  const dialog = document.getElementById('whats-new-dialog');
-  try {
-    const payload = await loadWhatsNew();
-    document.getElementById('whats-new-heading').textContent = payload.heading || "What's new";
-    const versionBits = [];
-    if (payload.version) versionBits.push(`Sopsdeck ${payload.version}`);
-    if (payload.date) versionBits.push(payload.date);
-    document.getElementById('whats-new-version').textContent = versionBits.join(' · ');
-    const list = document.getElementById('whats-new-list');
-    list.replaceChildren();
-    for (const note of payload.notes || []) {
-      const item = document.createElement('li');
-      item.className = 'whats-new-item';
-      const text = typeof note === 'string' ? note : note.text;
-      const type = typeof note === 'string' ? '' : note.type;
-      const platforms = typeof note === 'string' ? [] : note.platforms || [];
-      if (type) {
-        const tag = document.createElement('span');
-        tag.className = 'note-tag';
-        tag.dataset.testid = 'whats-new-tag';
-        tag.textContent =
-          {
-            feature: 'Feature',
-            bugfix: 'Bug fix',
-            performance: 'Performance',
-            changed: 'Changed',
-            removed: 'Removed',
-            security: 'Security',
-          }[type] || type;
-        item.append(tag);
-      }
-
-      const body = document.createElement('span');
-      body.className = 'whats-new-text';
-      body.textContent = text;
-      item.append(body);
-      for (const name of platforms) {
-        const plat = document.createElement('span');
-        plat.className = 'note-platform';
-        plat.dataset.testid = 'whats-new-platform';
-        plat.textContent = name;
-        item.append(plat);
-      }
-
-      list.append(item);
-    }
-
-    dialog.showModal();
-  } catch (err) {
+const clipboardActions = {
+  path(folderPath) {
+    return addProjectFromPath(folderPath, { select: true });
+  },
+  recipient(publicKey) {
+    const input = document.getElementById('recipient-key');
+    if (input) input.value = publicKey;
+    document.getElementById('grant-access').click();
+  },
+  bulk(pairs) {
+    if (!selected) return;
+    const { adds, changes } = classifyPasteKeys(currentPasteKeys(), pairs);
+    pendingPaste = { kind: 'bulk', pairs, adds, changes };
+    renderKeys();
+  },
+  lone(raw) {
+    if (!selected) return;
+    pendingPaste = { kind: 'lone', value: raw };
+    renderKeys();
+  },
+  onError(err) {
     showError(messageOf(err));
-  }
-}
+  },
+};
 
 window.addEventListener('DOMContentLoaded', async () => {
   decorateChrome();
@@ -1256,7 +1273,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('paste', onEditorPaste);
   applyTheme(currentTheme());
   document.getElementById('whats-new').addEventListener('click', () => {
-    showWhatsNew();
+    showWhatsNew((err) => showError(messageOf(err)));
   });
   document.getElementById('whats-new-close').addEventListener('click', () => {
     document.getElementById('whats-new-dialog').close();
@@ -1422,6 +1439,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('publish').addEventListener('click', () => publishFile(false));
   document.getElementById('publish-yes').addEventListener('click', () => publishFile(true));
+  document.getElementById('rename-refs').addEventListener('change', (event) => {
+    renameRefs = event.target.checked;
+  });
+  document.getElementById('clipboard-dismiss').addEventListener('click', () => {
+    document.getElementById('clipboard-dialog').close();
+  });
+  window.addEventListener('focus', () => {
+    setTimeout(() => sniffClipboard(clipboardActions), 200);
+  });
+  window.addEventListener('blur', () => {
+    resetClipboardSeen();
+  });
   renderWorkspace();
   if (skipBoot()) return;
   try {

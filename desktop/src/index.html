@@ -244,6 +244,10 @@
           </section>
         </div>
         <div class="save-zone">
+          <label class="rename-refs-label" hidden data-testid="rename-refs-label">
+            <input id="rename-refs" type="checkbox" data-testid="rename-refs" />
+            Rewrite references in the project
+          </label>
           <button id="save" class="save" type="button" disabled data-testid="save">
             Encrypt &amp; save
           </button>
@@ -252,6 +256,19 @@
         </div>
       </aside>
     </div>
+    <dialog id="clipboard-dialog" class="clipboard-dialog" data-testid="clipboard-dialog">
+      <p class="kicker" id="clipboard-kicker">Clipboard</p>
+      <p id="clipboard-summary" class="clipboard-summary" data-testid="clipboard-summary"></p>
+      <div class="clipboard-actions" id="clipboard-actions" data-testid="clipboard-actions"></div>
+      <button
+        id="clipboard-dismiss"
+        class="tool has-icon"
+        type="button"
+        data-testid="clipboard-dismiss"
+      >
+        Dismiss
+      </button>
+    </dialog>
     <dialog id="whats-new-dialog" class="whats-new-dialog" data-testid="whats-new-dialog">
       <p class="kicker">Release notes</p>
       <h2 id="whats-new-heading">What's new</h2>
