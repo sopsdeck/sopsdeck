@@ -53,6 +53,26 @@ export function pastePreviewText(adds, changes) {
   return lines.join('\n');
 }
 
+export function classifyClipboard(text) {
+  const trimmed = String(text ?? '').trim();
+  if (!trimmed) return null;
+  if (!trimmed.includes('\n') && (trimmed.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(trimmed))) {
+    return { kind: 'path', path: trimmed };
+  }
+
+  if (/^age1[0-9a-z]{58}$/u.test(trimmed)) {
+    return { kind: 'recipient', publicKey: trimmed };
+  }
+
+  try {
+    const pairs = parsePastePayload(text);
+    return { kind: 'bulk', pairs, names: Object.keys(pairs).sort() };
+  } catch (err) {
+    if (err?.code === 'LONE_KEY') return { kind: 'lone', value: String(text) };
+    return null;
+  }
+}
+
 function looksDotenv(text) {
   for (const line of text.split('\n')) {
     const trimmed = line.trim();

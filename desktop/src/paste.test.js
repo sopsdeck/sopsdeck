@@ -1,5 +1,10 @@
 import { expect, test } from 'bun:test';
-import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.js';
+import {
+  classifyClipboard,
+  classifyPasteKeys,
+  parsePastePayload,
+  pastePreviewText,
+} from './paste.js';
 
 test('parsePastePayload reads dotenv, JSON, YAML, and a lone value', () => {
   expect(parsePastePayload('NEW=pasted\n')).toEqual({ NEW: 'pasted' });
@@ -22,4 +27,20 @@ test('paste preview lists names and never values', () => {
   expect(text).not.toContain('supersecretvalue');
   expect(text).not.toContain('changed');
   expect(text).not.toContain('world');
+});
+
+test('classifyClipboard routes paths, recipients, bulk secrets, and lone values', () => {
+  const recipient = `age1${'q'.repeat(58)}`;
+  expect(classifyClipboard('/Users/alice/code/app')).toEqual({
+    kind: 'path',
+    path: '/Users/alice/code/app',
+  });
+  expect(classifyClipboard(recipient)).toEqual({ kind: 'recipient', publicKey: recipient });
+  expect(classifyClipboard('TOKEN=supersecret\n')).toEqual({
+    kind: 'bulk',
+    pairs: { TOKEN: 'supersecret' },
+    names: ['TOKEN'],
+  });
+  expect(classifyClipboard('supersecret')).toEqual({ kind: 'lone', value: 'supersecret' });
+  expect(classifyClipboard('  ')).toBeNull();
 });
