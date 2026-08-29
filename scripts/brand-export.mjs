@@ -102,8 +102,6 @@ const svgJobs = [
   ['icon-light.svg', 'icon-light.png', 1024, 1024, false],
   ['favicon.svg', 'favicon-32.png', 32, 32, true],
   ['favicon.svg', 'favicon-16.png', 16, 16, true],
-  ['mark-paper-mint.svg', 'mark-paper-mint-512.png', 512, 512, true],
-  ['mark-ink-blue.svg', 'mark-ink-blue-512.png', 512, 512, true],
 ];
 
 for (const [src, dest, width, height, transparent] of svgJobs) {

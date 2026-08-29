@@ -169,7 +169,7 @@ const logo = `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
               stroke-width="6"
               stroke-linejoin="round"
             />
-            <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
+            <path d="M25 32h15" stroke="currentColor" stroke-width="6" stroke-linecap="round" />
           </svg>`;
 
 export function sitePage({ title, kicker, heading, lede, body, base, active }) {

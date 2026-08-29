@@ -10,7 +10,7 @@ Product UI principle: **Your filesystem is the workspace.** Projects appear as l
 
 Format principle: dotenv is one adapter, not the product model. The initial interface should accommodate SOPS-friendly dotenv, JSON (including Expo `eas.json`), and YAML files while preserving each format’s native structure.
 
-Recommended direction: **Quiet Cipher**. Structured geometry and a bright encrypted seam communicate controlled movement from local edits to encrypted Git changes, without relying on padlock or shield clichés.
+Recommended direction: **Quiet Cipher**. Structured geometry and a controlled seam communicate movement from local edits to encrypted Git changes, without relying on padlock or shield clichés.
 
 ## Color
 
@@ -43,7 +43,7 @@ Verified contrast: Ink/Paper 16.83:1, Slate/Paper 7.29:1, Paper/Blue 5.21:1, and
 
 Sources and ready-to-upload files live in `brand/`. Preview: [brand/preview.html](brand/preview.html). Regenerate with `bun scripts/brand-export.mjs`.
 
-Square icon (compact cipher seam on Vault Ink, Decrypt Mint seam): use for the GitHub org profile image, macOS/Windows app icon, Apple touch icon, and PWA icons. GitHub crops a circle; the OS crops a squircle — padding is sized for both.
+Square icon (monochrome small-size cipher seam on Vault Ink): use for the GitHub org profile image, macOS/Windows app icon, Apple touch icon, and PWA icons. GitHub crops a circle; the OS crops a squircle — padding is sized for both.
 
 Display-weight cipher seam plus wordmark: use on the site header, lockups, and wide heroes. GitHub organizations have no cover photo; put `brand/export/github-readme-hero.png` at the top of the org profile README, and `github-social-preview.png` as a repository social preview.
 

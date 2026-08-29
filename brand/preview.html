@@ -111,6 +111,24 @@
         height: 32px;
         border-radius: 8px;
       }
+      .proof-swatch {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--paper);
+      }
+      .proof-swatch.inverted {
+        background: var(--ink);
+      }
+      .proof-swatch img {
+        width: 24px;
+        height: 24px;
+      }
+      .proof-swatch.inverted img {
+        filter: invert(1);
+      }
       .heroes {
         grid-template-columns: 1fr;
       }
@@ -181,9 +199,9 @@
       <h1>Quiet Cipher, ready to ship</h1>
       <p class="lede">
         The GitHub org image and app icon share one compact cipher-seam master: Vault Ink field,
-        Local Paper stroke, Decrypt Mint seam, thicker small-size proof weight. Heroes keep the
-        display-weight mark plus wordmark. GitHub orgs have no cover photo — use the square as the
-        profile image, and the wide hero at the top of the org README.
+        Local Paper mark, and the thicker small-size proof weight. Heroes keep the display-weight
+        mark plus wordmark. GitHub orgs have no cover photo — use the square as the profile image,
+        and the wide hero at the top of the org README.
       </p>
 
       <section class="grid uses">
@@ -201,6 +219,18 @@
             <figure class="crop tab">
               <img src="svg/favicon.svg" alt="Favicon" />
               <figcaption class="label" style="margin-top: 8px">Favicon</figcaption>
+            </figure>
+            <figure class="crop proof">
+              <span class="proof-swatch">
+                <img src="svg/mark-mono.svg" alt="One-color mark at 24 pixels" />
+              </span>
+              <figcaption class="label" style="margin-top: 8px">24px mono</figcaption>
+            </figure>
+            <figure class="crop proof">
+              <span class="proof-swatch inverted">
+                <img src="svg/mark-mono.svg" alt="Inverted one-color mark at 24 pixels" />
+              </span>
+              <figcaption class="label" style="margin-top: 8px">24px inverted</figcaption>
             </figure>
           </div>
           <p class="note">

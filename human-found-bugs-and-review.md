@@ -8,7 +8,7 @@ addressed.
 
 ## Findings
 
-_Processed into tickets 32–38._
+_No unprocessed findings._
 
 ## Feature Ideas
 
@@ -18,6 +18,8 @@ _Processed into tickets 32–38._
 
 ### Archived
 
+- [x] i don't like the green line in the logo, lets go with the 04 · Small-size proof version from the /Users/jack/code/sopsdeck/brand-board.html → implemented directly
+- [x] Need to work on the copy, headlines, subheadlines etc, i dont like "secrets stay local. clarity travels". its just poor writing and sucks → implemented directly
 - [x] need a better way for running it locally, it should just be one command to
       launch the app, build the cli, make sure the app is using the freshly
       built cli → [32](.scratch/sopsdeck-product/issues/32-one-command-local-launch.md)
