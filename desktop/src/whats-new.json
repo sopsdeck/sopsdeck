@@ -197,6 +197,21 @@
       "platforms": []
     },
     {
+      "text": "Plain dotenv files are no longer discovered as Managed Files (they failed to decrypt with parse errors); only SOPS-encrypted dotenv files are, matching the Project Manifest spec.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "The desktop app logs failed CLI commands to `~/.config/sopsdeck/errors.json` and uses the keychain Age identity for decryption, so it works when launched from a GUI without a shell env.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "`get` on a file without Access or on a non-SOPS file now says what to do instead of leaking a raw SOPS parse error.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
       "text": "Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.",
       "type": "bugfix",
       "platforms": []

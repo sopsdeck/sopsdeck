@@ -46,6 +46,9 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Fixed
 
+- Plain dotenv files are no longer discovered as Managed Files (they failed to decrypt with parse errors); only SOPS-encrypted dotenv files are, matching the Project Manifest spec.
+- The desktop app logs failed CLI commands to `~/.config/sopsdeck/errors.json` and uses the keychain Age identity for decryption, so it works when launched from a GUI without a shell env.
+- `get` on a file without Access or on a non-SOPS file now says what to do instead of leaking a raw SOPS parse error.
 - Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.
 - Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.
 - Desktop shows Sync, commit, and save failures next to those controls, not as a toast.
