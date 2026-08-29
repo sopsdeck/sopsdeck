@@ -50,6 +50,59 @@ func TestDriveListenMustBeLocalhost(t *testing.T) {
 	}
 }
 
+func TestDriveInvokeReferencesAndUnused(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	dir := t.TempDir()
+	env := filepath.Join(dir, ".env.production")
+	src, err := os.ReadFile(testdata(t, "hello.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(env, src, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte("process.env.HELLO\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(&drive{getenv: os.Getenv})
+	t.Cleanup(srv.Close)
+	refs := postInvoke(t, srv.URL, invokeReq{Cmd: "references", Path: env})
+	if !bytes.Contains(refs, []byte("HELLO")) || !bytes.Contains(refs, []byte("app.js")) {
+		t.Fatalf("references=%s", refs)
+	}
+	unused := postInvoke(t, srv.URL, invokeReq{Cmd: "unused", Path: env})
+	if bytes.Contains(unused, []byte("HELLO")) {
+		t.Fatalf("unused should not list HELLO: %s", unused)
+	}
+}
+
+func TestDriveInvokeRenamesKeyAndRewritesReferences(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	dir := t.TempDir()
+	env := filepath.Join(dir, ".env.production")
+	src, err := os.ReadFile(testdata(t, "hello.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(env, src, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte("process.env.HELLO\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(&drive{getenv: os.Getenv})
+	t.Cleanup(srv.Close)
+	postInvoke(t, srv.URL, invokeReq{Cmd: "rename_key", Path: env, Key: "HELLO", Value: "GREETING", Yes: true})
+	got := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: env})
+	if !bytes.Contains(got, []byte("GREETING")) || bytes.Contains(got, []byte("HELLO")) {
+		t.Fatalf("get after rename=%s", got)
+	}
+	appBody, _ := os.ReadFile(filepath.Join(dir, "app.js"))
+	if !bytes.Contains(appBody, []byte("GREETING")) {
+		t.Fatalf("app.js not rewritten: %s", appBody)
+	}
+}
+
 func TestDriveInvokePublishesToFakeGitHub(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {

@@ -291,6 +291,8 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 		return invokePublish(req, getenv)
 	case "get_publish_mapping":
 		return invokePublishMapping(req, getenv)
+	case "references", "unused", "rename_key":
+		return invokeReferenceCommands(req)
 	case "pick_project_folder", "boot_project":
 		project := getenv("SOPSDECK_DEV_PROJECT")
 		if project == "" {
@@ -421,6 +423,55 @@ func invokePublishMapping(req invokeReq, getenv func(string) string) (any, error
 		return nil, err
 	}
 	return out, nil
+}
+
+func invokeReferenceCommands(req invokeReq) (any, error) {
+	switch req.Cmd {
+	case "references":
+		return invokeReferences(req)
+	case "unused":
+		return invokeUnused(req)
+	case "rename_key":
+		return nil, invokeRenameKey(req)
+	default:
+		return nil, fmt.Errorf("unknown command %q", req.Cmd)
+	}
+}
+
+func invokeReferences(req invokeReq) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdReferences([]string{"-f", req.Path}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	var out []keyReference
+	if err := json.Unmarshal([]byte(stdout.String()), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func invokeUnused(req invokeReq) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdUnused([]string{"-f", req.Path}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(stdout.String()), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func invokeRenameKey(req invokeReq) error {
+	args := []string{req.Key, req.Value, "-f", req.Path}
+	if req.Yes {
+		args = append(args, "--yes")
+	}
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdRename(args, &stdout, &stderr), &stderr); err != nil {
+		return err
+	}
+	return nil
 }
 
 func gitTopLevel(path string) (string, error) {

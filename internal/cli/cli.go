@@ -38,7 +38,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|drive|scan|mcp> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|references|unused|rename|drive|scan|mcp> ...")
 		return 1
 	}
 	switch args[0] {
@@ -77,8 +77,24 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 		return cmdScan(args[1:], stdout, stderr)
 	case "mcp":
 		return cmdMCP(args[1:], stdin, stdout, stderr, getenv)
+	case "references", "unused", "rename":
+		return runReferenceCommands(args[0], args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
+		return 1
+	}
+}
+
+func runReferenceCommands(cmd string, args []string, stdout, stderr io.Writer) int {
+	switch cmd {
+	case "references":
+		return cmdReferences(args, stdout, stderr)
+	case "unused":
+		return cmdUnused(args, stdout, stderr)
+	case "rename":
+		return cmdRename(args, stdout, stderr)
+	default:
+		fmt.Fprintf(stderr, "unknown command %q\n", cmd)
 		return 1
 	}
 }
