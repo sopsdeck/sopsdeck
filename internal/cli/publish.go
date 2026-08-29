@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +12,8 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+
+	"golang.org/x/crypto/nacl/box"
 )
 
 func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
@@ -41,7 +45,8 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 		fmt.Fprintf(stderr, "publish: %s", errMsg)
 		return 1
 	}
-	names := prefixedNames(selectKeys(pairs, mapping.Keys), prefix)
+	secrets := prefixedPairs(selectKeys(pairs, mapping.Keys), prefix)
+	names := sortedKeys(secrets)
 	if !yes {
 		fmt.Fprintf(stdout, "dry-run %d secrets for %s\n", len(names), repo)
 		for _, n := range names {
@@ -51,7 +56,7 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 	}
 	client := &http.Client{}
 	token := githubToken(getenv)
-	if err := putSecrets(client, base, repo, mapping.Environment, token, names); err != nil {
+	if err := putSecrets(client, base, repo, mapping.Environment, token, secrets); err != nil {
 		fmt.Fprintln(stderr, explainPublish(err))
 		return 1
 	}
@@ -114,12 +119,12 @@ func selectKeys(pairs map[string]string, keys []string) map[string]string {
 	return selected
 }
 
-func prefixedNames(pairs map[string]string, prefix string) []string {
-	var names []string
-	for key := range pairs {
-		names = append(names, prefix+key)
+func prefixedPairs(pairs map[string]string, prefix string) map[string]string {
+	secrets := make(map[string]string, len(pairs))
+	for key, value := range pairs {
+		secrets[prefix+key] = value
 	}
-	return names
+	return secrets
 }
 
 func recordPublished(mapping manifestFile, manifestPath string, names []string) error {
@@ -183,16 +188,27 @@ func setAuth(req *http.Request, token string) {
 	}
 }
 
-func putSecrets(client *http.Client, base, repo, environment, token string, names []string) error {
-	for _, name := range names {
+func putSecrets(client *http.Client, base, repo, environment, token string, secrets map[string]string) error {
+	keyID, publicKey, err := githubPublicKey(client, base, repo, environment, token)
+	if err != nil {
+		return err
+	}
+	for _, name := range sortedKeys(secrets) {
 		endpoint, err := secretURL(base, repo, environment, name)
 		if err != nil {
 			return err
 		}
-		body, _ := json.Marshal(map[string]string{
-			"encrypted_value": "studio",
-			"key_id":          "studio",
+		sealed, err := box.SealAnonymous(nil, []byte(secrets[name]), publicKey, rand.Reader)
+		if err != nil {
+			return err
+		}
+		body, err := json.Marshal(map[string]string{
+			"encrypted_value": base64.StdEncoding.EncodeToString(sealed),
+			"key_id":          keyID,
 		})
+		if err != nil {
+			return err
+		}
 		req, err := http.NewRequest(http.MethodPut, endpoint, bytes.NewReader(body))
 		if err != nil {
 			return err
@@ -210,6 +226,44 @@ func putSecrets(client *http.Client, base, repo, environment, token string, name
 		}
 	}
 	return nil
+}
+
+func githubPublicKey(client *http.Client, base, repo, environment, token string) (string, *[32]byte, error) {
+	endpoint, err := publicKeyURL(base, repo, environment)
+	if err != nil {
+		return "", nil, err
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	setAuth(req, token)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode >= 300 {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return "", nil, fmt.Errorf("GET public key → %s", resp.Status)
+	}
+	var payload struct {
+		KeyID string `json:"key_id"`
+		Key   string `json:"key"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", nil, err
+	}
+	decoded, err := base64.StdEncoding.DecodeString(payload.Key)
+	if err != nil {
+		return "", nil, fmt.Errorf("decode GitHub public key: %w", err)
+	}
+	if len(decoded) != 32 {
+		return "", nil, fmt.Errorf("GitHub public key has %d bytes, want 32", len(decoded))
+	}
+	var publicKey [32]byte
+	copy(publicKey[:], decoded)
+	return payload.KeyID, &publicKey, nil
 }
 
 func pruneSecrets(client *http.Client, base, repo, environment, prefix, token string, keep, previously []string) error {
@@ -248,4 +302,11 @@ func secretURL(base, repo, environment, name string) (string, error) {
 		return url.JoinPath(base, "repos", repo, "environments", environment, "secrets", name)
 	}
 	return url.JoinPath(base, "repos", repo, "actions", "secrets", name)
+}
+
+func publicKeyURL(base, repo, environment string) (string, error) {
+	if environment != "" {
+		return url.JoinPath(base, "repos", repo, "environments", environment, "secrets", "public-key")
+	}
+	return url.JoinPath(base, "repos", repo, "actions", "secrets", "public-key")
 }

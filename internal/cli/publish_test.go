@@ -2,15 +2,87 @@ package cli
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"golang.org/x/crypto/nacl/box"
+
 	"sopsdeck/internal/studio"
 )
+
+func TestPublishSealsValuesWithGitHubPublicKey(t *testing.T) {
+	publicKey, privateKey, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decrypted, keyID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"key_id": "github-key",
+				"key":    base64.StdEncoding.EncodeToString(publicKey[:]),
+			})
+			return
+		}
+		var body struct {
+			EncryptedValue string `json:"encrypted_value"`
+			KeyID          string `json:"key_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			return
+		}
+		sealed, err := base64.StdEncoding.DecodeString(body.EncryptedValue)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		plaintext, ok := box.OpenAnonymous(nil, sealed, publicKey, privateKey)
+		if !ok {
+			t.Error("encrypted_value is not a valid sealed box")
+			return
+		}
+		decrypted, keyID = string(plaintext), body.KeyID
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+	getenv := func(key string) string {
+		if key == "SOPSDECK_GITHUB_API" {
+			return server.URL
+		}
+		return alice.Getenv(key)
+	}
+	alice.WithWorld(func() {
+		if code := Main([]string{"publish", "-f", env, "--yes"}, os.Stdin, io.Discard, io.Discard, getenv); code != 0 {
+			t.Fatalf("publish exit %d", code)
+		}
+	})
+	if decrypted != "world" || keyID != "github-key" {
+		t.Fatalf("decrypted=%q key_id=%q", decrypted, keyID)
+	}
+}
 
 func TestPublishDryRunDoesNotWrite(t *testing.T) {
 	st, err := studio.New(t.TempDir())

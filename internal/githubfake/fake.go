@@ -1,12 +1,15 @@
 package githubfake
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+
+	"golang.org/x/crypto/curve25519"
 )
 
 // Server is an in-process GitHub Actions secrets API. It never stores
@@ -16,11 +19,19 @@ type Server struct {
 	secrets map[string]string
 	envs    map[string]map[string]string
 	auth    string
+	key     string
 	http    *httptest.Server
 }
 
 func New() *Server {
-	s := &Server{secrets: map[string]string{}, envs: map[string]map[string]string{}}
+	var privateKey, publicKey [32]byte
+	privateKey[0] = 1
+	curve25519.ScalarBaseMult(&publicKey, &privateKey)
+	s := &Server{
+		secrets: map[string]string{},
+		envs:    map[string]map[string]string{},
+		key:     base64.StdEncoding.EncodeToString(publicKey[:]),
+	}
 	s.http = httptest.NewServer(http.HandlerFunc(s.serve))
 	return s
 }
@@ -50,10 +61,10 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	s.auth = r.Header.Get("Authorization")
 	s.mu.Unlock()
 	path := r.URL.Path
-	if r.Method == http.MethodGet && strings.HasSuffix(path, "/actions/secrets/public-key") {
+	if r.Method == http.MethodGet && strings.HasSuffix(path, "/secrets/public-key") {
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"key_id": "studio",
-			"key":    "dGVzdA==",
+			"key":    s.key,
 		})
 		return
 	}

@@ -55,6 +55,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - MCP Get Value With Approval Returns Plaintext (`TestMCPGetValueWithApprovalReturnsPlaintext`)
 - MCP Run Returns Outcome Not Child Output (`TestMCPRunReturnsOutcomeNotChildOutput`)
 - Publish Failed Put Explains Retry (`TestPublishFailedPutExplainsRetry`)
+- Publish Seals Values With Git Hub Public Key (`TestPublishSealsValuesWithGitHubPublicKey`)
 - Publish Dry Run Does Not Write (`TestPublishDryRunDoesNotWrite`)
 - Publish Requires API (`TestPublishRequiresAPI`)
 - Publish Uses Manifest Prefix And Repo (`TestPublishUsesManifestPrefixAndRepo`)

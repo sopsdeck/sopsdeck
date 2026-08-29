@@ -22,6 +22,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - `scan` blocks staged cloud keys, private key PEMs, and common tokens; SOPS ciphertext is ignored; `--install` writes an opt-in pre-commit hook.
 - Inspector Publish shows repo, environment, prefix, and opt-in prune from `.sopsdeck.toml`.
 - Publish uses `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token` as the GitHub Authorization bearer.
+- Publish encrypts each value with GitHub's Libsodium public key before sending it.
 - Publish reads `.sopsdeck.toml` for repo, environment, prefix, keys, and last-published names; prune deletes only names Sopsdeck previously published.
 - Markdown in `docs/`, README, and CHANGELOG is linted; `./scripts/scan` runs govulncheck and bun audit. CI runs `./scripts/check`; opt-in hooks require a CHANGELOG bullet on user-facing commits.
 - Docs, notes, and living pages share one public site under `site/` (landing, changelog, `site/docs/`).

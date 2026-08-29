@@ -92,6 +92,11 @@
       "platforms": []
     },
     {
+      "text": "Publish encrypts each value with GitHub's Libsodium public key before sending it.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Publish reads `.sopsdeck.toml` for repo, environment, prefix, keys, and last-published names; prune deletes only names Sopsdeck previously published.",
       "type": "feature",
       "platforms": []
