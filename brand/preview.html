@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sopsdeck — Brand assets</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #101828;
+        --blue: #3157f6;
+        --mint: #46d6a8;
+        --paper: #f7f9fc;
+        --slate: #475467;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #dfe4ec;
+        font:
+          14px/1.5 Manrope,
+          sans-serif;
+      }
+      .board {
+        width: min(1200px, 100%);
+        margin: 0 auto;
+        padding: 42px 32px 72px;
+      }
+      .eyebrow,
+      .label {
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .eyebrow {
+        color: var(--blue);
+        font-size: 11px;
+      }
+      .label {
+        color: var(--slate);
+        font-size: 9px;
+      }
+      h1,
+      h2,
+      p {
+        margin-top: 0;
+      }
+      h1 {
+        margin: 8px 0 12px;
+        font-size: clamp(36px, 5vw, 56px);
+        letter-spacing: -0.06em;
+        line-height: 1;
+      }
+      h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        letter-spacing: -0.03em;
+      }
+      p {
+        color: var(--slate);
+      }
+      .lede {
+        max-width: 68ch;
+        font-size: 16px;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .panel {
+        padding: 22px;
+        border: 1px solid rgba(16, 24, 40, 0.12);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.55);
+      }
+      .uses {
+        grid-template-columns: 1.1fr 0.9fr;
+        margin: 28px 0 18px;
+      }
+      .crops {
+        display: flex;
+        gap: 22px;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+      .crop {
+        text-align: center;
+      }
+      .crop img {
+        display: block;
+        width: 160px;
+        height: 160px;
+      }
+      .crop.github img {
+        border-radius: 50%;
+      }
+      .crop.macos img {
+        border-radius: 36px;
+      }
+      .crop.tab img {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+      }
+      .heroes {
+        grid-template-columns: 1fr;
+      }
+      .heroes img {
+        display: block;
+        width: 100%;
+        border-radius: 12px;
+      }
+      .lockups {
+        grid-template-columns: 1fr 1fr;
+      }
+      .lockup-frame {
+        min-height: 140px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .lockup-frame.dark {
+        background: var(--ink);
+      }
+      .lockup-frame.light {
+        background: var(--paper);
+        border: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      .lockup-frame img {
+        width: 86%;
+        height: auto;
+      }
+      .files {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 13px;
+      }
+      .files li {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      .files code {
+        font:
+          600 11px/1.4 'IBM Plex Mono',
+          ui-monospace,
+          monospace;
+        color: var(--ink);
+      }
+      .files span {
+        color: var(--slate);
+      }
+      .note {
+        margin: 10px 0 0;
+        font-size: 12px;
+      }
+      @media (max-width: 800px) {
+        .uses,
+        .lockups {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <div class="eyebrow">Brand assets · cipher seam</div>
+      <h1>Quiet Cipher, ready to ship</h1>
+      <p class="lede">
+        The GitHub org image and app icon share one compact cipher-seam master: Vault Ink field,
+        Local Paper stroke, Decrypt Mint seam, thicker small-size proof weight. Heroes keep the
+        display-weight mark plus wordmark. GitHub orgs have no cover photo — use the square as the
+        profile image, and the wide hero at the top of the org README.
+      </p>
+
+      <section class="grid uses">
+        <article class="panel">
+          <div class="label">Recommended square · app + GitHub</div>
+          <div class="crops" style="margin-top: 18px">
+            <figure class="crop github">
+              <img src="svg/icon.svg" alt="GitHub circle crop of the Sopsdeck icon" />
+              <figcaption class="label" style="margin-top: 8px">GitHub org</figcaption>
+            </figure>
+            <figure class="crop macos">
+              <img src="svg/icon.svg" alt="macOS squircle crop of the Sopsdeck icon" />
+              <figcaption class="label" style="margin-top: 8px">App icon</figcaption>
+            </figure>
+            <figure class="crop tab">
+              <img src="svg/favicon.svg" alt="Favicon" />
+              <figcaption class="label" style="margin-top: 8px">Favicon</figcaption>
+            </figure>
+          </div>
+          <p class="note">
+            Same art, different masks. Upload <code>export/github-org-avatar.png</code> to the org;
+            Tauri icons are generated from <code>export/app-icon.png</code>.
+          </p>
+        </article>
+        <article class="panel">
+          <div class="label">Where each file goes</div>
+          <ul class="files" style="margin-top: 10px">
+            <li><code>github-org-avatar.png</code><span>Org profile image · 1024²</span></li>
+            <li><code>github-readme-hero.png</code><span>Org README banner · 1280×400</span></li>
+            <li>
+              <code>github-social-preview.png</code><span>Repo social preview · 1280×640</span>
+            </li>
+            <li><code>og-image.png</code><span>Site Open Graph · 1200×630</span></li>
+            <li><code>social-banner.png</code><span>Wide header · 1500×500</span></li>
+            <li><code>app-icon.png</code><span>Dock / installer master · 1024²</span></li>
+            <li><code>lockup-dark.png</code><span>Transparent wordmark for ink</span></li>
+            <li><code>lockup-light.png</code><span>Transparent wordmark for paper</span></li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="grid heroes">
+        <article class="panel">
+          <div class="label">GitHub README hero · 1280×400</div>
+          <h2>Put this at the top of the org profile README</h2>
+          <img
+            src="export/github-readme-hero.png"
+            alt="Sopsdeck GitHub README hero"
+            style="margin-top: 12px"
+          />
+        </article>
+        <article class="panel">
+          <div class="label">GitHub social preview · 1280×640</div>
+          <img src="export/github-social-preview.png" alt="Sopsdeck GitHub social preview" />
+        </article>
+        <article class="panel">
+          <div class="label">Open Graph · 1200×630</div>
+          <img src="export/og-image.png" alt="Sopsdeck Open Graph image" />
+        </article>
+        <article class="panel">
+          <div class="label">Social banner · 1500×500</div>
+          <img src="export/social-banner.png" alt="Sopsdeck social banner" />
+        </article>
+      </section>
+
+      <section class="grid lockups" style="margin-top: 16px">
+        <article class="panel">
+          <div class="label">Lockup on ink</div>
+          <div class="lockup-frame dark" style="margin-top: 14px">
+            <img src="export/lockup-dark.png" alt="sopsdeck lockup on dark" />
+          </div>
+        </article>
+        <article class="panel">
+          <div class="label">Lockup on paper</div>
+          <div class="lockup-frame light" style="margin-top: 14px">
+            <img src="export/lockup-light.png" alt="sopsdeck lockup on light" />
+          </div>
+        </article>
+      </section>
+
+      <p class="note" style="margin-top: 22px">
+        Regenerate with <code>bun scripts/brand-export.mjs</code>. Sources live in
+        <code>brand/svg</code> and <code>brand/templates</code>.
+      </p>
+    </main>
+  </body>
+</html>

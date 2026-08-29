@@ -197,6 +197,11 @@
       "platforms": []
     },
     {
+      "text": "Cipher seam mark is the site favicon, Open Graph image, and desktop app icon.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
       "text": "Changelog and What’s new use the product layout; primary actions have icons.",
       "type": "changed",
       "platforms": []

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" data-width="1500" data-height="500">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&family=Manrope:wght@600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1500px;
+        height: 500px;
+        overflow: hidden;
+        color: #f7f9fc;
+        background: #101828;
+        font-family: Manrope, sans-serif;
+      }
+      body {
+        position: relative;
+        box-sizing: border-box;
+        padding: 88px 96px;
+      }
+      .ring {
+        position: absolute;
+        width: 380px;
+        height: 380px;
+        right: -130px;
+        top: -150px;
+        border: 80px solid #3157f6;
+        border-radius: 50%;
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -0.055em;
+      }
+      .logo svg {
+        width: 54px;
+        height: 54px;
+      }
+      h1 {
+        max-width: 16ch;
+        margin: 36px 0 0;
+        font-size: 58px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.06em;
+      }
+      p {
+        margin: 16px 0 0;
+        color: #46d6a8;
+        font:
+          600 14px/1 'IBM Plex Mono',
+          ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ring"></div>
+    <div class="logo">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path
+          d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
+          stroke="#F7F9FC"
+          stroke-width="6"
+          stroke-linejoin="round"
+        />
+        <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
+      </svg>
+      sopsdeck
+    </div>
+    <h1>Secrets stay local. Clarity travels.</h1>
+    <p>Local-first SOPS workspace</p>
+  </body>
+</html>

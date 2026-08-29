@@ -39,6 +39,26 @@ Verified contrast: Ink/Paper 16.83:1, Slate/Paper 7.29:1, Paper/Blue 5.21:1, and
 3. **Open S:** a broken letterform suggests visibility without exposure and gives the wordmark a compact signature.
 4. **Small-size proof:** the cipher seam mark remains recognizable in one color, inverted, and at 24px.
 
+## Assets
+
+Sources and ready-to-upload files live in `brand/`. Preview: [brand/preview.html](brand/preview.html). Regenerate with `bun scripts/brand-export.mjs`.
+
+Square icon (compact cipher seam on Vault Ink, Decrypt Mint seam): use for the GitHub org profile image, macOS/Windows app icon, Apple touch icon, and PWA icons. GitHub crops a circle; the OS crops a squircle — padding is sized for both.
+
+Display-weight cipher seam plus wordmark: use on the site header, lockups, and wide heroes. GitHub organizations have no cover photo; put `brand/export/github-readme-hero.png` at the top of the org profile README, and `github-social-preview.png` as a repository social preview.
+
+| File                                     | Use                                  |
+| ---------------------------------------- | ------------------------------------ |
+| `brand/export/github-org-avatar.png`     | GitHub org profile image (1024×1024) |
+| `brand/export/github-readme-hero.png`    | Org README banner (1280×400)         |
+| `brand/export/github-social-preview.png` | GitHub social preview (1280×640)     |
+| `brand/export/og-image.png`              | Site Open Graph (1200×630)           |
+| `brand/export/social-banner.png`         | Wide header (1500×500)               |
+| `brand/export/app-icon.png`              | Desktop icon master (1024×1024)      |
+| `brand/export/lockup-dark.png`           | Transparent lockup for ink           |
+| `brand/export/lockup-light.png`          | Transparent lockup for paper         |
+| `site/favicon.svg`                       | Browser tab icon                     |
+
 ## Don'ts
 
 1. Don’t use generic padlocks, shields, keys, or hacker-green imagery.

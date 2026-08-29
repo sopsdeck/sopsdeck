@@ -49,5 +49,6 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Changed
 
+- Cipher seam mark is the site favicon, Open Graph image, and desktop app icon.
 - Changelog and What’s new use the product layout; primary actions have icons.
 - Empty Project / Managed File / key states, Sync and save loading, dark mode, and a commit message prefilled from dirty keys.

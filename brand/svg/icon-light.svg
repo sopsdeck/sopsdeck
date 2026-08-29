@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Sopsdeck">
+  <rect width="1024" height="1024" fill="#F7F9FC"/>
+  <g transform="translate(192 192) scale(10)">
+    <path d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z" fill="none" stroke="#101828" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M25 32h15" fill="none" stroke="#3157F6" stroke-width="7" stroke-linecap="round"/>
+  </g>
+</svg>

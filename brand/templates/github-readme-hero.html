@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en" data-width="1280" data-height="400">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&family=Manrope:wght@600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1280px;
+        height: 400px;
+        overflow: hidden;
+        color: #f7f9fc;
+        background: #101828;
+        font-family: Manrope, sans-serif;
+      }
+      body {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+        padding: 0 80px;
+      }
+      .ring {
+        position: absolute;
+        width: 320px;
+        height: 320px;
+        right: -120px;
+        top: -140px;
+        border: 68px solid #3157f6;
+        border-radius: 50%;
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 52px;
+        font-weight: 800;
+        letter-spacing: -0.055em;
+      }
+      .logo svg {
+        width: 64px;
+        height: 64px;
+      }
+      .copy {
+        position: relative;
+        max-width: 420px;
+      }
+      .kicker {
+        margin: 0 0 10px;
+        color: #46d6a8;
+        font:
+          600 12px/1 'IBM Plex Mono',
+          ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: -0.05em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ring"></div>
+    <div class="logo">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path
+          d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
+          stroke="#F7F9FC"
+          stroke-width="6"
+          stroke-linejoin="round"
+        />
+        <path d="M25 32h15" stroke="#46D6A8" stroke-width="6" stroke-linecap="round" />
+      </svg>
+      sopsdeck
+    </div>
+    <div class="copy">
+      <p class="kicker">Local-first secrets</p>
+      <h1>Secrets stay local. Clarity travels.</h1>
+    </div>
+  </body>
+</html>
