@@ -142,6 +142,11 @@
       "platforms": []
     },
     {
+      "text": "`recipient request` opens a metadata-only access PR; `recipient grant` re-encrypts selected or all Managed Files and opens the Access PR.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Review shows a plaintext semantic diff of uncommitted Managed File keys.",
       "type": "feature",
       "platforms": []

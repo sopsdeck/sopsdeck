@@ -67,6 +67,8 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Publish Sends Git Hub Token (`TestPublishSendsGitHubToken`)
 - Publish Uses Gh Auth Token (`TestPublishUsesGhAuthToken`)
 - Publish Manifest Environment Puts Environment Secrets (`TestPublishManifestEnvironmentPutsEnvironmentSecrets`)
+- Recipient Request Opens Metadata Only PR (`TestRecipientRequestOpensMetadataOnlyPR`)
+- Recipient Grant Opens Reencrypt PR (`TestRecipientGrantOpensReencryptPR`)
 - Recipient Add Lets Second Identity Decrypt (`TestRecipientAddLetsSecondIdentityDecrypt`)
 - Recipient Remove Revokes Access And Rotates Data Key (`TestRecipientRemoveRevokesAccessAndRotatesDataKey`)
 - Recipient Remove Refuses Last Recipient (`TestRecipientRemoveRefusesLastRecipient`)

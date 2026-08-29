@@ -32,6 +32,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - The sidebar can add a Managed File; theme is an icon; panes scroll inside the window.
 - Inspector can Grant Access and dry-run or Publish to a Sync Target.
 - `recipient remove` drops Access, rotates the data key, and warns that Git history still decrypts.
+- `recipient request` opens a metadata-only access PR; `recipient grant` re-encrypts selected or all Managed Files and opens the Access PR.
 - Review shows a plaintext semantic diff of uncommitted Managed File keys.
 - Secret History lists commits on a Managed File; `get --at` decrypts a revision.
 - Restore copies a revision’s values into the worktree and leaves them uncommitted.

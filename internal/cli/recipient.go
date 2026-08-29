@@ -16,7 +16,7 @@ import (
 func cmdRecipient(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	_ = stdout
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove AGE1... -f FILE")
+		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove|request|grant ...")
 		return 1
 	}
 	switch args[0] {
@@ -24,8 +24,12 @@ func cmdRecipient(args []string, stdout, stderr io.Writer, getenv func(string) s
 		return recipientAdd(args[1:], stderr, getenv)
 	case "remove":
 		return recipientRemove(args[1:], stderr, getenv)
+	case "request":
+		return recipientRequest(args[1:], stdout, stderr, getenv)
+	case "grant":
+		return recipientGrant(args[1:], stdout, stderr, getenv)
 	default:
-		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove AGE1... -f FILE")
+		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove|request|grant ...")
 		return 1
 	}
 }
