@@ -28,10 +28,19 @@ func explainReview(err error) string {
 
 func explainGet(err error) string {
 	msg := err.Error()
-	if noAccess(msg) {
-		return "get: no Access to this Managed File"
+	switch {
+	case noAccess(msg):
+		return "get: no Access to this Managed File (create or import an identity with `sopsdeck identity`)"
+	case notSOPS(msg):
+		return "get: not a SOPS-encrypted file (use Add file to encrypt it)"
+	default:
+		return "get: " + firstLine(msg)
 	}
-	return "get: " + firstLine(msg)
+}
+
+func notSOPS(msg string) bool {
+	return strings.Contains(msg, "invalid dotenv input line") ||
+		strings.Contains(msg, `cannot parse ""`)
 }
 
 func explainPublish(err error) string {

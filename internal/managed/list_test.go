@@ -18,7 +18,8 @@ func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write(".env.production", "HELLO=world\n")
+	write(".env.production", "HELLO=world\nsops_mac=ENC[AES256_GCM,data:.,tag:.=,type:str]\n")
+	write("plain.env", "HELLO=world\n")
 	write("plain.json", `{"HELLO":"world"}`+"\n")
 	write("secrets.json", "{\n  \"HELLO\": \"world\",\n  \"sops\": {}\n}\n")
 	write("nested/app.yaml", "sops:\n  kms: []\n")
@@ -40,6 +41,20 @@ func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("files=%v want %v", got, want)
 		}
+	}
+}
+
+func TestListExcludesPlainDotenv(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("HELLO=world\nSTRIPE_KEY=sk_live_xyz\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := List(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("plain .env should not be a Managed File: %v", files)
 	}
 }
 

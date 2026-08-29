@@ -36,7 +36,7 @@ func List(root string) ([]File, error) {
 			}
 			return nil
 		}
-		if !isDotenvName(name) && (!isStructuredName(name) || !looksSOPS(path)) {
+		if !isDotenvOrSOPS(name, path) {
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)
@@ -60,6 +60,15 @@ func skipDir(name string) bool {
 	default:
 		return false
 	}
+}
+
+func isDotenvOrSOPS(name, path string) bool {
+	if isDotenvName(name) {
+		// Per issue 05, a Managed File already has SOPS metadata; a plain
+		// dotenv is not managed until it is encrypted.
+		return looksSOPSDotenv(path)
+	}
+	return isStructuredName(name) && looksSOPS(path)
 }
 
 func isDotenvName(name string) bool {

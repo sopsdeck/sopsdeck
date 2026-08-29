@@ -10,7 +10,8 @@ import (
 
 func TestFilesListsDotenvInFolder(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".env.production"), []byte("HELLO=world\n"), 0o600); err != nil {
+	body := "HELLO=world\nsops_mac=ENC[AES256_GCM,data:.,tag:.=,type:str]\n"
+	if err := os.WriteFile(filepath.Join(dir, ".env.production"), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
