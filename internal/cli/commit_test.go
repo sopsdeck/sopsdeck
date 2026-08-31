@@ -40,6 +40,30 @@ func TestCommitStagesManagedFileAndRecordsMessage(t *testing.T) {
 	}
 }
 
+func TestCommitSkipsGpgWhenRepoAsksToSign(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "test@sopsdeck.example")
+	runGit(t, dir, "config", "user.name", "Sopsdeck Test")
+	runGit(t, dir, "config", "commit.gpgsign", "true")
+	runGit(t, dir, "config", "gpg.program", filepath.Join(dir, "would-hang"))
+
+	env := filepath.Join(dir, "hello.env")
+	src, err := os.ReadFile(testdata(t, "hello.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(env, src, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"commit", "-m", "unsigned", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)

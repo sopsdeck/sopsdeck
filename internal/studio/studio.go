@@ -502,7 +502,8 @@ func git(dir string, args ...string) error {
 }
 
 func gitOut(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+	gitArgs := append([]string{"-c", "commit.gpgsign=false"}, args...)
+	cmd := exec.Command("git", gitArgs...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

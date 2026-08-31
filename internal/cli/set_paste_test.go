@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -188,5 +189,27 @@ func TestSetStdinDoesNotLeakValuesInPreview(t *testing.T) {
 	}
 	if strings.Contains(combined, "supersecretvalue") {
 		t.Fatalf("output leaked secret value: %q", combined)
+	}
+}
+
+type fatalIfRead struct {
+	t *testing.T
+}
+
+func (r fatalIfRead) Read([]byte) (int, error) {
+	r.t.Fatal("stdin should not be read when KEY and VALUE are set")
+	return 0, io.EOF
+}
+
+func TestSetKeyValueDoesNotReadStdin(t *testing.T) {
+	envFile := pasteTestEnv(t)
+	var stdout, stderr bytes.Buffer
+	code := Main(
+		[]string{"set", "NEW", "from-args", "-f", envFile},
+		fatalIfRead{t: t},
+		&stdout, &stderr, os.Getenv,
+	)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
 	}
 }

@@ -280,7 +280,11 @@ func encryptPlainFile(file string, plain []byte, getenv func(string) string, key
 		},
 		Branches: branches,
 	}
-	tree.Metadata.EncryptedRegex = encryptedKeyRegex(keys)
+	regex := encryptedKeyRegex(keys)
+	if regex == "" && fileFormat(file) != formats.Dotenv {
+		regex = neverMatchRegex
+	}
+	tree.Metadata.EncryptedRegex = regex
 	if tree.Metadata.EncryptedRegex != "" {
 		tree.Metadata.UnencryptedSuffix = ""
 	}

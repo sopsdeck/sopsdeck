@@ -271,8 +271,10 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 }
 
 func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
-	if payload := readPaste(stdin); len(payload) > 0 {
-		return applyPaste(args, payload, stdout, stderr, getenv)
+	if len(setPositionals(args)) < 2 {
+		if payload := readPaste(stdin); len(payload) > 0 {
+			return applyPaste(args, payload, stdout, stderr, getenv)
+		}
 	}
 	_ = stdout
 	var key, value, file string
@@ -328,6 +330,22 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 		return setUnlocked(file, store, path, value, raw, stderr)
 	}
 	return setEncrypted(file, store, path, value, stderr)
+}
+
+func setPositionals(args []string) []string {
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-f", "--env-file":
+			i++
+		case "--yes":
+		default:
+			if !strings.HasPrefix(args[i], "-") {
+				positionals = append(positionals, args[i])
+			}
+		}
+	}
+	return positionals
 }
 
 func setUnlocked(file string, store sops.Store, path []interface{}, value string, raw []byte, stderr io.Writer) int {
@@ -987,8 +1005,16 @@ func cmdCommit(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+func gitCLIArgs(args []string) []string {
+	out := []string{"-c", "commit.gpgsign=false"}
+	if len(args) > 0 && args[0] == "commit" {
+		return append(append(out, "commit", "--no-gpg-sign"), args[1:]...)
+	}
+	return append(out, args...)
+}
+
 func runGitCmd(dir string, args ...string) error {
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command("git", gitCLIArgs(args)...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
