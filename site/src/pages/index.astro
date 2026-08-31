@@ -21,17 +21,14 @@ import SiteLayout from '../layouts/SiteLayout.astro';
         <a class="button ghost" href="#product">See how it works</a>
       </div>
     </div>
-    <video
-      class="hero-video"
-      autoplay
-      muted
-      loop
-      playsinline
-      poster="/assets/editor.png"
-      aria-label="Sopsdeck walkthrough from the product demo catalog"
-    >
-      <source src="/assets/walkthrough.webm" type="video/webm" />
-    </video>
+    <figure class="hero-still">
+      <img
+        src="/assets/editor.png"
+        width="1440"
+        height="900"
+        alt="Sopsdeck editor with a Production Managed File open"
+      />
+    </figure>
   </section>
 
   <section class="grid" id="product">
