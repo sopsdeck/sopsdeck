@@ -6,6 +6,11 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Added
 
+- Landing page and editor show that Sopsdeck is under development, with a link to open a GitHub issue.
+- The public docs are a user guide; landing feature cards open the matching guide sections.
+- Recipient add accepts a name or git identity (`Name <email>`). Project init records your Git identity in `.sopsdeck.toml` so teammates can see who you are.
+- Project owners in `.sopsdeck.toml`: only owners can add Recipients once owners are recorded.
+- `npx sopsdeck .` uses a single-Project sidebar without recents or extra folders.
 - Clipboard modal: on app focus, a sniffed secret, Age recipient, or absolute path opens a confirm modal — paste into the open Managed File, Grant Access, or open the folder as a Project.
 - `sopsdeck rename OLD NEW -f FILE` renames a key and rewrites whole-word references across the project; the editor offers the same cross-file rewrite on Encrypt & save.
 - `sopsdeck references -f FILE` lists each key with its reference count and files; `sopsdeck unused -f FILE` lists keys with zero references; the inspector shows an "unused" badge.
@@ -19,6 +24,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - Inspector sections collapse; reveal/hide values sits on the Value heading. Add secret is gone (composer remains).
 - Failed CLI commands append to `$SOPSDECK_STATE_DIR/errors.json`; repeats increment a count. Messages never include private keys or ciphertext.
 - `./scripts/dev` builds a fresh CLI and launches the browser app against it.
+- `./scripts/dev --team` shares one Git origin between Alice and Bob worktrees and prints those folders for the terminal.
 - `identity create` / `import` store the Age private key in the OS keychain; `SOPS_AGE_KEY_CMD='sopsdeck identity key'` decrypts. Existing `SOPS_AGE_KEY_FILE` still works.
 - Editor paste sniffs dotenv, JSON, or YAML and previews key names until Apply paste.
 - Local MCP (`sopsdeck mcp`) returns metadata by default; `get_value` needs approval; `run` returns exit status only.
@@ -59,6 +65,8 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Changed
 
+- Site nav says Changelog instead of Notes. The public roadmap page is gone.
+- The editor lock badge follows Locked / Unlocked instead of a static SOPS encrypted label.
 - Cipher seam mark is the site favicon, Open Graph image, and app icon master.
 - Changelog and What’s new use the product layout; primary actions have icons.
 - Browser app is now the only supported UI; the Tauri/Rust shell and its separate setup are removed.

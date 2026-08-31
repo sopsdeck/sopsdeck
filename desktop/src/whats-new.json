@@ -4,6 +4,31 @@
   "date": "",
   "notes": [
     {
+      "text": "Landing page and editor show that Sopsdeck is under development, with a link to open a GitHub issue.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "The public docs are a user guide; landing feature cards open the matching guide sections.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Recipient add accepts a name or git identity (`Name <email>`). Project init records your Git identity in `.sopsdeck.toml` so teammates can see who you are.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Project owners in `.sopsdeck.toml`: only owners can add Recipients once owners are recorded.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "`npx sopsdeck .` uses a single-Project sidebar without recents or extra folders.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Clipboard modal: on app focus, a sniffed secret, Age recipient, or absolute path opens a confirm modal — paste into the open Managed File, Grant Access, or open the folder as a Project.",
       "type": "feature",
       "platforms": []
@@ -73,6 +98,11 @@
     },
     {
       "text": "`./scripts/dev` builds a fresh CLI and launches the browser app against it.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "`./scripts/dev --team` shares one Git origin between Alice and Bob worktrees and prints those folders for the terminal.",
       "type": "feature",
       "platforms": []
     },
@@ -244,6 +274,16 @@
     {
       "text": "Browser breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.",
       "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Site nav says Changelog instead of Notes. The public roadmap page is gone.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "The editor lock badge follows Locked / Unlocked instead of a static SOPS encrypted label.",
+      "type": "changed",
       "platforms": []
     },
     {
