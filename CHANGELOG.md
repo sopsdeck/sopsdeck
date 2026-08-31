@@ -6,8 +6,12 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ### Added
 
-- Landing page and editor show that Sopsdeck is under development, with a link to open a GitHub issue.
-- The public docs are a user guide; landing feature cards open the matching guide sections.
+- Opening a Managed File without Access shows a recovery panel instead of a raw decrypt error.
+- JSON and YAML files open as a tree. Encrypt or leave plaintext per path, including after the file is already managed.
+- Account copies your Age public key and an Access request in the modal. The inspector no longer has a Request access button.
+- Clipboard prompts remember dismissed payloads so the same snippet does not keep interrupting.
+- Public docs are a user guide with a sidebar. Contributor pages (seams, features, assets, glossary, versioning) stay in the repo, not the site.
+- The site footer is a large lockup; the landing page has load animations.
 - Recipient add accepts a name or git identity (`Name <email>`). Project init records your Git identity in `.sopsdeck.toml` so teammates can see who you are.
 - Project owners in `.sopsdeck.toml`: only owners can add Recipients once owners are recorded.
 - `npx sopsdeck .` uses a single-Project sidebar without recents or extra folders.
