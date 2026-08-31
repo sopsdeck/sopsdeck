@@ -4,6 +4,9 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+### Fixed
+- Global and `npx` installs printed nothing for any command (including `-h` and `-v`) because the launcher's main-module check did not resolve the npm bin symlink.
+
 ## 0.1.0 - 2026-09-01
 
 ### Added

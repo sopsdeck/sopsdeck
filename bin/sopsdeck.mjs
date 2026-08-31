@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { realpathSync } from 'node:fs';
 import { access, chmod, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
@@ -238,7 +239,19 @@ async function main(args = process.argv.slice(2)) {
   return waitForChild(child);
 }
 
-if (import.meta.url === pathToFileURL(path.resolve(process.argv[1] || '')).href) {
+function isMainEntry() {
+  if (!process.argv[1]) return false;
+  let entry;
+  try {
+    entry = realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+
+  return pathToFileURL(entry).href === import.meta.url;
+}
+
+if (isMainEntry()) {
   try {
     process.exitCode = await main();
   } catch (error) {
