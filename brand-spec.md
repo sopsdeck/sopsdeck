@@ -2,7 +2,13 @@
 
 Canonical domain: **sopsdeck.com**
 
-Positioning: For developer teams, Sopsdeck is the local-first secrets workspace that makes SOPS-encrypted environments understandable and safe to manage—without moving trust away from the developer’s machine.
+Positioning: Sopsdeck helps individual developers and teams browse and edit SOPS-encrypted secrets.
+
+Headline: **A visual browser and editor for your secrets.**
+
+Subheadline: A simple, flexible way to manage SOPS-encrypted dotenv, JSON, and YAML files. Edit locally, share access with your team, and track changes in Git.
+
+Audience: **For individual developers and teams.**
 
 Attributes: precise, calm, developer-native.
 

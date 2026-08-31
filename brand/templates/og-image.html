@@ -47,8 +47,13 @@
         width: 44px;
         height: 44px;
       }
+      .logo,
+      h1,
+      p {
+        position: relative;
+      }
       .kicker {
-        margin: 100px 0 0;
+        margin: 64px 0 0;
         color: #46d6a8;
         font:
           600 13px/1 'IBM Plex Mono',
@@ -58,12 +63,13 @@
         text-transform: uppercase;
       }
       h1 {
-        max-width: 14ch;
+        max-width: 24ch;
         margin: 14px 0 0;
         font-size: 70px;
         font-weight: 800;
-        line-height: 0.96;
-        letter-spacing: -0.065em;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
       }
       p {
         margin: 24px 0 0;
@@ -88,7 +94,7 @@
       sopsdeck
     </div>
     <p class="kicker">sopsdeck.com</p>
-    <h1>Edit secrets locally. Ship them encrypted.</h1>
-    <p>Desktop and CLI for SOPS-encrypted configuration—without a hosted vault.</p>
+    <h1>A visual browser and editor for your secrets.</h1>
+    <p>Manage SOPS-encrypted files locally, on your own or with a team.</p>
   </body>
 </html>

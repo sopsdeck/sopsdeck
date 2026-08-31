@@ -1,6 +1,10 @@
 # Sopsdeck
 
-Local-first workspace for SOPS-encrypted config (dotenv, JSON, YAML). Canonical site: [sopsdeck.com](https://sopsdeck.com). Source: [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
+A visual browser and editor for your secrets.
+
+For individual developers and teams working with SOPS-encrypted dotenv, JSON, and YAML files. Edit locally, share access with your team, and track changes in Git.
+
+[sopsdeck.com](https://sopsdeck.com) · [Source on GitHub](https://github.com/sopsdeck/sopsdeck)
 
 ![Sopsdeck editor](docs/assets/editor.png)
 

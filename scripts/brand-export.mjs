@@ -130,7 +130,7 @@ writeFileSync(
   ]),
 );
 
-const site = join(root, 'site');
+const site = join(root, 'site/public');
 copyFileSync(join(svgDir, 'favicon.svg'), join(site, 'favicon.svg'));
 copyFileSync(join(svgDir, 'safari-mask.svg'), join(site, 'safari-mask.svg'));
 copyFileSync(join(outDir, 'favicon.ico'), join(site, 'favicon.ico'));

@@ -159,11 +159,11 @@ nav a[aria-current='page'] {
 }
 
 .hero--landing h1 {
-  max-width: 14ch;
+  max-width: 20ch;
   margin: 18px 0 16px;
   font-size: clamp(40px, 7vw, 72px);
-  line-height: 0.96;
-  letter-spacing: -0.06em;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
 }
 
 .hero p {

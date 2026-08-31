@@ -3,18 +3,17 @@ import SiteLayout from '../layouts/SiteLayout.astro';
 ---
 
 <SiteLayout
-  title="Sopsdeck — edit secrets locally, ship them encrypted"
-  description="Edit SOPS-encrypted dotenv, JSON, and YAML files locally. Grant access with public keys and commit encrypted changes to Git—without a hosted vault."
+  title="Sopsdeck — a visual browser and editor for your secrets"
+  description="A visual browser and editor for your secrets. Manage SOPS-encrypted dotenv, JSON, and YAML files locally, on your own or with a team."
   active="product"
 >
   <section class="hero hero--landing">
     <div class="hero-copy">
-      <div class="kicker">sopsdeck.com</div>
-      <h1>Edit secrets locally. Ship them encrypted.</h1>
+      <div class="kicker">For individual developers and teams</div>
+      <h1>A visual browser and editor for your secrets.</h1>
       <p>
-        Edit SOPS-encrypted dotenv, JSON, and YAML files in a local browser workspace. Grant access
-        with public keys, then commit encrypted changes to Git—no hosted vault or shared private
-        keys.
+        A simple, flexible way to manage SOPS-encrypted dotenv, JSON, and YAML files. Edit locally,
+        share access with your team, and track changes in Git.
       </p>
       <div class="actions">
         <a class="button primary" href="#start">Install with npm</a>
@@ -26,45 +25,45 @@ import SiteLayout from '../layouts/SiteLayout.astro';
         src="/assets/editor.png"
         width="1440"
         height="900"
-        alt="Sopsdeck editor with a Production Managed File open"
+        alt="Sopsdeck showing a production secrets file with values hidden"
       />
     </figure>
   </section>
 
   <section class="grid" id="product">
     <article class="card">
-      <div class="kicker">Source of truth</div>
-      <h2>Your files, on disk</h2>
+      <div class="kicker">SOPS</div>
+      <h2>Keep secrets in your project</h2>
       <p>
-        Projects are folders. Managed Files are dotenv, JSON, and YAML encrypted with SOPS. GitHub
-        and CI are destinations, not a second vault.
+        Work with dotenv, JSON, and YAML files encrypted with SOPS. Your local files are the source
+        of truth. Publish selected secrets to GitHub Actions when you need them.
       </p>
     </article>
     <article class="card">
       <div class="kicker">Access</div>
-      <h2>Public keys only</h2>
+      <h2>Share access with your team</h2>
       <p>
-        Teammates and CI receive Age public keys. Private keys never go in Git, chat, or a shared
-        <code class="mono">.env.keys</code> file.
+        Add a teammate’s Age public key to grant access to a file. Each person decrypts it with
+        their own private key.
       </p>
     </article>
     <article class="card">
       <div class="kicker">Git</div>
-      <h2>Sync, never force</h2>
+      <h2>Review and track changes</h2>
       <p>
-        Commit ciphertext, then Sync: fetch, fast-forward only, push. Diverged branches stop.
-        History stays encrypted until you open it.
+        Review edits before committing, browse secret history, and sync encrypted files through Git.
+        If branches diverge, Sopsdeck stops so you can resolve them.
       </p>
     </article>
   </section>
 
   <section class="split" id="trust">
     <div>
-      <div class="kicker">Workspace</div>
-      <h2>Folder-first, like a focused editor.</h2>
+      <div class="kicker">Editor</div>
+      <h2>All your projects in one editor</h2>
       <p>
-        One sidebar of project folders, files as leaves, values masked until you reveal them.
-        Encrypt &amp; save writes only to the local file. The WebView never holds keys on disk.
+        Open a project folder, choose a file, and edit its secrets. Values stay hidden until you
+        reveal them, and saving encrypts your changes on disk.
       </p>
     </div>
     <figure class="product-still">
@@ -72,19 +71,18 @@ import SiteLayout from '../layouts/SiteLayout.astro';
         src="/assets/editor.png"
         width="1440"
         height="900"
-        alt="Sopsdeck editor with a Production Managed File open"
+        alt="Project folders, a secrets editor, and access settings in Sopsdeck"
       />
-      <figcaption>Generated still from <code class="mono">./scripts/demo</code>.</figcaption>
+      <figcaption>Browse files, edit values, and manage access from the same view.</figcaption>
     </figure>
   </section>
 
   <section class="start" id="start">
     <div class="kicker">Install · macOS, Windows, and Linux</div>
-    <h2>One npm package. Your browser.</h2>
+    <h2>Open Sopsdeck in your browser</h2>
     <p>
-      Install Sopsdeck as a development dependency and run it from any project folder. The package
-      downloads the matching native runner on first launch; SOPS is embedded, so there is no Go,
-      Rust, Bun, Apple Developer account, or separate SOPS setup.
+      Install with npm, then open a project folder. SOPS is included; all you need is Node.js and
+      Git.
     </p>
     <pre>npm install -D sopsdeck
 npx sopsdeck .
@@ -92,9 +90,6 @@ npx sopsdeck .
 # global shortcut
 npm install -g sopsdeck
 sd .</pre>
-    <p>
-      SOPS v3.11.0 is bundled with the local runner. Git remains the only project-level system
-      dependency.
-    </p>
+    <p>The npm package downloads the matching local runner on first launch.</p>
   </section>
 </SiteLayout>

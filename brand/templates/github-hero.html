@@ -47,8 +47,13 @@
         width: 48px;
         height: 48px;
       }
+      .logo,
+      h1,
+      p {
+        position: relative;
+      }
       .kicker {
-        margin: 108px 0 0;
+        margin: 72px 0 0;
         color: #46d6a8;
         font:
           600 14px/1 'IBM Plex Mono',
@@ -58,15 +63,16 @@
         text-transform: uppercase;
       }
       h1 {
-        max-width: 14ch;
+        max-width: 24ch;
         margin: 16px 0 0;
         font-size: 76px;
         font-weight: 800;
-        line-height: 0.96;
-        letter-spacing: -0.065em;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
       }
       p {
-        max-width: 22ch;
+        max-width: 60ch;
         margin: 22px 0 0;
         color: rgba(247, 249, 252, 0.72);
         font-size: 22px;
@@ -89,8 +95,8 @@
       </svg>
       sopsdeck
     </div>
-    <p class="kicker">Local-first SOPS workspace</p>
-    <h1>Edit secrets locally. Ship them encrypted.</h1>
-    <p>Edit, grant access, and commit encrypted configuration—without a hosted vault.</p>
+    <p class="kicker">For individual developers and teams</p>
+    <h1>A visual browser and editor for your secrets.</h1>
+    <p>Manage SOPS-encrypted files locally. Share access and track changes in Git.</p>
   </body>
 </html>
