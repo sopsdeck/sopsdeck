@@ -4,6 +4,7 @@
 /bin/*
 !/bin/sopsdeck.mjs
 !/bin/sopsdeck.test.mjs
+.astro/
 site/.astro/
 site/.wrangler/
 site/dist/
