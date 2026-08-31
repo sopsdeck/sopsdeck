@@ -48,7 +48,8 @@
     {
       "id": "cli-get",
       "title": "get a value",
-      "cast": "cli-get.cast"
+      "cast": "cli-get.cast",
+      "video": "cli-overview.mp4"
     },
     {
       "id": "cli-set",
