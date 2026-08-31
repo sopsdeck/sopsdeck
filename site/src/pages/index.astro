@@ -7,6 +7,10 @@ import SiteLayout from '../layouts/SiteLayout.astro';
   description="A visual browser and editor for your secrets. Manage SOPS-encrypted dotenv, JSON, and YAML files locally, on your own or with a team."
   active="product"
 >
+  <p class="dev-banner" data-testid="site-dev-banner">
+    Sopsdeck is under development. Expect rough edges.
+    <a href="https://github.com/sopsdeck/sopsdeck/issues/new">Submit a GitHub issue</a>
+  </p>
   <section class="hero hero--landing">
     <div class="hero-copy">
       <div class="kicker">For individual developers and teams</div>
@@ -17,7 +21,7 @@ import SiteLayout from '../layouts/SiteLayout.astro';
       </p>
       <div class="actions">
         <a class="button primary" href="#start">Install with npm</a>
-        <a class="button ghost" href="#product">See how it works</a>
+        <a class="button ghost" href="#features">See how it works</a>
       </div>
     </div>
     <figure class="hero-still">
@@ -30,51 +34,88 @@ import SiteLayout from '../layouts/SiteLayout.astro';
     </figure>
   </section>
 
-  <section class="grid" id="product">
-    <article class="card">
-      <div class="kicker">SOPS</div>
-      <h2>Keep secrets in your project</h2>
-      <p>
-        Work with dotenv, JSON, and YAML files encrypted with SOPS. Your local files are the source
-        of truth. Publish selected secrets to GitHub Actions when you need them.
-      </p>
-    </article>
-    <article class="card">
-      <div class="kicker">Access</div>
-      <h2>Share access with your team</h2>
-      <p>
-        Add a teammate’s Age public key to grant access to a file. Each person decrypts it with
-        their own private key.
-      </p>
-    </article>
-    <article class="card">
-      <div class="kicker">Git</div>
-      <h2>Review and track changes</h2>
-      <p>
-        Review edits before committing, browse secret history, and sync encrypted files through Git.
-        If branches diverge, Sopsdeck stops so you can resolve them.
-      </p>
-    </article>
+  <section class="features" id="features">
+    <div class="kicker">Features</div>
+    <h2>What you can do</h2>
+    <p class="features-lede">Each card opens the matching section in the guide.</p>
+    <div class="feature-grid">
+      <a class="card card-link" href="/docs/guide.html#rename-keys">
+        <div class="kicker">Rename</div>
+        <h3>Update references when keys change</h3>
+        <p>
+          Rename a secret and rewrite <code>KEY</code>, <code>$KEY</code>, and
+          <code>${'${KEY}'}</code> across the Project so application code keeps matching.
+        </p>
+      </a>
+      <a class="card card-link" href="/docs/guide.html#lock-files">
+        <div class="kicker">Disk</div>
+        <h3>Lock and unlock files</h3>
+        <p>
+          Unlock writes plaintext for local tools. Lock encrypts again. The editor badge follows
+          that state.
+        </p>
+      </a>
+      <a class="card card-link" href="/docs/guide.html#unused-secrets">
+        <div class="kicker">Scan</div>
+        <h3>Unused secret detection</h3>
+        <p>
+          Keys with zero references in the Project show an unused badge so you can clean up
+          leftovers.
+        </p>
+      </a>
+      <a class="card card-link" href="/docs/guide.html#secret-history">
+        <div class="kicker">Git</div>
+        <h3>View each version of a secret or file</h3>
+        <p>
+          Browse file history and a single key’s revisions. Restore a revision without committing
+          it.
+        </p>
+      </a>
+      <a class="card card-link" href="/docs/guide.html#field-encryption">
+        <div class="kicker">JSON / YAML</div>
+        <h3>Encrypt specific fields</h3>
+        <p>
+          Encrypt only the leaves you choose in <code>package.json</code>, <code>eas.json</code>, or
+          Compose YAML. The rest stays plaintext.
+        </p>
+      </a>
+      <a class="card card-link" href="/docs/guide.html#access">
+        <div class="kicker">Access</div>
+        <h3>Share access with your team</h3>
+        <p>
+          Add a teammate’s Age public key, or copy a request that includes yours. Project owners
+          approve new people.
+        </p>
+      </a>
+    </div>
   </section>
 
-  <section class="split" id="trust">
+  <section class="split" id="encrypted-in-place">
     <div>
-      <div class="kicker">Editor</div>
-      <h2>All your projects in one editor</h2>
+      <div class="kicker">SOPS</div>
+      <h2>Keys stay readable. Values encrypt in place.</h2>
       <p>
-        Open a project folder, choose a file, and edit its secrets. Values stay hidden until you
-        reveal them, and saving encrypts your changes on disk.
+        A locked file is still JSON, YAML, or dotenv. Unencrypted fields and key names are
+        plaintext. Only the values you selected become <code>ENC[…]</code>.
+      </p>
+      <p>
+        <a href="/docs/guide.html#encrypted-in-place">See how a locked file looks</a>
       </p>
     </div>
-    <figure class="product-still">
-      <img
-        src="/assets/editor.png"
-        width="1440"
-        height="900"
-        alt="Project folders, a secrets editor, and access settings in Sopsdeck"
-      />
-      <figcaption>Browse files, edit values, and manage access from the same view.</figcaption>
-    </figure>
+    <pre
+      class="encrypted-snippet"
+      aria-label="Locked eas.json example"><code>{`{
+  "cli": { "version": "20.5.1" },
+  "build": {
+    "env": {
+      "EXPO_PUBLIC_API_URL": "https://api.example.com",
+      "EXPO_TOKEN": "ENC[AES256_GCM,data:m4nY8pQ=,type:str]"
+    }
+  },
+  "sops": {
+    "age": [{ "recipient": "age1…" }]
+  }
+}`}</code></pre>
   </section>
 
   <section class="start" id="start">

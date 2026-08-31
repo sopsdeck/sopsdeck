@@ -17,4 +17,4 @@ printf '== go test ==\n'
 go test ./cmd/... ./internal/...
 
 printf '== bun test ==\n'
-bun test bin/sopsdeck.test.mjs desktop/src scripts/changelog-notes.test.js scripts/release-artifacts.test.js
+bun test bin/sopsdeck.test.mjs desktop/src scripts/changelog-notes.test.js scripts/release-artifacts.test.js scripts/site-pages.test.js

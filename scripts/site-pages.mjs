@@ -6,13 +6,21 @@ export function escapeHtml(text) {
     .replaceAll('"', '&quot;');
 }
 
+export function headingId(text) {
+  return String(text)
+    .toLowerCase()
+    .replaceAll(/`([^`]+)`/g, '$1')
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-+|-+$/g, '');
+}
+
 export function rewriteDocHrefs(href) {
   const trimmed = href.trim();
   const hash = trimmed.indexOf('#');
   const path = hash === -1 ? trimmed : trimmed.slice(0, hash);
   const suffix = hash === -1 ? '' : trimmed.slice(hash);
   if (path.includes('.scratch')) {
-    return `/roadmap.html${suffix}`;
+    return `/docs/${suffix}`;
   }
 
   const base = path.split('/').pop() ?? path;
@@ -128,7 +136,9 @@ export function mdToHtml(md) {
     if (heading) {
       closeList();
       const level = heading[1].length;
-      out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+      const title = heading[2];
+      const id = headingId(title);
+      out.push(`<h${level} id="${escapeHtml(id)}">${inline(title)}</h${level}>`);
       i += 1;
       continue;
     }
@@ -368,7 +378,7 @@ export function sitePage({ title, kicker, heading, lede, body, base, active }) {
         <nav>
           <a href="${productHref}"${active === 'product' ? ' aria-current="page"' : ''}>Product</a>
           <a href="${docsHref}"${active === 'docs' ? ' aria-current="page"' : ''}>Docs</a>
-          <a href="${notesHref}"${active === 'notes' ? ' aria-current="page"' : ''}>Notes</a>
+          <a href="${notesHref}"${active === 'notes' ? ' aria-current="page"' : ''}>Changelog</a>
         </nav>
       </header>
       <section class="hero">

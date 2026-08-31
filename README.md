@@ -85,7 +85,7 @@ Pipe dotenv, JSON, or YAML into `set -f FILE` for a paste preview; `--yes` write
 
 `publish` talks to `SOPSDECK_GITHUB_API` (real GitHub or the in-process fake). Auth is `GH_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`. Without `--yes` it is a dry-run.
 
-`./sopsdeck --version` matches the npm launcher. Notes are [CHANGELOG.md](CHANGELOG.md); bump rules are [docs/versioning.md](docs/versioning.md).
+`./sopsdeck --version` matches the npm launcher. Changelog is [CHANGELOG.md](CHANGELOG.md); bump rules are [docs/versioning.md](docs/versioning.md).
 
 ## Drive the app from code
 
@@ -100,8 +100,11 @@ The browser UI is served by `sopsdeck drive` on localhost and accepts its invoke
 ```bash
 ./scripts/smoke   # studio teammate tests + Playwright against drive --demo
 ./scripts/demo    # stills, clips, walkthrough, and CLI casts into docs/assets/
+./scripts/cli-video.mjs  # regenerate the Castkit CLI MP4 and site copy
 ./scripts/demo --check  # files exist, are linked, and clips are ≥ 1s (not in ./scripts/check)
 ```
+
+`cli-video.mjs` uses the current Castkit flow (`handoff`, `validate`, `execute`). Set `CASTKIT_RENDERER_HOME` to Castkit's `renderer-runtime` directory if it is not in the repo root.
 
 `./scripts/smoke` is not part of `./scripts/check` (browsers, slower).
 
@@ -115,7 +118,27 @@ Build the Go runner and launch the browser app:
 
 `./scripts/dev --build-only` stops after `go build`. `SOPSDECK_DEV_PROJECT` auto-opens a folder. `testdata/age.txt` is a throwaway test key, not a personal identity.
 
-`./scripts/dev --team` opens isolated Alice and Bob demo instances on ports 4174 and 4175. Each uses a separate demo identity, temporary Git and Sopsdeck state, and its own Chrome profile, so it cannot change the host Git identity.
+`./scripts/dev --team` builds a shared local studio at `test-results/team` and opens Alice and Bob on ports 4174 and 4175. Each has an isolated home; **`checkout` is cloned into both**:
+
+- Alice: `test-results/team/alice-home/checkout`
+- Bob: `test-results/team/bob-home/checkout`
+
+Do not open the same folder in both windows. Sync in Alice, then Sync in Bob.
+
+The script prints the folders. `cd` into a clone, then source that person's env file before running the CLI:
+
+```bash
+set -a && . test-results/team/alice.env && set +a
+./sopsdeck run -f test-results/team/alice-home/checkout/.env.production -- printenv STRIPE_SECRET
+```
+
+Alice initializes the Project and grants Bob (his public key is prefilled). `./scripts/dev --team --reset` wipes the studio and starts over. Another shared Project, cloned into both homes:
+
+```bash
+./sopsdeck team project test-results/team myapp
+```
+
+That creates `alice-home/myapp` and `bob-home/myapp`. Add each path only in that person's window.
 
 ## Landing page
 
@@ -125,7 +148,7 @@ Release assets include native runners for macOS, Windows, and Linux (`sopsdeck-d
 bun run site:dev
 ```
 
-Open the printed local URL — [changelog.html](site/src/pages/changelog.html.astro) is rendered from `CHANGELOG.md`. Docs are at [site/src/pages/docs/](site/src/pages/docs/), and the roadmap is at `/roadmap.html`. Clone from [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
+Open the printed local URL — [changelog.html](site/src/pages/changelog.html.astro) is rendered from `CHANGELOG.md`. Docs are at [site/src/pages/docs/](site/src/pages/docs/). Clone from [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
 
 Build and deploy the Astro site with Wrangler (Cloudflare Workers; custom domain sopsdeck.com in the dashboard):
 

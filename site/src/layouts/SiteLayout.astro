@@ -44,10 +44,9 @@ const canonical = `https://sopsdeck.com${Astro.url.pathname}`;
         <nav aria-label="Primary">
           <a href="/" aria-current={active === 'product' ? 'page' : undefined}>Product</a>
           <a href="/docs/" aria-current={active === 'docs' ? 'page' : undefined}>Docs</a>
-          <a href="/roadmap.html" aria-current={active === 'roadmap' ? 'page' : undefined}
-            >Roadmap</a
+          <a href="/changelog.html" aria-current={active === 'notes' ? 'page' : undefined}
+            >Changelog</a
           >
-          <a href="/changelog.html" aria-current={active === 'notes' ? 'page' : undefined}>Notes</a>
         </nav>
       </header>
       <slot />

@@ -31,9 +31,10 @@ test('npm package exposes browser launcher aliases', () => {
 });
 
 test('landing page documents the npm browser install', () => {
-  expect(landing).toContain('walkthrough.webm');
+  expect(landing).toContain('/assets/editor.png');
   expect(landing).toContain('npm install -D sopsdeck');
   expect(landing).toContain('npx sopsdeck .');
+  expect(landing).toContain('/docs/guide.html#rename-keys');
 });
 
 test('site uses the Astro Cloudflare adapter', () => {

@@ -233,7 +233,8 @@ nav a[aria-current='page'] {
   box-shadow: 0 1px 0 rgb(16 24 40 / 4%);
 }
 
-.card h2 {
+.card h2,
+.card h3 {
   margin: 8px 0 10px;
   font-size: 22px;
   letter-spacing: -0.03em;
@@ -241,9 +242,93 @@ nav a[aria-current='page'] {
 
 .card p,
 .split p,
-.start > p {
+.start > p,
+.features-lede {
   margin: 0;
   color: var(--slate);
+}
+
+.card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.card-link:hover,
+.card-link:focus-visible {
+  color: inherit;
+  border-color: var(--blue);
+}
+
+.card-link:active {
+  transform: scale(0.98);
+}
+
+.features {
+  margin: 36px 0 64px;
+}
+
+.features h2 {
+  margin: 8px 0 10px;
+  font-size: 32px;
+  letter-spacing: -0.04em;
+}
+
+.features-lede {
+  margin-bottom: 22px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.dev-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin: 0 0 22px;
+  padding: 10px 16px;
+  color: var(--ink);
+  background: #fff6d6;
+  border: 1px solid rgb(245 197 24 / 45%);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dev-banner a {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.encrypted-snippet {
+  margin: 0;
+  padding: 18px 20px;
+  overflow: auto;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 16px;
+  font:
+    12px/1.5 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
+
+.encrypted-snippet code {
+  font: inherit;
+}
+
+.prose h2,
+.prose h3 {
+  scroll-margin-top: 24px;
 }
 
 .split {
@@ -470,23 +555,6 @@ pre {
   min-width: 0;
 }
 
-.roadmap {
-  font-size: 12px;
-}
-
-.roadmap-status {
-  display: inline-block;
-  padding: 2px 7px;
-  color: var(--blue);
-  border-radius: 99px;
-  background: rgb(49 87 246 / 10%);
-  font:
-    600 10px 'IBM Plex Mono',
-    ui-monospace,
-    monospace;
-  white-space: nowrap;
-}
-
 footer {
   display: flex;
   justify-content: space-between;
@@ -500,6 +568,7 @@ footer {
 @media (max-width: 800px) {
   .grid,
   .split,
+  .feature-grid,
   .hero--landing {
     grid-template-columns: 1fr;
   }
@@ -524,12 +593,6 @@ footer {
   .note-platforms {
     grid-column: 2;
     justify-self: start;
-  }
-
-  .roadmap {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
   }
 
   footer {
