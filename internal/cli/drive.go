@@ -16,16 +16,28 @@ import (
 )
 
 type invokeReq struct {
-	Cmd       string `json:"cmd"`
-	Path      string `json:"path"`
-	Key       string `json:"key"`
-	Value     string `json:"value"`
-	Message   string `json:"message"`
-	PublicKey string `json:"publicKey"`
-	Prefix    string `json:"prefix"`
-	Yes       bool   `json:"yes"`
-	Prune     bool   `json:"prune"`
-	At        string `json:"at"`
+	Cmd         string             `json:"cmd"`
+	Path        string             `json:"path"`
+	Key         string             `json:"key"`
+	Value       string             `json:"value"`
+	Text        string             `json:"text"`
+	Name        string             `json:"name"`
+	Kind        string             `json:"kind"`
+	Scope       string             `json:"scope"`
+	Org         string             `json:"org"`
+	Repo        string             `json:"repo"`
+	Environment string             `json:"environment"`
+	Visibility  string             `json:"visibility"`
+	Message     string             `json:"message"`
+	Email       string             `json:"email"`
+	PublicKey   string             `json:"publicKey"`
+	Prefix      string             `json:"prefix"`
+	Yes         bool               `json:"yes"`
+	Prune       bool               `json:"prune"`
+	At          string             `json:"at"`
+	Files       []projectSelection `json:"files"`
+	File        string             `json:"file"`
+	Keys        []string           `json:"keys"`
 }
 
 type demoInfo struct {
@@ -80,7 +92,11 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 	}
 	handler := &drive{uiRoot: uiRoot, getenv: getenv}
 	if demo {
-		info, getenvDemo, err := seedDemo()
+		demoUser := getenv("SOPSDECK_DEMO_USER")
+		if demoUser == "" {
+			demoUser = "checkout"
+		}
+		info, getenvDemo, err := seedDemoFor(demoUser)
 		if err != nil {
 			fmt.Fprintf(stderr, "drive: %v\n", err)
 			return 1
@@ -102,6 +118,10 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 }
 
 func seedDemo() (*demoInfo, func(string) string, error) {
+	return seedDemoFor("checkout")
+}
+
+func seedDemoFor(demoUser string) (*demoInfo, func(string) string, error) {
 	dir, err := os.MkdirTemp("", "sopsdeck-demo-")
 	if err != nil {
 		return nil, nil, err
@@ -110,11 +130,18 @@ func seedDemo() (*demoInfo, func(string) string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	alice, err := st.User("checkout", "alice@sopsdeck.example")
+	if demoUser == "" {
+		demoUser = "checkout"
+	}
+	alice, err := st.User(demoUser, demoUser+"@sopsdeck.example")
 	if err != nil {
 		return nil, nil, err
 	}
-	bob, err := st.Identity("bob", "bob@sopsdeck.example")
+	teammate := "bob"
+	if demoUser == teammate {
+		teammate = "alice"
+	}
+	bob, err := st.Identity(teammate, teammate+"@sopsdeck.example")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -265,8 +292,50 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 	switch req.Cmd {
 	case "list_managed_files":
 		return managed.List(req.Path)
+	case "inspect_project":
+		return invokeProject([]string{"files", req.Path}, getenv)
+	case "initialize_project":
+		args := []string{"init", req.Path}
+		for _, file := range req.Files {
+			args = append(args, "--file", file.Path)
+			if len(file.Keys) > 0 {
+				args = append(args, "--keys", strings.Join(file.Keys, ","))
+			}
+		}
+		return invokeProject(args, getenv)
+	case "add_project_file":
+		args := []string{"add", req.Path, "--file", req.File}
+		if len(req.Keys) > 0 {
+			args = append(args, "--keys", strings.Join(req.Keys, ","))
+		}
+		return invokeProject(args, getenv)
 	case "get_managed_file":
 		return invokeGet(req.Path, req.At)
+	case "get_managed_file_contents":
+		return invokeContents(req.Path)
+	case "copy_text":
+		return nil, copyToClipboard(req.Text)
+	case "get_managed_file_status":
+		return invokeFileStatus(req.Path)
+	case "get_account":
+		return accountForPath(req.Path, getenv), nil
+	case "configure_account":
+		if err := configureGitIdentity(req.Path, req.Name, req.Email); err != nil {
+			return nil, err
+		}
+		return accountForPath(req.Path, getenv), nil
+	case "create_user_identity":
+		return invokeCreateUserIdentity(req.Path, getenv)
+	case "list_file_access":
+		return invokeRecipientList(req.Path, getenv)
+	case "create_robot_identity":
+		return invokeRobot(req.Name)
+	case "configure_integration":
+		return nil, configureIntegration(req.Path, req.Scope, req.Repo, req.Org, req.Environment, req.Prefix, req.Visibility)
+	case "unlock_managed_file":
+		return nil, invokeFileLock("unlock", req.Path, getenv)
+	case "lock_managed_file":
+		return nil, invokeFileLock("lock", req.Path, getenv)
 	case "set_managed_key":
 		return nil, invokeSet(req, getenv)
 	case "del_managed_key":
@@ -304,6 +373,21 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 	}
 }
 
+func invokeProject(args []string, getenv func(string) string) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdProject(args, &stdout, &stderr, getenv), &stderr); err != nil {
+		return nil, err
+	}
+	if args[0] == "init" || args[0] == "add" {
+		return strings.TrimSpace(stdout.String()), nil
+	}
+	var state projectState
+	if err := json.Unmarshal([]byte(stdout.String()), &state); err != nil {
+		return nil, err
+	}
+	return state, nil
+}
+
 func cliErr(code int, stderr *strings.Builder) error {
 	if code != 0 {
 		msg := strings.TrimSpace(stderr.String())
@@ -331,6 +415,58 @@ func invokeGet(path, at string) (any, error) {
 		out = append(out, map[string]string{"key": key, "value": value})
 	}
 	return out, nil
+}
+
+func invokeContents(path string) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdGet([]string{"-f", path}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	return stdout.String(), nil
+}
+
+func invokeFileStatus(path string) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdFileStatus([]string{"-f", path}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	var status map[string]bool
+	if err := json.Unmarshal([]byte(stdout.String()), &status); err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+func invokeFileLock(action, path string, getenv func(string) string) error {
+	var stderr strings.Builder
+	if action == "unlock" {
+		return cliErr(cmdUnlock([]string{"-f", path}, io.Discard, &stderr), &stderr)
+	}
+	return cliErr(cmdLock([]string{"-f", path}, io.Discard, &stderr, getenv), &stderr)
+}
+
+func invokeRecipientList(path string, getenv func(string) string) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdRecipient([]string{"list", "-f", path}, &stdout, &stderr, getenv), &stderr); err != nil {
+		return nil, err
+	}
+	var list []accessRecipient
+	if err := json.Unmarshal([]byte(stdout.String()), &list); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func invokeRobot(name string) (any, error) {
+	var stdout, stderr strings.Builder
+	if err := cliErr(cmdRobot([]string{"create", name}, &stdout, &stderr), &stderr); err != nil {
+		return nil, err
+	}
+	var robot robotIdentity
+	if err := json.Unmarshal([]byte(stdout.String()), &robot); err != nil {
+		return nil, err
+	}
+	return robot, nil
 }
 
 func invokeSet(req invokeReq, getenv func(string) string) error {
@@ -384,7 +520,14 @@ func (d *drive) invokeSync(path string) error {
 
 func invokeRecipientAdd(req invokeReq, getenv func(string) string) error {
 	var stderr strings.Builder
-	return cliErr(cmdRecipient([]string{"add", req.PublicKey, "-f", req.Path}, io.Discard, &stderr, getenv), &stderr)
+	args := []string{"add", req.PublicKey, "-f", req.Path}
+	if req.Name != "" {
+		args = append(args, "--name", req.Name)
+	}
+	if req.Kind != "" {
+		args = append(args, "--kind", req.Kind)
+	}
+	return cliErr(cmdRecipient(args, io.Discard, &stderr, getenv), &stderr)
 }
 
 func invokeRecipientRemove(req invokeReq, getenv func(string) string) (any, error) {
@@ -397,6 +540,11 @@ func invokeRecipientRemove(req invokeReq, getenv func(string) string) (any, erro
 
 func invokePublish(req invokeReq, getenv func(string) string) (any, error) {
 	args := []string{"-f", req.Path}
+	for _, option := range [][2]string{{"--scope", req.Scope}, {"--repo", req.Repo}, {"--org", req.Org}, {"--environment", req.Environment}, {"--visibility", req.Visibility}} {
+		if option[1] != "" {
+			args = append(args, option[0], option[1])
+		}
+	}
 	if req.Prefix != "" {
 		args = append(args, "--prefix", req.Prefix)
 	}

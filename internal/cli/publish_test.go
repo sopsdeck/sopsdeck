@@ -18,6 +18,31 @@ import (
 	"sopsdeck/internal/studio"
 )
 
+func TestGitHubSecretURLsForScopes(t *testing.T) {
+	base := "https://api.github.test"
+	tests := []struct {
+		name   string
+		target publishTarget
+		secret string
+		want   string
+	}{
+		{name: "repository", target: publishTarget{Scope: "repo", Repo: "acme/app"}, secret: "SD_TOKEN", want: base + "/repos/acme/app/actions/secrets/SD_TOKEN"},
+		{name: "organization", target: publishTarget{Scope: "org", Org: "acme"}, secret: "SD_TOKEN", want: base + "/orgs/acme/actions/secrets/SD_TOKEN"},
+		{name: "environment", target: publishTarget{Scope: "environment", Repo: "acme/app", Environment: "production"}, secret: "SD_TOKEN", want: base + "/repos/acme/app/environments/production/secrets/SD_TOKEN"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := secretURL(base, tt.target, tt.secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("url=%q want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPublishSealsValuesWithGitHubPublicKey(t *testing.T) {
 	publicKey, privateKey, err := box.GenerateKey(rand.Reader)
 	if err != nil {

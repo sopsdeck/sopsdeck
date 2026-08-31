@@ -1,9 +1,11 @@
 mod managed;
 mod sidecar;
 
+use std::io::Write;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri_plugin_dialog::DialogExt;
 
 use managed::ManagedFile;
@@ -13,6 +15,12 @@ use sidecar::{git_root, run_sopsdeck, run_sopsdeck_in};
 struct Pair {
     key: String,
     value: String,
+}
+
+#[derive(Deserialize)]
+struct ProjectSelection {
+    path: String,
+    keys: Vec<String>,
 }
 
 // Tauri runs a synchronous #[tauri::command] on the main UI thread, so any
@@ -28,10 +36,159 @@ async fn list_managed_files(path: String) -> Result<Vec<ManagedFile>, String> {
 }
 
 #[tauri::command]
+async fn inspect_project(path: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        let out = run_sopsdeck(&["project", "files", &path])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn initialize_project(path: String, files: Vec<ProjectSelection>) -> Result<String, String> {
+    run_blocking(move || {
+        let mut args = vec!["project".to_string(), "init".to_string(), path];
+        for file in files {
+            args.push("--file".to_string());
+            args.push(file.path);
+            if !file.keys.is_empty() {
+                args.push("--keys".to_string());
+                args.push(file.keys.join(","));
+            }
+        }
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        run_sopsdeck(&refs).map(|out| out.trim().to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn add_project_file(path: String, file: String, keys: Vec<String>) -> Result<String, String> {
+    run_blocking(move || {
+        let keys = keys.join(",");
+        let args = if keys.is_empty() {
+            vec!["project", "add", &path, "--file", &file]
+        } else {
+            vec!["project", "add", &path, "--file", &file, "--keys", &keys]
+        };
+        run_sopsdeck(&args).map(|out| out.trim().to_string())
+    })
+    .await
+}
+
+#[tauri::command]
 async fn get_managed_file(path: String, at: Option<String>) -> Result<Vec<Pair>, String> {
     tauri::async_runtime::spawn_blocking(move || load_pairs(&path, at))
         .await
         .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn get_managed_file_contents(path: String) -> Result<String, String> {
+    run_blocking(move || run_sopsdeck(&["get", "-f", &path])).await
+}
+
+#[tauri::command]
+async fn copy_text(text: String) -> Result<(), String> {
+    run_blocking(move || copy_to_clipboard(&text)).await
+}
+
+#[tauri::command]
+async fn get_managed_file_status(path: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        let out = run_sopsdeck(&["status", "-f", &path])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_account(path: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        let out = run_sopsdeck(&["account", "show", "-f", &path])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn configure_account(
+    path: String,
+    name: String,
+    email: String,
+) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        run_sopsdeck(&["account", "configure", &name, &email, "-f", &path])?;
+        let out = run_sopsdeck(&["account", "show", "-f", &path])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn create_user_identity(path: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        run_sopsdeck(&["identity", "create", "--confirmed-backup"])?;
+        let out = run_sopsdeck(&["account", "show", "-f", &path])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn list_file_access(path: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        let out = run_sopsdeck(&["recipient", "list", "-f", &path])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn create_robot_identity(name: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        let out = run_sopsdeck(&["robot", "create", &name])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn configure_integration(
+    path: String,
+    scope: String,
+    repo: String,
+    org: String,
+    environment: String,
+    prefix: String,
+    visibility: String,
+) -> Result<(), String> {
+    run_blocking(move || {
+        let args = [
+            "configure_integration",
+            &path,
+            &scope,
+            &repo,
+            &org,
+            &environment,
+            &prefix,
+            &visibility,
+        ];
+        run_sopsdeck(&args).map(|_| ())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn unlock_managed_file(path: String) -> Result<String, String> {
+    run_blocking(move || run_sopsdeck(&["unlock", "-f", &path]).map(|out| out.trim().to_string()))
+        .await
+}
+
+#[tauri::command]
+async fn lock_managed_file(path: String) -> Result<String, String> {
+    run_blocking(move || run_sopsdeck(&["lock", "-f", &path]).map(|out| out.trim().to_string()))
+        .await
 }
 
 fn load_pairs(path: &str, at: Option<String>) -> Result<Vec<Pair>, String> {
@@ -75,6 +232,12 @@ async fn del_managed_key(path: String, key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn rename_key(path: String, key: String, value: String) -> Result<(), String> {
+    run_blocking(move || run_sopsdeck(&["rename", &key, &value, "-f", &path, "--yes"]).map(|_| ()))
+        .await
+}
+
+#[tauri::command]
 async fn create_managed_file(path: String) -> Result<(), String> {
     run_blocking(move || run_sopsdeck(&["set", "-f", &path]).map(|_| ())).await
 }
@@ -98,9 +261,30 @@ async fn sync_project(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn add_recipient(path: String, public_key: String) -> Result<(), String> {
-    run_blocking(move || run_sopsdeck(&["recipient", "add", &public_key, "-f", &path]).map(|_| ()))
-        .await
+async fn add_recipient(
+    path: String,
+    public_key: String,
+    name: Option<String>,
+    kind: Option<String>,
+) -> Result<(), String> {
+    run_blocking(move || {
+        let mut args = vec![
+            "recipient".to_string(),
+            "add".to_string(),
+            public_key,
+            "-f".to_string(),
+            path,
+        ];
+        if let Some(name) = name.filter(|value| !value.trim().is_empty()) {
+            args.extend(["--name".to_string(), name]);
+        }
+        if let Some(kind) = kind.filter(|value| !value.trim().is_empty()) {
+            args.extend(["--kind".to_string(), kind]);
+        }
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        run_sopsdeck(&refs).map(|_| ())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -134,17 +318,54 @@ async fn restore_managed_file(path: String, at: String) -> Result<(), String> {
 async fn publish_managed_file(
     path: String,
     prefix: String,
+    scope: String,
+    repo: String,
+    org: String,
+    environment: String,
+    visibility: String,
     yes: bool,
     prune: bool,
 ) -> Result<String, String> {
-    run_blocking(move || publish(&path, &prefix, yes, prune)).await
+    run_blocking(move || {
+        publish(
+            &path,
+            &prefix,
+            &scope,
+            &repo,
+            &org,
+            &environment,
+            &visibility,
+            yes,
+            prune,
+        )
+    })
+    .await
 }
 
-fn publish(path: &str, prefix: &str, yes: bool, prune: bool) -> Result<String, String> {
+fn publish(
+    path: &str,
+    prefix: &str,
+    scope: &str,
+    repo: &str,
+    org: &str,
+    environment: &str,
+    visibility: &str,
+    yes: bool,
+    prune: bool,
+) -> Result<String, String> {
     let mut args = vec!["publish".to_string(), "-f".to_string(), path.to_string()];
-    if !prefix.is_empty() {
-        args.push("--prefix".to_string());
-        args.push(prefix.to_string());
+    for (option, value) in [
+        ("--prefix", prefix),
+        ("--scope", scope),
+        ("--repo", repo),
+        ("--org", org),
+        ("--environment", environment),
+        ("--visibility", visibility),
+    ] {
+        if !value.is_empty() {
+            args.push(option.to_string());
+            args.push(value.to_string());
+        }
     }
     if yes {
         args.push("--yes".to_string());
@@ -196,6 +417,36 @@ fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let mut command = Command::new("pbcopy");
+    #[cfg(target_os = "windows")]
+    let mut command = Command::new("clip");
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = Command::new("xclip");
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    command.args(["-selection", "clipboard"]);
+    let mut child = command
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("native clipboard: {error}"))?;
+    let mut input = child
+        .stdin
+        .take()
+        .ok_or_else(|| "native clipboard: stdin unavailable".to_string())?;
+    input
+        .write_all(text.as_bytes())
+        .map_err(|error| format!("native clipboard: {error}"))?;
+    drop(input);
+    child
+        .wait()
+        .map_err(|error| format!("native clipboard: {error}"))?
+        .success()
+        .then_some(())
+        .ok_or_else(|| "native clipboard: command failed".to_string())
+}
+
 // run_blocking runs a blocking closure on Tauri's blocking pool and flattens
 // the JoinError into the command's String error type.
 async fn run_blocking<F, T>(f: F) -> Result<T, String>
@@ -214,9 +465,24 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             list_managed_files,
+            inspect_project,
+            initialize_project,
+            add_project_file,
             get_managed_file,
+            get_managed_file_contents,
+            copy_text,
+            get_managed_file_status,
+            get_account,
+            configure_account,
+            create_user_identity,
+            list_file_access,
+            create_robot_identity,
+            configure_integration,
+            unlock_managed_file,
+            lock_managed_file,
             set_managed_key,
             del_managed_key,
+            rename_key,
             create_managed_file,
             commit_managed_file,
             sync_project,

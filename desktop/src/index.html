@@ -66,7 +66,24 @@
               <h1 id="headline" data-testid="headline">Sopsdeck</h1>
               <p id="subline" class="subline">Encrypted files stay on this machine</p>
             </div>
-            <span id="badge" class="encrypted" hidden>SOPS encrypted</span>
+            <div class="headline-actions">
+              <button
+                id="account"
+                class="account-button"
+                type="button"
+                data-testid="account"
+                aria-label="Open account"
+                title="Open account"
+              >
+                <span
+                  id="account-avatar"
+                  class="identity-avatar identity-avatar-small"
+                  aria-hidden="true"
+                ></span>
+                <span id="account-label">Set up account</span>
+              </button>
+              <span id="badge" class="encrypted" hidden>SOPS encrypted</span>
+            </div>
           </div>
         </header>
         <p id="error" class="error" hidden data-testid="editor-error"></p>
@@ -96,6 +113,36 @@
                 <span>Format</span><strong id="meta-format">—</strong> <span>Encryption</span
                 ><strong id="meta-enc">—</strong>
               </div>
+              <div class="compact-actions" aria-label="File actions">
+                <button
+                  id="file-lock"
+                  class="icon-button panel-action"
+                  type="button"
+                  disabled
+                  data-testid="file-lock"
+                  aria-label="Unlock file"
+                  title="Unlock file"
+                ></button>
+                <button
+                  id="copy-file"
+                  class="icon-button panel-action"
+                  type="button"
+                  disabled
+                  data-testid="copy-file"
+                  aria-label="Copy unencrypted contents"
+                  title="Copy unencrypted contents"
+                ></button>
+                <button
+                  id="file-history"
+                  class="icon-button panel-action"
+                  type="button"
+                  disabled
+                  data-testid="file-history"
+                  aria-label="File history"
+                  title="File history"
+                ></button>
+              </div>
+              <p id="file-status" class="control-status" hidden data-testid="file-status"></p>
             </div>
           </section>
           <section
@@ -114,145 +161,100 @@
               </button>
             </h2>
             <div class="inspect-section-body">
-              <label class="commit-label">
-                Recipient
+              <div id="access-empty-actions" class="access-empty-actions" hidden>
+                <button id="add-team-member" class="tool" type="button">Add team member</button>
+                <button id="add-bot-account" class="tool" type="button">
+                  Add bot / integration account
+                </button>
+              </div>
+              <div id="access-toolbar" class="access-toolbar">
+                <span id="access-count" class="section-summary">Loading access…</span>
+                <button
+                  id="create-robot"
+                  class="icon-button panel-action"
+                  type="button"
+                  data-testid="create-robot"
+                  aria-label="Create robot account"
+                  title="Create robot account"
+                ></button>
+              </div>
+              <div id="access-list" class="access-list" data-testid="access-list"></div>
+              <div class="access-form">
+                <input
+                  id="recipient-name"
+                  type="text"
+                  placeholder="Person or team name"
+                  autocomplete="off"
+                  data-testid="recipient-name"
+                />
                 <input
                   id="recipient-key"
                   type="text"
-                  placeholder="age1…"
+                  placeholder="age1… public key"
                   autocomplete="off"
                   data-testid="recipient-key"
                 />
-              </label>
-              <button
-                id="grant-access"
-                class="tool git-action"
-                type="button"
-                data-testid="grant-access"
-              >
-                Grant Access
-              </button>
-              <button
-                id="remove-access"
-                class="tool git-action"
-                type="button"
-                data-testid="remove-access"
-              >
-                Remove Access
-              </button>
+                <button
+                  id="grant-access"
+                  class="icon-button panel-action"
+                  type="button"
+                  data-testid="grant-access"
+                  aria-label="Add access"
+                  title="Add access"
+                ></button>
+              </div>
               <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
               <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
-              <p class="save-note">Removing Access does not rewrite Git history</p>
+              <p class="save-note">
+                Names stay in the local project manifest; the Age key does not contain a name.
+              </p>
             </div>
           </section>
           <section
             class="inspect-section"
-            data-section="publish"
-            data-testid="inspector-section-publish"
+            data-section="integrations"
+            data-testid="inspector-section-integrations"
           >
             <h2>
               <button
                 type="button"
                 class="inspect-toggle"
-                data-testid="inspector-toggle-publish"
+                data-testid="inspector-toggle-integrations"
                 aria-expanded="true"
               >
-                Publish
+                Integrations
               </button>
             </h2>
             <div class="inspect-section-body">
-              <div class="meta">
-                <span>Repo</span><strong id="publish-repo" data-testid="publish-repo">—</strong>
-                <span>Environment</span
-                ><strong id="publish-environment" data-testid="publish-environment">—</strong>
+              <div class="integration-grid" aria-label="Available integrations">
+                <button
+                  id="github-integration"
+                  class="integration-tile"
+                  type="button"
+                  data-testid="github-integration"
+                  aria-label="Configure GitHub integration"
+                  title="Configure GitHub integration"
+                >
+                  <span class="integration-logo" aria-hidden="true"></span>
+                  <span class="integration-name">GitHub</span>
+                </button>
               </div>
-              <label class="commit-label">
-                Prefix
-                <input
-                  id="publish-prefix"
-                  type="text"
-                  placeholder="SD_"
-                  autocomplete="off"
-                  spellcheck="false"
-                  data-testid="publish-prefix"
-                />
-              </label>
-              <label class="commit-label prune-label">
-                <input id="publish-prune" type="checkbox" data-testid="publish-prune" />
-                Prune previously published names
-              </label>
-              <button id="publish" class="tool git-action" type="button" data-testid="publish">
-                Dry run
-              </button>
-              <button
-                id="publish-yes"
-                class="tool git-action"
-                type="button"
-                data-testid="publish-yes"
-              >
-                Publish
-              </button>
               <p id="publish-status" class="control-status" hidden data-testid="publish-status"></p>
               <p id="publish-error" class="control-error" hidden data-testid="publish-error"></p>
-              <p class="save-note">Dry run lists names; Publish writes to the Sync Target</p>
-            </div>
-          </section>
-          <section class="inspect-section" data-section="git" data-testid="inspector-section-git">
-            <h2>
-              <button
-                type="button"
-                class="inspect-toggle"
-                data-testid="inspector-toggle-git"
-                aria-expanded="true"
-              >
-                Git
-              </button>
-            </h2>
-            <div class="inspect-section-body">
-              <label class="commit-label">
-                Message
-                <input
-                  id="commit-message"
-                  type="text"
-                  placeholder="What changed"
-                  data-testid="commit-message"
-                />
-              </label>
-              <button id="commit" class="tool git-action" type="button" data-testid="commit">
-                Commit
-              </button>
-              <button id="sync" class="tool git-action" type="button" data-testid="sync">
-                Sync
-              </button>
-              <button id="review" class="tool git-action" type="button" data-testid="review">
-                Review
-              </button>
-              <button id="history" class="tool git-action" type="button" data-testid="history">
-                History
-              </button>
-              <button id="restore" class="tool git-action" type="button" data-testid="restore">
-                Restore
-              </button>
-              <pre id="review-out" class="review-out" hidden data-testid="review-out"></pre>
-              <ul id="history-list" class="history-list" hidden data-testid="history-list"></ul>
-              <p id="git-status" class="control-status" hidden data-testid="git-status"></p>
-              <p id="git-error" class="control-error" hidden data-testid="git-error"></p>
               <p class="save-note">
-                Restore copies a revision into the editor; save and commit to keep it
+                GitHub Actions secrets can sync to an organization, repository, or repository
+                environment.
               </p>
             </div>
           </section>
         </div>
         <div class="save-zone">
-          <label class="rename-refs-label" hidden data-testid="rename-refs-label">
-            <input id="rename-refs" type="checkbox" data-testid="rename-refs" />
-            Rewrite references in the project
-          </label>
+          <input id="commit-message" type="hidden" />
           <button id="save" class="save" type="button" disabled data-testid="save">
             Encrypt &amp; save
           </button>
           <p id="save-error" class="control-error" hidden data-testid="save-error"></p>
-          <div class="save-note">Writes only to your local file</div>
+          <div class="save-note">Saves the encrypted file and creates a descriptive Git commit</div>
         </div>
       </aside>
     </div>
@@ -269,6 +271,162 @@
         Dismiss
       </button>
     </dialog>
+    <dialog id="save-preview-dialog" class="product-dialog" data-testid="save-preview-dialog">
+      <p class="kicker">Save changes</p>
+      <h2>Encrypt and commit this file?</h2>
+      <p id="save-preview-copy" class="dialog-copy"></p>
+      <fieldset id="rename-reference-choices" class="rename-reference-choices" hidden>
+        <legend>Rewrite references</legend>
+      </fieldset>
+      <pre id="save-preview" class="review-out" data-testid="save-preview"></pre>
+      <div class="dialog-actions">
+        <button id="save-preview-cancel" class="tool" type="button">Cancel</button>
+        <button id="save-preview-confirm" class="tool primary" type="button">
+          Encrypt &amp; commit
+        </button>
+      </div>
+    </dialog>
+    <dialog id="account-dialog" class="product-dialog account-dialog" data-testid="account-dialog">
+      <p class="kicker">Account</p>
+      <h2>Your Sopsdeck identity</h2>
+      <p class="dialog-copy">
+        This loads the Git identity used by this project. Existing Git values are read-only; missing
+        values can be filled globally. The Age identity stays in the local keychain and is never
+        added to the project.
+      </p>
+      <div class="account-preview">
+        <span
+          id="account-avatar-large"
+          class="identity-avatar identity-avatar-large"
+          aria-hidden="true"
+        ></span>
+        <span class="account-preview-copy">
+          <strong id="account-preview-name">Not configured</strong>
+          <span id="account-preview-email">Configure your Git identity</span>
+        </span>
+      </div>
+      <label class="commit-label"
+        >Git name<input id="account-name" type="text" placeholder="Your name" autocomplete="name"
+      /></label>
+      <label class="commit-label"
+        >Git email<input
+          id="account-email"
+          type="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+      /></label>
+      <div class="account-key-status">
+        <span class="kicker">Age identity</span>
+        <span id="account-key-status">Not configured</span>
+        <button id="account-create-identity" class="tool" type="button">Create identity</button>
+      </div>
+      <p id="account-error" class="control-error" hidden data-testid="account-error"></p>
+      <div class="dialog-actions">
+        <button id="account-later" class="tool" type="button" hidden>Continue for now</button>
+        <button id="account-cancel" class="tool" type="button">Close</button>
+        <button id="account-save" class="tool primary" type="button">Save Git identity</button>
+      </div>
+    </dialog>
+    <dialog id="file-history-dialog" class="product-dialog" data-testid="file-history-dialog">
+      <p class="kicker">File history</p>
+      <h2 id="file-history-heading">Revisions</h2>
+      <ul id="file-history-list" class="history-list"></ul>
+      <pre id="file-history-preview" class="review-out" hidden></pre>
+      <div class="dialog-actions">
+        <button id="file-history-close" class="tool" type="button">Close</button>
+      </div>
+    </dialog>
+    <dialog id="secret-history-dialog" class="product-dialog" data-testid="secret-history-dialog">
+      <p class="kicker">Secret history</p>
+      <h2 id="secret-history-heading">Revisions</h2>
+      <ul id="secret-history-list" class="history-list"></ul>
+      <pre id="secret-history-preview" class="review-out" hidden></pre>
+      <div class="dialog-actions">
+        <button id="secret-history-close" class="tool" type="button">Close</button>
+      </div>
+    </dialog>
+    <dialog id="integration-dialog" class="product-dialog" data-testid="integration-dialog">
+      <p class="kicker">Integrations</p>
+      <h2>Sync to GitHub Actions</h2>
+      <p class="dialog-copy">
+        Sopsdeck sends encrypted values directly to GitHub. Plaintext stays on this machine.
+      </p>
+      <label class="commit-label"
+        >Scope<select id="integration-scope" data-testid="integration-scope">
+          <option value="repo">Repository secrets</option>
+          <option value="org">Organization secrets</option>
+          <option value="environment">Repository environment</option>
+        </select></label
+      >
+      <label class="commit-label" id="integration-repo-field"
+        >Repository<input id="integration-repo" type="text" placeholder="owner/repository"
+      /></label>
+      <label class="commit-label" id="integration-org-field" hidden
+        >Organization<input id="integration-org" type="text" placeholder="organization"
+      /></label>
+      <label class="commit-label" id="integration-environment-field" hidden
+        >Environment<input id="integration-environment" type="text" placeholder="production"
+      /></label>
+      <label class="commit-label"
+        >Prefix<input id="integration-prefix" type="text" placeholder="SOPS_"
+      /></label>
+      <label class="commit-label" id="integration-visibility-field" hidden
+        >Organization visibility<select id="integration-visibility">
+          <option value="all">All repositories</option>
+          <option value="private">Private repositories</option>
+        </select></label
+      >
+      <label class="commit-label prune-label"
+        ><input id="integration-prune" type="checkbox" /> Remove previously synced names that are no
+        longer in this file</label
+      >
+      <div class="dialog-actions">
+        <button id="integration-cancel" class="tool" type="button">Cancel</button>
+        <button id="integration-save" class="tool" type="button">Save configuration</button>
+        <button id="integration-sync" class="tool primary" type="button">Sync now</button>
+      </div>
+      <p id="integration-dialog-status" class="control-status" hidden></p>
+      <p id="integration-dialog-error" class="control-error" hidden></p>
+    </dialog>
+    <dialog id="robot-dialog" class="product-dialog" data-testid="robot-dialog">
+      <p class="kicker">Robot account</p>
+      <h2>Create a GitHub Actions identity</h2>
+      <p class="dialog-copy">
+        The private key is shown once. Store it as a GitHub Actions secret, then add the public key
+        to this file.
+      </p>
+      <label class="commit-label"
+        >Name<input id="robot-name" type="text" placeholder="Deploy bot"
+      /></label>
+      <div id="robot-result" hidden>
+        <div class="account-preview robot-identity-preview">
+          <span
+            id="robot-avatar"
+            class="identity-avatar identity-avatar-large"
+            aria-hidden="true"
+          ></span>
+          <span class="account-preview-copy">
+            <strong id="robot-display-name">Robot identity</strong>
+            <span>Voxel-bot identity ready to add to this file</span>
+          </span>
+        </div>
+        <label class="commit-label"
+          >Private key<textarea id="robot-private-key" readonly rows="4"></textarea>
+        </label>
+        <p class="save-note">
+          Store the private key as a masked GitHub Actions secret and load it into
+          <code>SOPS_AGE_KEY_FILE</code>.
+        </p>
+        <button id="robot-copy" class="tool" type="button">Copy private key</button>
+        <button id="robot-add" class="tool primary" type="button">Add robot to this file</button>
+      </div>
+      <div class="dialog-actions">
+        <button id="robot-cancel" class="tool" type="button">Close</button>
+        <button id="robot-create" class="tool primary" type="button">Create identity</button>
+      </div>
+      <p id="robot-status" class="control-status" hidden></p>
+      <p id="robot-error" class="control-error" hidden></p>
+    </dialog>
     <dialog id="whats-new-dialog" class="whats-new-dialog" data-testid="whats-new-dialog">
       <p class="kicker">Release notes</p>
       <h2 id="whats-new-heading">What's new</h2>
@@ -282,6 +440,52 @@
       >
         Close
       </button>
+    </dialog>
+    <dialog
+      id="setup-project-dialog"
+      class="setup-project-dialog"
+      data-testid="setup-project-dialog"
+    >
+      <p class="kicker">New Project</p>
+      <h2>Initialize this folder?</h2>
+      <p class="setup-project-copy">
+        Choose the files and fields Sopsdeck should manage. Unchecked paths stay untouched.
+      </p>
+      <div class="setup-project-toolbar">
+        <span id="setup-project-selection" class="save-note">No files selected</span>
+        <span class="setup-project-toolbar-actions">
+          <button id="setup-project-select-all" class="tool compact" type="button">
+            Manage all
+          </button>
+          <button id="setup-project-ignore-all" class="tool compact" type="button">
+            Ignore all
+          </button>
+        </span>
+      </div>
+      <div
+        id="setup-project-files"
+        class="setup-project-files"
+        data-testid="setup-project-files"
+      ></div>
+      <p
+        id="setup-project-error"
+        class="control-error"
+        hidden
+        data-testid="setup-project-error"
+      ></p>
+      <div class="dialog-actions">
+        <button id="setup-project-skip" class="tool" type="button" data-testid="setup-project-skip">
+          Open without initializing
+        </button>
+        <button
+          id="setup-project-init"
+          class="tool primary"
+          type="button"
+          data-testid="setup-project-init"
+        >
+          Initialize Project
+        </button>
+      </div>
     </dialog>
   </body>
 </html>

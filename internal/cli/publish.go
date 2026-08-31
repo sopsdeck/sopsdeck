@@ -17,18 +17,21 @@ import (
 )
 
 func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
-	file, prefix, yes, prune, printMapping, errMsg := parsePublishFlags(args)
+	file, prefix, scope, repo, org, environment, visibility, yes, prune, printMapping, errMsg := parsePublishFlags(args)
 	if errMsg != "" {
 		fmt.Fprintln(stderr, errMsg)
 		return 1
 	}
-	mapping, prefix, repo, manifestPath := resolvePublishMapping(file, prefix, getenv)
+	target, prefix, manifestPath := resolvePublishMapping(file, prefix, scope, repo, org, environment, visibility, getenv)
 	if printMapping {
 		if err := json.NewEncoder(stdout).Encode(map[string]any{
-			"repo":        repo,
-			"environment": mapping.Environment,
+			"scope":       target.Scope,
+			"repo":        target.Repo,
+			"org":         target.Org,
+			"environment": target.Environment,
+			"visibility":  target.Visibility,
 			"prefix":      prefix,
-			"keys":        mapping.Keys,
+			"keys":        target.Mapping.Keys,
 		}); err != nil {
 			fmt.Fprintf(stderr, "publish: %v\n", err)
 			return 1
@@ -45,10 +48,10 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 		fmt.Fprintf(stderr, "publish: %s", errMsg)
 		return 1
 	}
-	secrets := prefixedPairs(selectKeys(pairs, mapping.Keys), prefix)
+	secrets := prefixedPairs(selectKeys(pairs, target.Mapping.Keys), prefix)
 	names := sortedKeys(secrets)
 	if !yes {
-		fmt.Fprintf(stdout, "dry-run %d secrets for %s\n", len(names), repo)
+		fmt.Fprintf(stdout, "dry-run %d secrets for %s\n", len(names), target.Label())
 		for _, n := range names {
 			fmt.Fprintln(stdout, n)
 		}
@@ -56,37 +59,84 @@ func cmdPublish(args []string, stdout, stderr io.Writer, getenv func(string) str
 	}
 	client := &http.Client{}
 	token := githubToken(getenv)
-	if err := putSecrets(client, base, repo, mapping.Environment, token, secrets); err != nil {
+	if err := putSecrets(client, base, target, token, secrets); err != nil {
 		fmt.Fprintln(stderr, explainPublish(err))
 		return 1
 	}
 	if prune {
-		if err := pruneSecrets(client, base, repo, mapping.Environment, prefix, token, names, mapping.Published); err != nil {
+		if err := pruneSecrets(client, base, target, prefix, token, names, target.Mapping.Published); err != nil {
 			fmt.Fprintf(stderr, "publish: %v\n", err)
 			return 1
 		}
 	}
-	if err := recordPublished(mapping, manifestPath, names); err != nil {
+	if err := recordPublished(target.Mapping, manifestPath, names); err != nil {
 		fmt.Fprintf(stderr, "publish: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "published %d secrets to %s\n", len(names), repo)
+	fmt.Fprintf(stdout, "published %d secrets to %s\n", len(names), target.Label())
 	return 0
 }
 
-func resolvePublishMapping(file, prefix string, getenv func(string) string) (manifestFile, string, string, string) {
+type publishTarget struct {
+	Mapping     manifestFile
+	Scope       string
+	Repo        string
+	Org         string
+	Environment string
+	Visibility  string
+}
+
+func (t publishTarget) Label() string {
+	switch t.Scope {
+	case "org":
+		return "org " + t.Org
+	case "environment":
+		return t.Repo + "/" + t.Environment
+	default:
+		return t.Repo
+	}
+}
+
+func resolvePublishMapping(file, prefix, scope, repo, org, environment, visibility string, getenv func(string) string) (publishTarget, string, string) {
 	mapping, _, manifestPath := mappingFor(file)
 	if prefix == "" {
 		prefix = mapping.Prefix
 	}
-	repo := mapping.Repo
+	if scope == "" {
+		scope = mapping.Scope
+	}
+	if scope == "" {
+		if mapping.Environment != "" {
+			scope = "environment"
+		} else {
+			scope = "repo"
+		}
+	}
+	if repo == "" {
+		repo = mapping.Repo
+	}
 	if repo == "" {
 		repo = getenv("SOPSDECK_GITHUB_REPO")
 	}
 	if repo == "" {
 		repo = "studio/demo"
 	}
-	return mapping, prefix, repo, manifestPath
+	if org == "" {
+		org = mapping.Org
+	}
+	if org == "" {
+		org = getenv("SOPSDECK_GITHUB_ORG")
+	}
+	if environment == "" {
+		environment = mapping.Environment
+	}
+	if visibility == "" {
+		visibility = mapping.Visibility
+	}
+	if visibility == "" {
+		visibility = "all"
+	}
+	return publishTarget{Mapping: mapping, Scope: scope, Repo: repo, Org: org, Environment: environment, Visibility: visibility}, prefix, manifestPath
 }
 
 func decryptPublishPairs(file string) (map[string]string, string) {
@@ -136,22 +186,52 @@ func recordPublished(mapping manifestFile, manifestPath string, names []string) 
 	return setPublished(manifestPath, mapping.Path, recorded)
 }
 
-func parsePublishFlags(args []string) (file, prefix string, yes, prune, printMapping bool, errMsg string) {
-	usage := "usage: sopsdeck publish -f FILE [--prefix P] [--yes] [--prune] [--mapping]"
+func parsePublishFlags(args []string) (file, prefix, scope, repo, org, environment, visibility string, yes, prune, printMapping bool, errMsg string) {
+	usage := "usage: sopsdeck publish -f FILE [--scope repo|org|environment] [--repo OWNER/REPO] [--org ORG] [--environment NAME] [--prefix P] [--yes] [--prune] [--mapping]"
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-f":
 			i++
 			if i >= len(args) {
-				return "", "", false, false, false, "publish: -f requires a file"
+				return "", "", "", "", "", "", "", false, false, false, "publish: -f requires a file"
 			}
 			file = args[i]
 		case "--prefix":
 			i++
 			if i >= len(args) {
-				return "", "", false, false, false, "publish: --prefix requires a value"
+				return "", "", "", "", "", "", "", false, false, false, "publish: --prefix requires a value"
 			}
 			prefix = args[i]
+		case "--scope":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "", "", "", false, false, false, "publish: --scope requires a value"
+			}
+			scope = args[i]
+		case "--repo":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "", "", "", false, false, false, "publish: --repo requires a value"
+			}
+			repo = args[i]
+		case "--org":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "", "", "", false, false, false, "publish: --org requires a value"
+			}
+			org = args[i]
+		case "--environment":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "", "", "", false, false, false, "publish: --environment requires a value"
+			}
+			environment = args[i]
+		case "--visibility":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "", "", "", false, false, false, "publish: --visibility requires a value"
+			}
+			visibility = args[i]
 		case "--yes":
 			yes = true
 		case "--prune":
@@ -159,13 +239,13 @@ func parsePublishFlags(args []string) (file, prefix string, yes, prune, printMap
 		case "--mapping":
 			printMapping = true
 		default:
-			return "", "", false, false, false, usage
+			return "", "", "", "", "", "", "", false, false, false, usage
 		}
 	}
 	if file == "" {
-		return "", "", false, false, false, usage
+		return "", "", "", "", "", "", "", false, false, false, usage
 	}
-	return file, prefix, yes, prune, printMapping, ""
+	return file, prefix, scope, repo, org, environment, visibility, yes, prune, printMapping, ""
 }
 
 func githubToken(getenv func(string) string) string {
@@ -188,13 +268,13 @@ func setAuth(req *http.Request, token string) {
 	}
 }
 
-func putSecrets(client *http.Client, base, repo, environment, token string, secrets map[string]string) error {
-	keyID, publicKey, err := githubPublicKey(client, base, repo, environment, token)
+func putSecrets(client *http.Client, base string, target publishTarget, token string, secrets map[string]string) error {
+	keyID, publicKey, err := githubPublicKey(client, target, base, token)
 	if err != nil {
 		return err
 	}
 	for _, name := range sortedKeys(secrets) {
-		endpoint, err := secretURL(base, repo, environment, name)
+		endpoint, err := secretURL(base, target, name)
 		if err != nil {
 			return err
 		}
@@ -206,6 +286,13 @@ func putSecrets(client *http.Client, base, repo, environment, token string, secr
 			"encrypted_value": base64.StdEncoding.EncodeToString(sealed),
 			"key_id":          keyID,
 		})
+		if target.Scope == "org" {
+			body, err = json.Marshal(map[string]string{
+				"encrypted_value": base64.StdEncoding.EncodeToString(sealed),
+				"key_id":          keyID,
+				"visibility":      target.Visibility,
+			})
+		}
 		if err != nil {
 			return err
 		}
@@ -228,8 +315,8 @@ func putSecrets(client *http.Client, base, repo, environment, token string, secr
 	return nil
 }
 
-func githubPublicKey(client *http.Client, base, repo, environment, token string) (string, *[32]byte, error) {
-	endpoint, err := publicKeyURL(base, repo, environment)
+func githubPublicKey(client *http.Client, target publishTarget, base, token string) (string, *[32]byte, error) {
+	endpoint, err := publicKeyURL(base, target)
 	if err != nil {
 		return "", nil, err
 	}
@@ -266,7 +353,7 @@ func githubPublicKey(client *http.Client, base, repo, environment, token string)
 	return payload.KeyID, &publicKey, nil
 }
 
-func pruneSecrets(client *http.Client, base, repo, environment, prefix, token string, keep, previously []string) error {
+func pruneSecrets(client *http.Client, base string, target publishTarget, prefix, token string, keep, previously []string) error {
 	want := map[string]struct{}{}
 	for _, n := range keep {
 		want[n] = struct{}{}
@@ -278,7 +365,7 @@ func pruneSecrets(client *http.Client, base, repo, environment, prefix, token st
 		if _, ok := want[name]; ok {
 			continue
 		}
-		delURL, err := secretURL(base, repo, environment, name)
+		delURL, err := secretURL(base, target, name)
 		if err != nil {
 			return err
 		}
@@ -297,16 +384,40 @@ func pruneSecrets(client *http.Client, base, repo, environment, prefix, token st
 	return nil
 }
 
-func secretURL(base, repo, environment, name string) (string, error) {
-	if environment != "" {
-		return url.JoinPath(base, "repos", repo, "environments", environment, "secrets", name)
+func secretURL(base string, target publishTarget, name string) (string, error) {
+	switch target.Scope {
+	case "org":
+		if target.Org == "" {
+			return "", fmt.Errorf("GitHub organization is required")
+		}
+		return url.JoinPath(base, "orgs", target.Org, "actions", "secrets", name)
+	case "environment":
+		if target.Environment == "" {
+			return "", fmt.Errorf("GitHub repository environment is required")
+		}
+		return url.JoinPath(base, "repos", target.Repo, "environments", target.Environment, "secrets", name)
+	case "repo":
+		return url.JoinPath(base, "repos", target.Repo, "actions", "secrets", name)
+	default:
+		return "", fmt.Errorf("unknown GitHub scope %q", target.Scope)
 	}
-	return url.JoinPath(base, "repos", repo, "actions", "secrets", name)
 }
 
-func publicKeyURL(base, repo, environment string) (string, error) {
-	if environment != "" {
-		return url.JoinPath(base, "repos", repo, "environments", environment, "secrets", "public-key")
+func publicKeyURL(base string, target publishTarget) (string, error) {
+	switch target.Scope {
+	case "org":
+		if target.Org == "" {
+			return "", fmt.Errorf("GitHub organization is required")
+		}
+		return url.JoinPath(base, "orgs", target.Org, "actions", "secrets", "public-key")
+	case "environment":
+		if target.Environment == "" {
+			return "", fmt.Errorf("GitHub repository environment is required")
+		}
+		return url.JoinPath(base, "repos", target.Repo, "environments", target.Environment, "secrets", "public-key")
+	case "repo":
+		return url.JoinPath(base, "repos", target.Repo, "actions", "secrets", "public-key")
+	default:
+		return "", fmt.Errorf("unknown GitHub scope %q", target.Scope)
 	}
-	return url.JoinPath(base, "repos", repo, "actions", "secrets", "public-key")
 }
