@@ -3,10 +3,18 @@ package cli
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/getsops/sops/v3"
+	"github.com/getsops/sops/v3/aes"
+	sopsage "github.com/getsops/sops/v3/age"
+	"github.com/getsops/sops/v3/cmd/sops/common"
+	"github.com/getsops/sops/v3/cmd/sops/formats"
+	"github.com/getsops/sops/v3/config"
+	"github.com/getsops/sops/v3/keyservice"
+	"github.com/getsops/sops/v3/version"
 )
 
 func TestIdentityCreateWithoutBackupConfirmDoesNotPersist(t *testing.T) {
@@ -54,13 +62,8 @@ func TestIdentityCreateStoresKeySoDecryptWorksWithoutAgeFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	enc := filepath.Join(t.TempDir(), "hello.env")
-	sops := exec.Command("sops", "--encrypt", "--input-type", "dotenv", "--output-type", "dotenv", "--age", string(pub), plain)
-	out, err := sops.Output()
-	if err != nil {
-		t.Fatalf("sops encrypt: %v %s", err, out)
-	}
-	if err := os.WriteFile(enc, out, 0o600); err != nil {
-		t.Fatal(err)
+	if err := encryptDotenvWithRecipient(plain, enc, string(pub)); err != nil {
+		t.Fatalf("encrypt: %v", err)
 	}
 
 	t.Setenv("SOPS_AGE_KEY_CMD", "cat "+strconv.Quote(filepath.Join(state, "identity")))
@@ -125,4 +128,41 @@ func TestIdentityKeyPrintsStoredIdentity(t *testing.T) {
 	if bytes.Contains(stderr.Bytes(), []byte("AGE-SECRET-KEY-")) {
 		t.Fatalf("stderr leaked private key: %q", stderr.String())
 	}
+}
+
+func encryptDotenvWithRecipient(plain, enc, pub string) error {
+	store := common.StoreForFormat(formats.Dotenv, config.NewStoresConfig())
+	plainBytes, err := os.ReadFile(plain)
+	if err != nil {
+		return err
+	}
+	branches, err := store.LoadPlainFile(plainBytes)
+	if err != nil {
+		return err
+	}
+	mk, err := sopsage.MasterKeyFromRecipient(pub)
+	if err != nil {
+		return err
+	}
+	tree := sops.Tree{
+		FilePath: enc,
+		Metadata: sops.Metadata{
+			Version:           version.Version,
+			UnencryptedSuffix: sops.DefaultUnencryptedSuffix,
+			KeyGroups:         []sops.KeyGroup{{mk}},
+		},
+		Branches: branches,
+	}
+	dataKey, errs := tree.GenerateDataKeyWithKeyServices([]keyservice.KeyServiceClient{keyservice.NewLocalClient()})
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	if err := common.EncryptTree(common.EncryptTreeOpts{DataKey: dataKey, Tree: &tree, Cipher: aes.NewCipher()}); err != nil {
+		return err
+	}
+	out, err := store.EmitEncryptedFile(tree)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(enc, out, 0o600)
 }
