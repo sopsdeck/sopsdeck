@@ -217,6 +217,11 @@
       "platforms": []
     },
     {
+      "text": "Opening a large Project no longer beachballs the desktop: Managed File listing and decryption now run off the UI thread, and the walker skips generated/build dirs (`.next`, `build`, `coverage`, `__pycache__`, …).",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
       "text": "Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.",
       "type": "bugfix",
       "platforms": []

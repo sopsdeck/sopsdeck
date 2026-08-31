@@ -115,6 +115,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Version Matches Desktop Manifests (`TestVersionMatchesDesktopManifests`)
 - List Finds Dotenv And SOPS Structured Files (`TestListFindsDotenvAndSOPSStructuredFiles`)
 - List Excludes Plain Dotenv (`TestListExcludesPlainDotenv`)
+- List Skips Generated Build Dirs (`TestListSkipsGeneratedBuildDirs`)
 - List Finds Committed Compose YAML And Multiline Dotenv (`TestListFindsCommittedComposeYAMLAndMultilineDotenv`)
 - Teammate Decrypts After Recipient Add And Sync (`TestTeammateDecryptsAfterRecipientAddAndSync`)
 - Teammate Loses Access After Recipient Remove And Sync (`TestTeammateLosesAccessAfterRecipientRemoveAndSync`)

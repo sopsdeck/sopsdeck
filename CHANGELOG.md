@@ -50,6 +50,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - The desktop app logs failed CLI commands to `~/.config/sopsdeck/errors.json` and uses the keychain Age identity for decryption, so it works when launched from a GUI without a shell env.
 - `get` on a file without Access or on a non-SOPS file now says what to do instead of leaking a raw SOPS parse error.
 - Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.
+- Opening a large Project no longer beachballs the desktop: Managed File listing and decryption now run off the UI thread, and the walker skips generated/build dirs (`.next`, `build`, `coverage`, `__pycache__`, …).
 - Sync, get, and Publish print short recovery copy instead of raw Git or SOPS text.
 - Desktop shows Sync, commit, and save failures next to those controls, not as a toast.
 - `get` of encrypted `eas.json` warns that EAS CLI will not read SOPS ciphertext.
