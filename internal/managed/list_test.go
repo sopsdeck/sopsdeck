@@ -73,6 +73,31 @@ func TestListExcludesPlainStructuredFileContainingSOPSWord(t *testing.T) {
 	}
 }
 
+func TestCandidatesExcludesLockfiles(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("package-lock.json", `{"packages":{"":{"name":"app"}}}`+"\n")
+	write("pnpm-lock.yaml", "packages: {}\n")
+	write("yarn.lock", "# yarn lockfile\n")
+	write("secrets.json", `{"HELLO":"world"}`+"\n")
+	files, err := Candidates(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(files))
+	for i, f := range files {
+		got[i] = f.Name
+	}
+	if len(got) != 1 || got[0] != "secrets.json" {
+		t.Fatalf("candidates=%v, want only secrets.json", got)
+	}
+}
+
 func TestListSkipsGeneratedBuildDirs(t *testing.T) {
 	root := t.TempDir()
 	for _, dir := range []string{".next", "build", "coverage", "__pycache__", ".turbo"} {

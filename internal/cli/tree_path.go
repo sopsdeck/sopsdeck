@@ -10,6 +10,12 @@ func treePath(key string, structured bool) ([]interface{}, error) {
 	if !structured {
 		return []interface{}{key}, nil
 	}
+	// Keys with empty segments (e.g. package-lock.json's "packages..name"
+	// from the empty-string root key) cannot be split into a dotted path.
+	// Treat them as a single opaque leaf so the tree renders without crashing.
+	if strings.Contains(key, "..") || strings.HasPrefix(key, ".") || strings.HasSuffix(key, ".") {
+		return []interface{}{key}, nil
+	}
 	var path []interface{}
 	for i := 0; i < len(key); {
 		start := i

@@ -73,6 +73,9 @@ func Candidates(root string) ([]File, error) {
 			}
 			return nil
 		}
+		if isLockfileName(d.Name()) {
+			return nil
+		}
 		if !isDotenvName(d.Name()) && !isStructuredName(d.Name()) {
 			return nil
 		}
@@ -119,6 +122,22 @@ func isDotenvName(name string) bool {
 func isStructuredName(name string) bool {
 	lower := strings.ToLower(name)
 	return strings.HasSuffix(lower, ".json") || strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml")
+}
+
+// isLockfileName reports whether name is a generated dependency lockfile.
+// Lockfiles are machine-generated and never hold secrets worth managing as
+// a Managed File, so they are excluded from candidates. Their structure
+// (e.g. package-lock.json's empty-string root key under "packages") also
+// breaks the dotted key-path tree.
+func isLockfileName(name string) bool {
+	switch name {
+	case "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml",
+		"yarn.lock", "bun.lock", "bun.lockb", "composer.lock",
+		"Cargo.lock", "poetry.lock", "Pipfile.lock", "mix.lock",
+		"Gemfile.lock", "packages.lock.json", "nuget.lock.json":
+		return true
+	}
+	return false
 }
 
 func looksSOPS(path string) bool {

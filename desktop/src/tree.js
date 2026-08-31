@@ -3,9 +3,16 @@ export function isStructuredFormat(format) {
 }
 
 export function splitLeafPath(key) {
+  const text = String(key || '');
+  // Keys with empty segments (e.g. package-lock.json's "packages..name" from
+  // the empty-string root key) cannot be split into a dotted path. Treat
+  // them as a single opaque leaf so the tree renders without crashing.
+  if (text === '' || text.includes('..') || text.startsWith('.') || text.endsWith('.')) {
+    return [text];
+  }
+
   const parts = [];
   let i = 0;
-  const text = String(key || '');
   while (i < text.length) {
     const start = i;
     while (i < text.length && text[i] !== '.' && text[i] !== '[') i += 1;
