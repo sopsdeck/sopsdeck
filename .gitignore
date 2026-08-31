@@ -1,5 +1,9 @@
 /sopsdeck
 /bin/
+!/bin/
+/bin/*
+!/bin/sopsdeck.mjs
+!/bin/sopsdeck.test.mjs
 *.exe
 .DS_Store
 node_modules

@@ -1,8 +1,19 @@
 {
   "name": "sopsdeck",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "packageManager": "bun@1.2.21",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "sopsdeck": "./bin/sopsdeck.mjs",
+    "sd": "./bin/sopsdeck.mjs"
+  },
+  "files": [
+    "bin/sopsdeck.mjs",
+    "desktop/src"
+  ],
   "scripts": {
     "fmt": "./scripts/fmt",
     "lint": "./scripts/lint",

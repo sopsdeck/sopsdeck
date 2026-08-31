@@ -18,9 +18,11 @@ jobs:
           go-version-file: go.mod
       - name: Changelog section
         run: ./scripts/release-notes "${GITHUB_REF_NAME}" > notes.md
-      - name: Build Windows and Linux CLIs
+      - name: Build release CLIs
         run: |
           mkdir -p dist
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-darwin-amd64 ./cmd/sopsdeck
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-darwin-arm64 ./cmd/sopsdeck
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-linux-amd64 ./cmd/sopsdeck
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-linux-arm64 ./cmd/sopsdeck
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/sopsdeck-windows-amd64.exe ./cmd/sopsdeck
@@ -29,6 +31,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file notes.md \
+            dist/sopsdeck-darwin-amd64 \
+            dist/sopsdeck-darwin-arm64 \
             dist/sopsdeck-linux-amd64 \
             dist/sopsdeck-linux-arm64 \
             dist/sopsdeck-windows-amd64.exe
+      - name: Set up Node.js for npm package
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Publish npm package to npmjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            printf '%s\n' 'skip npm publish (no NPM_TOKEN)'
+            exit 0
+          fi
+          npm publish --access public
