@@ -16,7 +16,9 @@ Product UI principle: **Your filesystem is the workspace.** Projects appear as l
 
 Format principle: dotenv is one adapter, not the product model. The initial interface should accommodate SOPS-friendly dotenv, JSON (including Expo `eas.json`), and YAML files while preserving each format’s native structure.
 
-Recommended direction: **Quiet Cipher**. Structured geometry and a controlled seam communicate movement from local edits to encrypted Git changes, without relying on padlock or shield clichés.
+Recommended direction: **Structural monogram**. Two opposing ledges form a solid S with the weight and stability of a deck, giving the name a compact mark without relying on padlock or shield clichés.
+
+Wordmark: keep the monogram one color; render `sops` in the surrounding text color and `deck` in Commit Blue on light backgrounds or Decrypt Mint on Vault Ink and other dark backgrounds.
 
 ## Color
 
@@ -40,18 +42,18 @@ Verified contrast: Ink/Paper 16.83:1, Slate/Paper 7.29:1, Paper/Blue 5.21:1, and
 
 ## Logo concepts
 
-1. **Cipher seam — recommended:** two file planes meet at a controlled seam, representing the move from local editing to encrypted output.
-2. **Terminal cut:** `sops//deck` uses a familiar code marker as the boundary between plaintext work and encrypted storage.
-3. **Open S:** a broken letterform suggests visibility without exposure and gives the wordmark a compact signature.
-4. **Small-size proof:** the cipher seam mark remains recognizable in one color, inverted, and at 24px.
+1. **Structural monogram — selected:** two opposing ledges form a solid S, expressing the deck as a stable platform and the name as a compact signature.
+2. **Cipher seam:** two file planes meet at a controlled seam, representing the move from local editing to encrypted output.
+3. **Terminal cut:** `sops//deck` uses a familiar code marker as the boundary between plaintext work and encrypted storage.
+4. **Open S:** a broken letterform suggests visibility without exposure and gives the wordmark a compact signature.
 
 ## Assets
 
 Sources and ready-to-upload files live in `brand/`. Preview: [brand/preview.html](brand/preview.html). Regenerate with `bun scripts/brand-export.mjs`.
 
-Square icon (monochrome small-size cipher seam on Vault Ink): use for the GitHub org profile image, macOS/Windows app icon, Apple touch icon, and PWA icons. GitHub crops a circle; the OS crops a squircle — padding is sized for both.
+Square icon (monochrome structural monogram on Vault Ink): use for the GitHub org profile image, macOS/Windows app icon, Apple touch icon, and PWA icons. GitHub crops a circle; the OS crops a squircle — padding is sized for both.
 
-Display-weight cipher seam plus wordmark: use on the site header, lockups, and wide heroes. GitHub organizations have no cover photo; put `brand/export/github-readme-hero.png` at the top of the org profile README, and `github-social-preview.png` as a repository social preview.
+Display-weight structural monogram plus wordmark: use on the site header, lockups, and wide heroes. GitHub organizations have no cover photo; put `brand/export/github-readme-hero.png` at the top of the org profile README, and `github-social-preview.png` as a repository social preview.
 
 | File                                     | Use                                  |
 | ---------------------------------------- | ------------------------------------ |
