@@ -22,14 +22,14 @@ Sopsdeck runs locally in your browser. It does not need an Apple Developer accou
 Install it in a project:
 
 ```bash
-npm install -D sopsdeck
+npm install -D @sopsdeck/sopsdeck
 npx sopsdeck .
 ```
 
 The folder argument is optional; `npx sopsdeck` opens the current folder. For a global command with both names:
 
 ```bash
-npm install -g sopsdeck
+npm install -g @sopsdeck/sopsdeck
 sopsdeck .
 sd .
 ```

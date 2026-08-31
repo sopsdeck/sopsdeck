@@ -9,7 +9,7 @@ Sopsdeck is under active development. Expect rough edges, and [submit a GitHub i
 Install in a project, then open that folder:
 
 ```bash
-npm install -D sopsdeck
+npm install -D @sopsdeck/sopsdeck
 npx sopsdeck .
 ```
 

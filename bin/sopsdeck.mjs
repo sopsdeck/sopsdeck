@@ -56,7 +56,7 @@ Options:
   --no-open       print the URL without opening a browser
   -h, --help      show this help
 
-Install in a project with: npm install -D sopsdeck
+Install in a project with: npm install -D @sopsdeck/sopsdeck
 `;
 }
 
