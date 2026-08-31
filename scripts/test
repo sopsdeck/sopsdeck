@@ -11,23 +11,10 @@ need() {
 }
 
 need go "https://go.dev/dl/"
-need cargo "https://rustup.rs"
 need bun "https://bun.sh"
 
 printf '== go test ==\n'
 go test ./cmd/... ./internal/...
 
 printf '== bun test ==\n'
-bun test desktop/src scripts/changelog-notes.test.js scripts/release-artifacts.test.js
-
-printf '== rust test ==\n'
-(
-  cd desktop/src-tauri
-  if command -v cargo-nextest >/dev/null 2>&1; then
-    cargo nextest run --all-targets
-  else
-    printf 'cargo-nextest not on PATH; using cargo test\n'
-    printf 'install: cargo install cargo-nextest --locked\n'
-    cargo test --all-targets
-  fi
-)
+bun test bin/sopsdeck.test.mjs desktop/src scripts/changelog-notes.test.js scripts/release-artifacts.test.js

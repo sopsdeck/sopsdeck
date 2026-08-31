@@ -13,7 +13,3 @@ need() {
 printf '== go mutants (gremlins) ==\n'
 need gremlins "go install github.com/go-gremlins/gremlins/cmd/gremlins@latest"
 gremlins unleash ./internal/cli
-
-printf '== rust mutants (cargo-mutants) ==\n'
-need cargo-mutants "cargo install cargo-mutants --locked"
-(cd desktop/src-tauri && cargo mutants --test-tool=cargo --timeout 60 --file src/managed.rs)

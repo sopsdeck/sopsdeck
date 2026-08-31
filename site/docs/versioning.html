@@ -210,7 +210,7 @@
         <p>Epoch SemVer. CHANGELOG.md is the source of truth.</p>
       </section>
       <div class="prose">
-        <p>Sopsdeck versions are <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>: still <code>MAJOR.MINOR.PATCH</code> on GitHub, Tauri, Homebrew, and the updater. Read the first number as <code>EPOCH * 1000 + MAJOR</code>.</p>
+        <p>Sopsdeck versions are <a href="https://antfu.me/posts/epoch-semver">Epoch SemVer</a>: still <code>MAJOR.MINOR.PATCH</code> on GitHub and npm. Read the first number as <code>EPOCH * 1000 + MAJOR</code>.</p>
         <table>
         <thead><tr><th>Part</th><th>Meaning</th></tr></thead>
         <tbody>
@@ -221,9 +221,9 @@
         </tbody>
         </table>
         <p>Until a named era, EPOCH stays <strong>0</strong>, so versions look like ordinary <code>1.2.3</code>.</p>
-        <p>The unreleased tree may stay on <strong><code>0.1.0</code></strong>. The <strong>first public GitHub Release</strong> is <strong><code>v1.0.0</code></strong> (epoch 0) when signed macOS artifacts ship (phase 8). Do not stay on a leading-zero version forever to hide breaks.</p>
+        <p>The unreleased tree may stay on <strong><code>0.1.0</code></strong>. The <strong>first public GitHub Release</strong> is <strong><code>v1.0.0</code></strong> (epoch 0) when the public npm/browser package ships (phase 8). Do not stay on a leading-zero version forever to hide breaks.</p>
         <p><code>CHANGELOG.md</code> is the source of truth (Keep a Changelog: Unreleased plus version sections). GitHub Releases copy that section; the landing page and in-app What’s new are generated from the same file. Do not dump git subjects onto the site.</p>
-        <p>CLI <code>sopsdeck --version</code> and the desktop app share one version string (<code>internal/version</code>, Tauri, Cargo, <code>desktop/package.json</code>). <code>./scripts/check</code> fails if they drift. Tag <code>vX.Y.Z</code> CI fails if <code>CHANGELOG.md</code> has no matching section.</p>
+        <p>CLI <code>sopsdeck --version</code> and the npm launcher share one version string (<code>internal/version</code> and root <code>package.json</code>). <code>./scripts/check</code> fails if they drift. Tag <code>vX.Y.Z</code> CI fails if <code>CHANGELOG.md</code> has no matching section.</p>
       </div>
       <footer>Canonical domain sopsdeck.com. Generated pages stay in sync via ./scripts/docs.</footer>
     </div>

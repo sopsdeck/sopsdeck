@@ -373,7 +373,7 @@
         </a>
         <nav>
           <a href="#product">Product</a>
-          <a href="#start">Download</a>
+          <a href="#start">Install</a>
           <a href="#trust">Trust</a>
           <a href="docs/">Docs</a>
           <a href="changelog.html">Notes</a>
@@ -385,12 +385,12 @@
           <div class="kicker">sopsdeck.com</div>
           <h1>Edit secrets locally. Ship them encrypted.</h1>
           <p>
-            Edit SOPS-encrypted dotenv, JSON, and YAML files in one desktop workspace. Grant access
-            with public keys, then commit encrypted changes to Git—no hosted vault or shared private
-            keys.
+            Edit SOPS-encrypted dotenv, JSON, and YAML files in a local browser workspace. Grant
+            access with public keys, then commit encrypted changes to Git—no hosted vault or shared
+            private keys.
           </p>
           <div class="actions">
-            <a class="button primary" href="#start">Download Windows or Linux</a>
+            <a class="button primary" href="#start">Install with npm</a>
             <a class="button ghost" href="#product">See how it works</a>
           </div>
         </div>
@@ -455,35 +455,24 @@
       </section>
 
       <section class="start" id="start">
-        <div class="kicker">Download · Windows and Linux</div>
-        <h2>CLI binaries on GitHub Releases.</h2>
+        <div class="kicker">Install · macOS, Windows, and Linux</div>
+        <h2>One npm package. Your browser.</h2>
         <p>
-          Windows and Linux CLIs ship unsigned on each tag. macOS is a local
-          <code class="mono">./scripts/dev</code> build until Developer ID signing lands. Signed
-          macOS downloads stay later.
+          Install Sopsdeck as a development dependency and run it from any project folder. The
+          package downloads the matching native runner on first launch; SOPS is embedded, so there
+          is no Go, Rust, Bun, Apple Developer account, or separate SOPS setup.
         </p>
-        <div class="actions">
-          <a
-            class="button primary"
-            href="https://github.com/sopsdeck/sopsdeck/releases/latest/download/sopsdeck-windows-amd64.exe"
-            >Windows amd64</a
-          >
-          <a
-            class="button ghost"
-            href="https://github.com/sopsdeck/sopsdeck/releases/latest/download/sopsdeck-linux-amd64"
-            >Linux amd64</a
-          >
-          <a
-            class="button ghost"
-            href="https://github.com/sopsdeck/sopsdeck/releases/latest/download/sopsdeck-linux-arm64"
-            >Linux arm64</a
-          >
-        </div>
-        <p>macOS (and desktop shell) from this repo:</p>
         <pre>
-git clone https://github.com/sopsdeck/sopsdeck.git
-cd sopsdeck
-./scripts/dev</pre>
+npm install -D sopsdeck
+npx sopsdeck .
+
+# global shortcut
+npm install -g sopsdeck
+sd .</pre>
+        <p>
+          SOPS v3.11.0 is bundled with the local runner. Git remains the only project-level system
+          dependency.
+        </p>
       </section>
 
       <footer>

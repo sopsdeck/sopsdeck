@@ -1,10 +1,6 @@
 .golangci.yml
 xo.config.js
 node_modules
-desktop/src-tauri/target
-desktop/src-tauri/gen
-desktop/src-tauri/icons
-desktop/src-tauri/Cargo.lock
 testdata
 .scratch
 go.sum

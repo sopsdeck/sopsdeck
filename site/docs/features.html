@@ -220,6 +220,8 @@
         <li>Notes For Tag Fails When Only Unreleased (<code>TestNotesForTagFailsWhenOnlyUnreleased</code>)</li>
         <li>Bullets From Unreleased (<code>TestBulletsFromUnreleased</code>)</li>
         <li>Bullets Under Added Heading (<code>TestBulletsUnderAddedHeading</code>)</li>
+        <li>Account For Path Uses Git Identity And Age Identity (<code>TestAccountForPathUsesGitIdentityAndAgeIdentity</code>)</li>
+        <li>Configure Git Identity Does Not Override Existing Identity (<code>TestConfigureGitIdentityDoesNotOverrideExistingIdentity</code>)</li>
         <li>Commit Stages Managed File And Records Message (<code>TestCommitStagesManagedFileAndRecordsMessage</code>)</li>
         <li>Del Removes Key (<code>TestDelRemovesKey</code>)</li>
         <li>Dev Script Build Only Writes CLI (<code>TestDevScriptBuildOnlyWritesCLI</code>)</li>
@@ -265,7 +267,12 @@
         <li>MCP Get Value Requires Approval (<code>TestMCPGetValueRequiresApproval</code>)</li>
         <li>MCP Get Value With Approval Returns Plaintext (<code>TestMCPGetValueWithApprovalReturnsPlaintext</code>)</li>
         <li>MCP Run Returns Outcome Not Child Output (<code>TestMCPRunReturnsOutcomeNotChildOutput</code>)</li>
+        <li>Project Init Encrypts Selected Files And Writes Manifest (<code>TestProjectInitEncryptsSelectedFilesAndWritesManifest</code>)</li>
+        <li>Inspect Project Lists Encryptable Paths (<code>TestInspectProjectListsEncryptablePaths</code>)</li>
+        <li>Project Add Preserves Selected Paths When Initializing (<code>TestProjectAddPreservesSelectedPathsWhenInitializing</code>)</li>
+        <li>Project Init Encrypts Only Selected JSON Leaf (<code>TestProjectInitEncryptsOnlySelectedJSONLeaf</code>)</li>
         <li>Publish Failed Put Explains Retry (<code>TestPublishFailedPutExplainsRetry</code>)</li>
+        <li>Git Hub Secret UR Ls For Scopes (<code>TestGitHubSecretURLsForScopes</code>)</li>
         <li>Publish Seals Values With Git Hub Public Key (<code>TestPublishSealsValuesWithGitHubPublicKey</code>)</li>
         <li>Publish Dry Run Does Not Write (<code>TestPublishDryRunDoesNotWrite</code>)</li>
         <li>Publish Requires API (<code>TestPublishRequiresAPI</code>)</li>
@@ -284,6 +291,7 @@
         <li>Recipient Remove Revokes Access And Rotates Data Key (<code>TestRecipientRemoveRevokesAccessAndRotatesDataKey</code>)</li>
         <li>Recipient Remove Refuses Last Recipient (<code>TestRecipientRemoveRefusesLastRecipient</code>)</li>
         <li>Recipient Remove Unknown Is No Op (<code>TestRecipientRemoveUnknownIsNoOp</code>)</li>
+        <li>Recipient Labels Round Trip (<code>TestRecipientLabelsRoundTrip</code>)</li>
         <li>References Command Reports Counts And Files (<code>TestReferencesCommandReportsCountsAndFiles</code>)</li>
         <li>Unused Command Lists Zero Reference Keys (<code>TestUnusedCommandListsZeroReferenceKeys</code>)</li>
         <li>Rename Command Dry Run Lists Planned Changes (<code>TestRenameCommandDryRunListsPlannedChanges</code>)</li>
@@ -295,6 +303,7 @@
         <li>Restore Copies Historical Values Without Committing (<code>TestRestoreCopiesHistoricalValuesWithoutCommitting</code>)</li>
         <li>Review Shows Plaintext Semantic Diff Of Uncommitted Managed File (<code>TestReviewShowsPlaintextSemanticDiffOfUncommittedManagedFile</code>)</li>
         <li>Review Shows Three Way When Managed File Conflicts (<code>TestReviewShowsThreeWayWhenManagedFileConflicts</code>)</li>
+        <li>Robot Create Emits Exportable Named Identity (<code>TestRobotCreateEmitsExportableNamedIdentity</code>)</li>
         <li>Run Injects JSON Secrets (<code>TestRunInjectsJSONSecrets</code>)</li>
         <li>Run Injects Secrets Into Child Env (<code>TestRunInjectsSecretsIntoChildEnv</code>)</li>
         <li>Scan Blocks Staged Cloud Key (<code>TestScanBlocksStagedCloudKey</code>)</li>
@@ -320,22 +329,16 @@
         <li>Sync Pushes When Remote Can Fast Forward (<code>TestSyncPushesWhenRemoteCanFastForward</code>)</li>
         <li>Sync Without Upstream Explains Missing Tracking (<code>TestSyncWithoutUpstreamExplainsMissingTracking</code>)</li>
         <li>Version Prints App Version (<code>TestVersionPrintsAppVersion</code>)</li>
-        <li>Version Matches Desktop Manifests (<code>TestVersionMatchesDesktopManifests</code>)</li>
+        <li>Version Matches Package (<code>TestVersionMatchesPackage</code>)</li>
         <li>List Finds Dotenv And SOPS Structured Files (<code>TestListFindsDotenvAndSOPSStructuredFiles</code>)</li>
         <li>List Excludes Plain Dotenv (<code>TestListExcludesPlainDotenv</code>)</li>
+        <li>List Excludes Plain Structured File Containing SOPS Word (<code>TestListExcludesPlainStructuredFileContainingSOPSWord</code>)</li>
         <li>List Skips Generated Build Dirs (<code>TestListSkipsGeneratedBuildDirs</code>)</li>
         <li>List Finds Committed Compose YAML And Multiline Dotenv (<code>TestListFindsCommittedComposeYAMLAndMultilineDotenv</code>)</li>
         <li>Teammate Decrypts After Recipient Add And Sync (<code>TestTeammateDecryptsAfterRecipientAddAndSync</code>)</li>
         <li>Teammate Loses Access After Recipient Remove And Sync (<code>TestTeammateLosesAccessAfterRecipientRemoveAndSync</code>)</li>
         <li>Publish Puts Prefixed Names On Fake Git Hub (<code>TestPublishPutsPrefixedNamesOnFakeGitHub</code>)</li>
         <li>Files Command Lists Studio Managed File (<code>TestFilesCommandListsStudioManagedFile</code>)</li>
-        </ul>
-        <h2>Desktop discovery</h2>
-        <ul>
-        <li>cargo pkg version matches whats new (<code>cargo<em>pkg</em>version<em>matches</em>whats_new</code>)</li>
-        <li>list in rejects a file (<code>list<em>in</em>rejects<em>a</em>file</code>)</li>
-        <li>list in finds dotenv and sops structured files (<code>list<em>in</em>finds<em>dotenv</em>and<em>sops</em>structured_files</code>)</li>
-        <li>dotenv names include env production suffix (<code>dotenv<em>names</em>include<em>env</em>production_suffix</code>)</li>
         </ul>
       </div>
       <footer>Canonical domain sopsdeck.com. Generated pages stay in sync via ./scripts/docs.</footer>

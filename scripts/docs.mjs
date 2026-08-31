@@ -28,6 +28,12 @@ const phases = [
     names: /ErrorLog/,
   },
   {
+    phase: 2,
+    title: 'Browser app',
+    seam: 'localhost HTTP',
+    match: /^drive/,
+  },
+  {
     phase: 3,
     title: 'Git Review / Commit / Sync',
     seam: 'Git adapter',
@@ -63,7 +69,7 @@ const phases = [
   },
 ];
 
-const uncovered = [{ phase: 8, title: 'Signed macOS release', seam: 'release artifacts' }];
+const uncovered = [{ phase: 8, title: 'Public npm release', seam: 'release artifacts' }];
 
 function testdox(name) {
   const body = name.replace(/^Test/, '');
@@ -73,10 +79,6 @@ function testdox(name) {
     .replaceAll('_', ' ')
     .replaceAll(/\s+/g, ' ')
     .trim();
-}
-
-function rustDox(name) {
-  return name.replaceAll('_', ' ');
 }
 
 function goTests() {
@@ -101,19 +103,6 @@ function goTests() {
   return tests;
 }
 
-function rustTests() {
-  const tests = [];
-  const dir = join(root, 'desktop/src-tauri/src');
-  for (const file of readdirSync(dir).sort()) {
-    if (!file.endsWith('.rs')) continue;
-    const src = readFileSync(join(dir, file), 'utf8');
-    for (const match of src.matchAll(/#\[test]\s*\n\s*fn ([a-z0-9_]+)/g)) {
-      tests.push({ file, name: match[1], title: rustDox(match[1]) });
-    }
-  }
-  return tests;
-}
-
 function classifyGo(test) {
   const named = phases.find((phase) => phase.names?.test(test.name));
   if (named) {
@@ -124,7 +113,7 @@ function classifyGo(test) {
   return phases.find((phase) => phase.match.test(base));
 }
 
-function featuresMarkdown(go, rust) {
+function featuresMarkdown(go) {
   const lines = [
     '# Features proved by tests',
     '',
@@ -139,19 +128,11 @@ function featuresMarkdown(go, rust) {
   for (const test of go) {
     lines.push(`- ${test.title} (\`${test.name}\`)`);
   }
-  lines.push('', '## Desktop discovery', '');
-  if (rust.length === 0) {
-    lines.push('- _none yet_');
-  } else {
-    for (const test of rust) {
-      lines.push(`- ${test.title} (\`${test.name}\`)`);
-    }
-  }
   lines.push('');
   return `${lines.join('\n')}`;
 }
 
-function seamsMarkdown(go, rust) {
+function seamsMarkdown(go) {
   const lines = [
     '# Public seams',
     '',
@@ -173,11 +154,12 @@ function seamsMarkdown(go, rust) {
     goByPhase.set(phase.phase, list);
   }
 
-  const rustNames = rust.map((test) => test.name).join(', ') || '_none_';
   lines.push(
     `| 1 | CLI core | sopsdeck CLI | ${(goByPhase.get(1) ?? []).join(', ') || '_none_'} |`,
   );
-  lines.push(`| 2 | Tauri folder-first editor | Managed File discovery | ${rustNames} |`);
+  lines.push(
+    `| 2 | Browser app | localhost HTTP | ${(goByPhase.get(2) ?? []).join(', ') || '_none_'} |`,
+  );
   lines.push(
     `| 3 | Git Commit / Sync | Git adapter | ${(goByPhase.get(3) ?? []).join(', ') || '_none_'} |`,
   );
@@ -392,18 +374,9 @@ function whatsNewPayload(md, version) {
 }
 
 function checkVersionDrift(version, bundled) {
-  const tauri = JSON.parse(
-    readFileSync(join(root, 'desktop/src-tauri/tauri.conf.json'), 'utf8'),
-  ).version;
-  const pkg = JSON.parse(readFileSync(join(root, 'desktop/package.json'), 'utf8')).version;
-  const cargoMatch = /^version = "([^"]+)"/m.exec(
-    readFileSync(join(root, 'desktop/src-tauri/Cargo.toml'), 'utf8'),
-  );
-  const cargo = cargoMatch ? cargoMatch[1] : '';
+  const npmPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
   for (const [name, got] of Object.entries({
-    'tauri.conf.json': tauri,
-    'desktop/package.json': pkg,
-    'Cargo.toml': cargo,
+    'package.json': npmPkg,
     'whats-new.json': bundled,
   })) {
     if (got !== version) {
@@ -416,12 +389,11 @@ function checkVersionDrift(version, bundled) {
 }
 
 const go = goTests();
-const rust = rustTests();
 const catalog = loadCatalog();
 const changelogMd = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
 const version = appVersion();
-const featuresMd = featuresMarkdown(go, rust);
-const seamsMd = seamsMarkdown(go, rust);
+const featuresMd = featuresMarkdown(go);
+const seamsMd = seamsMarkdown(go);
 const assetsMd = assetsMarkdown(catalog);
 const files = {
   'docs/features.md': featuresMd,

@@ -63,8 +63,7 @@ if [ "${1:-}" = "--team" ]; then
   exit 0
 fi
 
-cd desktop
-if [ ! -d node_modules ]; then
-  bun install
+if [ "$#" -eq 0 ]; then
+  set -- .
 fi
-exec bun run tauri -- dev
+exec node "$root/bin/sopsdeck.mjs" "$@"

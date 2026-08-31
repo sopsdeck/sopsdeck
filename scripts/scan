@@ -28,8 +28,3 @@ fi
 
 printf '== bun audit (root) ==\n'
 bun audit
-
-if [ -f desktop/package.json ]; then
-  printf '== bun audit (desktop) ==\n'
-  (cd desktop && bun audit)
-fi

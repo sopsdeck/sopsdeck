@@ -2,7 +2,7 @@ import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.
 import { resetClipboardSeen, sniffClipboard } from './clipboard.js';
 import { showWhatsNew } from './whatsnew.js';
 
-const invoke = globalThis.__TAURI__?.core?.invoke ?? invokeOverHTTP;
+const invoke = invokeOverHTTP;
 const THEME_KEY = 'sopsdeck-theme';
 const INSPECTOR_KEY = 'sopsdeck-inspector';
 const RECENTS_KEY = 'sopsdeck-recents';
@@ -221,7 +221,7 @@ async function copyText(text) {
     return true;
   } catch (err) {
     nativeError = err;
-    // The native command is unavailable when the page is opened outside the desktop shell.
+    // The server-side clipboard command may be unavailable in a browser-only setup.
   }
   try {
     if (navigator.clipboard?.writeText) {
@@ -844,7 +844,7 @@ function renderTree() {
     const actions = document.createElement('span');
     actions.className = 'project-actions';
     const move = iconButton('move-project', 'Choose a new Project path', 'folder', async () => {
-      const path = await invoke('pick_project_folder');
+      const path = pickProjectFolder();
       if (!path || path === project.path) return;
       await addProjectFromPath(path);
       removeProject(project);
@@ -1571,12 +1571,17 @@ function chooseProjectFiles(path, candidates, opts = {}) {
 async function addProject() {
   showError('');
   try {
-    const selectedPath = await invoke('pick_project_folder');
+    const selectedPath = pickProjectFolder();
     if (!selectedPath) return;
     await addProjectFromPath(selectedPath);
   } catch (err) {
     showError(messageOf(err));
   }
+}
+
+function pickProjectFolder() {
+  // eslint-disable-next-line no-alert -- browsers have no native path picker for local servers.
+  return window.prompt('Project folder path', '')?.trim() || null;
 }
 
 function buttonLabel(el) {
@@ -2065,7 +2070,7 @@ async function loadDemoHints() {
       await addProjectFromPath(path, { select: false });
     }
   } catch {
-    // Tauri has no /demo endpoint.
+    // The normal browser server has no /demo endpoint.
   }
 }
 

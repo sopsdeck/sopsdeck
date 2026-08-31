@@ -14,11 +14,3 @@ awk -v total="$total" -v min="$GO_MIN" 'BEGIN {
   }
   printf "go coverage %s%%\n", total
 }'
-
-if command -v cargo-llvm-cov >/dev/null 2>&1; then
-  printf '== rust coverage ==\n'
-  (cd desktop/src-tauri && cargo llvm-cov --all-targets --summary-only)
-else
-  printf 'cargo-llvm-cov not on PATH; skip rust coverage\n'
-  printf 'install: cargo install cargo-llvm-cov --locked\n'
-fi

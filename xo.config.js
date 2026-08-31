@@ -8,7 +8,6 @@ const xoConfig = [
   },
   {
     ignores: [
-      'desktop/src-tauri/**',
       'desktop/node_modules/**',
       'site/**',
       'scripts/**',
@@ -31,7 +30,6 @@ const xoConfig = [
     languageOptions: {
       globals: {
         ...globals.browser,
-        __TAURI__: 'readonly',
       },
     },
     rules: {

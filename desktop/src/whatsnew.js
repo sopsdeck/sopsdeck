@@ -8,10 +8,6 @@ const noteTags = {
 };
 
 async function loadWhatsNew() {
-  if (globalThis.__TAURI__?.core?.invoke) {
-    return globalThis.__TAURI__.core.invoke('whats_new');
-  }
-
   const response = await fetch('/whats-new.json');
   if (!response.ok) {
     throw new Error(response.statusText);

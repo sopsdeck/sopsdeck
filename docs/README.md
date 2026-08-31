@@ -20,17 +20,15 @@ Regenerate the living files with `./scripts/docs`. `./scripts/check` fails when 
 
 | Script             | What it proves                                                                        |
 | ------------------ | ------------------------------------------------------------------------------------- |
-| `./scripts/fmt`    | Formatters (gofumpt, rustfmt, prettier)                                               |
-| `./scripts/lint`   | gofumpt, golangci-lint, rustfmt, clippy, prettier, markdownlint, xo                   |
-| `./scripts/test`   | Go tests; Rust tests via cargo-nextest when installed                                 |
-| `./scripts/cover`  | Go coverage floor; rust `cargo llvm-cov` when installed                               |
+| `./scripts/fmt`    | Formatters (gofumpt, prettier)                                                        |
+| `./scripts/lint`   | gofumpt, golangci-lint, prettier, markdownlint, xo                                    |
+| `./scripts/test`   | Go and browser JavaScript tests                                                       |
+| `./scripts/cover`  | Go coverage floor                                                                     |
 | `./scripts/docs`   | Regenerates features, seams, assets catalog, landing changelog, What’s new, site docs |
 | `./scripts/smoke`  | Local teammates + Playwright against `sopsdeck drive`                                 |
 | `./scripts/demo`   | Product stills, clips, walkthrough, and CLI casts into `docs/assets/`                 |
 | `./scripts/scan`   | `govulncheck` and `bun audit` (not in `./scripts/check`)                              |
-| `./scripts/dev`    | Builds `./sopsdeck` and launches Tauri `dev` with that binary                         |
+| `./scripts/dev`    | Builds `./sopsdeck` and launches the browser app with that binary                     |
 | `./scripts/hooks`  | Opt-in `core.hooksPath=.githooks`; `git commit --no-verify` still skips               |
 | `./scripts/mutate` | Mutation testing (slow; not in `./scripts/check`)                                     |
 | `./scripts/check`  | lint + test + cover + docs --check                                                    |
-
-Rust local loop: `cd desktop/src-tauri && bacon clippy`. Stay on stable rustc; Tauri is the reason not to default to nightly. Clippy denies panics, unwrap, expect, and indexing in production code, and allows them in tests.

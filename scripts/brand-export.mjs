@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { spawnSync } from 'node:child_process';
 
 import { chromium } from '@playwright/test';
 
@@ -138,26 +137,5 @@ copyFileSync(join(outDir, 'favicon.ico'), join(site, 'favicon.ico'));
 copyFileSync(join(outDir, 'apple-touch-icon.png'), join(site, 'apple-touch-icon.png'));
 copyFileSync(join(outDir, 'og-image.png'), join(site, 'og.png'));
 copyFileSync(join(svgDir, 'favicon.svg'), join(root, 'desktop/src/favicon.svg'));
-
-const tauri = spawnSync(
-  'bunx',
-  [
-    'tauri',
-    'icon',
-    join(outDir, 'app-icon.png'),
-    '--output',
-    join(root, 'desktop/src-tauri/icons'),
-  ],
-  { cwd: join(root, 'desktop'), encoding: 'utf8' },
-);
-
-for (const path of ['64x64.png', 'android', 'ios']) {
-  rmSync(join(root, 'desktop/src-tauri/icons', path), { force: true, recursive: true });
-}
-
-if (tauri.status !== 0) {
-  process.stderr.write(tauri.stderr || tauri.stdout);
-  process.exit(tauri.status ?? 1);
-}
 
 process.stdout.write(`wrote brand exports to ${outDir}\n`);

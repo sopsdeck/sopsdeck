@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -24,14 +23,12 @@ func TestVersionPrintsAppVersion(t *testing.T) {
 	}
 }
 
-func TestVersionMatchesDesktopManifests(t *testing.T) {
+func TestVersionMatchesPackage(t *testing.T) {
 	root := repoRoot(t)
 	want := appver.Version
-	tauri := readJSONVersion(t, filepath.Join(root, "desktop/src-tauri/tauri.conf.json"))
-	pkg := readJSONVersion(t, filepath.Join(root, "desktop/package.json"))
-	cargo := readCargoVersion(t, filepath.Join(root, "desktop/src-tauri/Cargo.toml"))
-	if tauri != want || pkg != want || cargo != want {
-		t.Fatalf("version drift: go=%s tauri=%s package=%s cargo=%s", want, tauri, pkg, cargo)
+	npm := readJSONVersion(t, filepath.Join(root, "package.json"))
+	if npm != want {
+		t.Fatalf("version drift: go=%s npm=%s", want, npm)
 	}
 }
 
@@ -68,17 +65,4 @@ func readJSONVersion(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return doc.Version
-}
-
-func readCargoVersion(t *testing.T, path string) string {
-	t.Helper()
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	match := regexp.MustCompile(`(?m)^version = "([^"]+)"`).FindSubmatch(raw)
-	if match == nil {
-		t.Fatalf("no version in %s", path)
-	}
-	return string(match[1])
 }

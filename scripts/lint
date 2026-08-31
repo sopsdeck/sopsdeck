@@ -13,7 +13,6 @@ need() {
 need gofumpt "go install mvdan.cc/gofumpt@latest"
 need golangci-lint "https://golangci-lint.run/welcome/install/"
 need bun "https://bun.sh"
-need cargo "https://rustup.rs"
 
 printf '== gofumpt ==\n'
 unformatted="$(gofumpt -extra -l cmd internal)"
@@ -25,12 +24,6 @@ fi
 
 printf '== golangci-lint ==\n'
 golangci-lint run ./cmd/... ./internal/...
-
-printf '== rustfmt ==\n'
-(cd desktop/src-tauri && cargo fmt --check)
-
-printf '== clippy ==\n'
-(cd desktop/src-tauri && cargo clippy --all-targets -- -D warnings)
 
 printf '== prettier ==\n'
 bunx prettier --check .

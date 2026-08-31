@@ -19,7 +19,7 @@
       "platforms": []
     },
     {
-      "text": "Windows and Linux CLI binaries attach to GitHub Releases; macOS is a local `./scripts/dev` build until Developer ID.",
+      "text": "Native Go runners for macOS, Windows, and Linux attach to GitHub Releases; the npm launcher downloads the matching runner.",
       "type": "feature",
       "platforms": [
         "macOS",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "text": "Landing download points at those artifacts; the hero plays the catalog walkthrough.",
+      "text": "Landing install points at the npm package; the hero plays the catalog walkthrough.",
       "type": "feature",
       "platforms": []
     },
@@ -67,7 +67,7 @@
       "platforms": []
     },
     {
-      "text": "`./scripts/dev` builds a fresh CLI and launches the desktop app against it.",
+      "text": "`./scripts/dev` builds a fresh CLI and launches the browser app against it.",
       "type": "feature",
       "platforms": []
     },
@@ -192,7 +192,7 @@
       "platforms": []
     },
     {
-      "text": "`sopsdeck --version` matches the desktop app; What’s new is bundled from this file.",
+      "text": "`sopsdeck --version` matches the npm launcher; What’s new is bundled from this file.",
       "type": "feature",
       "platforms": []
     },
@@ -202,7 +202,7 @@
       "platforms": []
     },
     {
-      "text": "The desktop app logs failed CLI commands to `~/.config/sopsdeck/errors.json` and uses the keychain Age identity for decryption, so it works when launched from a GUI without a shell env.",
+      "text": "The browser app logs failed CLI commands to `~/.config/sopsdeck/errors.json` and uses the keychain Age identity for decryption, so it works without a shell env.",
       "type": "bugfix",
       "platforms": []
     },
@@ -212,12 +212,12 @@
       "platforms": []
     },
     {
-      "text": "Add folder from disk no longer freezes the desktop; the window is named Sopsdeck.",
+      "text": "Adding a Project path no longer depends on a native folder dialog.",
       "type": "bugfix",
       "platforms": []
     },
     {
-      "text": "Opening a large Project no longer beachballs the desktop: Managed File listing and decryption now run off the UI thread, and the walker skips generated/build dirs (`.next`, `build`, `coverage`, `__pycache__`, …).",
+      "text": "Opening a large Project no longer blocks the browser: Managed File listing and decryption run in the Go runner, and the walker skips generated/build dirs (`.next`, `build`, `coverage`, `__pycache__`, …).",
       "type": "bugfix",
       "platforms": []
     },
@@ -227,7 +227,7 @@
       "platforms": []
     },
     {
-      "text": "Desktop shows Sync, commit, and save failures next to those controls, not as a toast.",
+      "text": "The browser shows Sync, commit, and save failures next to those controls, not as a toast.",
       "type": "bugfix",
       "platforms": []
     },
@@ -237,17 +237,22 @@
       "platforms": []
     },
     {
-      "text": "Desktop breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.",
+      "text": "Browser breadcrumb and inspector show `~/project/file` paths, not temp or `..` paths.",
       "type": "bugfix",
       "platforms": []
     },
     {
-      "text": "Cipher seam mark is the site favicon, Open Graph image, and desktop app icon.",
+      "text": "Cipher seam mark is the site favicon, Open Graph image, and app icon master.",
       "type": "changed",
       "platforms": []
     },
     {
       "text": "Changelog and What’s new use the product layout; primary actions have icons.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "Browser app is now the only supported UI; the Tauri/Rust shell and its separate setup are removed.",
       "type": "changed",
       "platforms": []
     },

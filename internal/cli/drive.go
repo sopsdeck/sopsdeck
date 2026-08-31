@@ -362,7 +362,7 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 		return invokePublishMapping(req, getenv)
 	case "references", "unused", "rename_key":
 		return invokeReferenceCommands(req)
-	case "pick_project_folder", "boot_project":
+	case "boot_project":
 		project := getenv("SOPSDECK_DEV_PROJECT")
 		if project == "" {
 			return nil, nil
