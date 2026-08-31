@@ -112,6 +112,10 @@ export function icon(kind) {
       }),
     ],
     moon: [svgEl('path', { d: 'M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z', ...stroke })],
+    book: [
+      svgEl('path', { d: 'M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z', ...stroke }),
+      svgEl('path', { d: 'M6 3v16', ...stroke }),
+    ],
     chevron: [svgEl('path', { d: 'M8 10l4 4 4-4', ...stroke })],
   };
   return svgEl(

@@ -4,12 +4,32 @@
   "date": "",
   "notes": [
     {
-      "text": "Landing page and editor show that Sopsdeck is under development, with a link to open a GitHub issue.",
+      "text": "Opening a Managed File without Access shows a recovery panel instead of a raw decrypt error.",
       "type": "feature",
       "platforms": []
     },
     {
-      "text": "The public docs are a user guide; landing feature cards open the matching guide sections.",
+      "text": "JSON and YAML files open as a tree. Encrypt or leave plaintext per path, including after the file is already managed.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Account copies your Age public key and an Access request in the modal. The inspector no longer has a Request access button.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Clipboard prompts remember dismissed payloads so the same snippet does not keep interrupting.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Public docs are a user guide with a sidebar. Contributor pages (seams, features, assets, glossary, versioning) stay in the repo, not the site.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "The site footer is a large lockup; the landing page has load animations.",
       "type": "feature",
       "platforms": []
     },

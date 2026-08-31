@@ -4,8 +4,10 @@ import {
   parsePastePayload,
   pastePreviewText,
 } from './paste.js';
-import { resetClipboardSeen, sniffClipboard } from './clipboard.js';
+import { dismissClipboard, resetClipboardSeen, sniffClipboard } from './clipboard.js';
 import { icon, iconButton } from './icons.js';
+import { appendSetupKeyTree, renderKeyRows } from './keys-view.js';
+import { isStructuredFormat, nestLeaves } from './tree.js';
 import { showWhatsNew } from './whatsnew.js';
 
 const invoke = invokeOverHTTP;
@@ -309,7 +311,11 @@ function parseComposerLine(text) {
 
 function rowDirty(row) {
   return Boolean(
-    row.deleted || row.added || row.key !== row.origKey || row.value !== row.origValue,
+    row.deleted ||
+    row.added ||
+    row.key !== row.origKey ||
+    row.value !== row.origValue ||
+    Boolean(row.encrypted) !== Boolean(row.origEncrypted),
   );
 }
 
@@ -503,6 +509,29 @@ function showEmpty(message) {
   empty.textContent = message || '';
 }
 
+function showAccessGate(show) {
+  const gate = document.getElementById('access-gate');
+  if (!gate) return;
+  gate.hidden = !show;
+}
+
+function isMissingAccess(err) {
+  return /no access/i.test(messageOf(err));
+}
+
+function accessRequestMessage() {
+  const file = selected?.rel || selected?.name || selected?.path || 'this Managed File';
+  const project = selected?.project?.name || projectConfig.name || 'this Project';
+  const who = account.name ? `${account.name}${account.email ? ` <${account.email}>` : ''}` : 'me';
+  return `Hi — please grant me Access to ${file} in ${project}.
+
+Name: ${who}
+Age public key:
+${account.publicKey || '(create an Age identity in Sopsdeck first)'}
+
+You can add this key in Sopsdeck (Access → Add recipient) if you are a Project owner.`;
+}
+
 function resetEditorChrome() {
   selected = null;
   rows = [];
@@ -532,6 +561,7 @@ function resetEditorChrome() {
   renderAccess();
   setStatus('file', '');
   setFileNote('');
+  showAccessGate(false);
 }
 
 function renderWorkspace() {
@@ -804,6 +834,7 @@ async function openFile(project, file) {
   crumbEl().textContent = displayPath(project, file);
   headlineEl().textContent = titleOf(file.name);
   showError('');
+  showAccessGate(false);
   setStatus('file', '');
   badgeEl().hidden = true;
   document.getElementById('meta-path').textContent = displayPath(project, file);
@@ -811,16 +842,22 @@ async function openFile(project, file) {
   document.getElementById('meta-enc').textContent = 'age + SOPS';
   try {
     const pairs = await invoke('get_managed_file', { path: file.path });
-    rows = pairs.map((p) => ({
-      key: p.key,
-      value: p.value,
-      origKey: p.key,
-      origValue: p.value,
-      added: false,
-      deleted: false,
-      revealed: false,
-      unused: false,
-    }));
+    const structured = isStructuredFormat(formatOf(file.path));
+    rows = pairs.map((p) => {
+      const encrypted = structured ? Boolean(p.encrypted) : true;
+      return {
+        key: p.key,
+        value: p.value,
+        origKey: p.key,
+        origValue: p.value,
+        added: false,
+        deleted: false,
+        revealed: false,
+        unused: false,
+        encrypted,
+        origEncrypted: encrypted,
+      };
+    });
     fileLockEl().disabled = false;
     copyFileEl().disabled = false;
     fileHistoryEl().disabled = false;
@@ -838,12 +875,23 @@ async function openFile(project, file) {
       loadUnusedKeys(file.path),
       loadProjectConfig(project.path),
     ]);
+    renderEncryptedFields();
   } catch (err) {
     rows = [];
     keysEl().replaceChildren();
     saveEl().disabled = true;
     showEmpty('');
-    showError(messageOf(err));
+    renderEncryptedFields();
+    if (isMissingAccess(err)) {
+      showAccessGate(true);
+      try {
+        await Promise.all([loadAccess(file.path), loadProjectConfig(project.path)]);
+      } catch {
+        // Access list is optional when the file cannot be decrypted.
+      }
+    } else {
+      showError(messageOf(err));
+    }
   }
 }
 
@@ -1049,81 +1097,16 @@ function renderKeys() {
   box.hidden = false;
   box.replaceChildren();
   renderPasteChrome(box);
-  const head = document.createElement('div');
-  head.className = 'key-head';
-  const keyHead = document.createElement('span');
-  keyHead.textContent = 'Key';
-  const valueHead = document.createElement('span');
-  valueHead.className = 'value-head';
-  valueHead.append('Value');
-  valueHead.append(
-    iconButton(
-      'reveal',
-      revealed ? 'Hide values' : 'Reveal values',
-      revealed ? 'eye-off' : 'eye',
-      toggleReveal,
-    ),
-  );
-  const typeHead = document.createElement('span');
-  typeHead.textContent = 'Type';
-  const actionsHead = document.createElement('span');
-  head.append(keyHead, valueHead, typeHead, actionsHead);
-
-  box.append(head);
-
-  for (const row of visible) {
-    const line = document.createElement('div');
-    const changed = rowDirty(row);
-    line.className = 'key-row' + (changed ? ' changed' : '');
-    line.dataset.testid = 'key-row';
-    const keyCell = document.createElement('div');
-    keyCell.className = 'key-cell';
-    const name = document.createElement('input');
-    name.className = 'key-name';
-    name.dataset.testid = 'key-name';
-    name.value = row.key;
-    name.autocomplete = 'off';
-    name.spellcheck = false;
-    const kind = document.createElement('span');
-    kind.className = 'kind';
-    kind.textContent = changed ? 'changed' : 'secret';
-    refreshUnusedBadge(kind, row);
-
-    const mark = () => {
-      line.classList.toggle('changed', rowDirty(row));
-      kind.textContent = rowDirty(row) ? 'changed' : 'secret';
-      refreshUnusedBadge(kind, row);
-
-      saveEl().disabled = dirtyCount() === 0;
-      syncCommitMessage();
-    };
-
-    name.addEventListener('input', () => {
-      row.key = name.value;
-      mark();
-    });
-    keyCell.append(
-      name,
-      iconButton('copy-key', 'Copy key', 'copy', () => copyText(row.key)),
-    );
-    const valueCell = document.createElement('div');
-    valueCell.className = 'value-cell';
-    const input = document.createElement('input');
-    const shown = Boolean(row.revealed);
-    input.className = 'value' + (shown ? '' : ' masked');
-    input.dataset.testid = 'key-value';
-    input.value = shown ? row.value : '••••••••••••••••••••••••••••';
-    input.readOnly = !shown;
-    input.autocomplete = 'off';
-    input.spellcheck = false;
-    input.addEventListener('input', () => {
-      row.value = input.value;
-      mark();
-    });
-    valueCell.append(input);
-    const actions = document.createElement('div');
-    actions.className = 'key-actions';
-    const remove = iconButton('delete-key', 'Delete key', 'trash', () => {
+  const structured = isStructuredFormat(formatOf(selected.path));
+  renderKeyRows(box, visible, structured, {
+    revealed,
+    toggleReveal,
+    rowDirty,
+    refreshUnusedBadge,
+    copyText,
+    showSecretHistory,
+    parseComposerLine,
+    deleteRow(row) {
       if (row.added && !row.origKey) {
         rows = rows.filter((item) => item !== row);
       } else {
@@ -1131,71 +1114,52 @@ function renderKeys() {
       }
 
       renderKeys();
-    });
-    remove.classList.add('danger');
-    actions.append(
-      iconButton(
-        'reveal-key',
-        shown ? 'Hide value' : 'Reveal value',
-        shown ? 'eye-off' : 'eye',
-        () => {
-          row.revealed = !row.revealed;
-          renderKeys();
-        },
-      ),
-      iconButton('copy-value', 'Copy value', 'copy', () => copyText(row.value)),
-      iconButton('secret-history', 'Secret history', 'history', () => showSecretHistory(row)),
-      remove,
-    );
-    line.append(keyCell, valueCell, kind, actions);
-    box.append(line);
-  }
-
-  const composer = document.createElement('div');
-  composer.className = 'key-composer';
-  const composerInput = document.createElement('input');
-  composerInput.type = 'text';
-  composerInput.dataset.testid = 'key-composer';
-  composerInput.placeholder = 'KEY=value';
-  composerInput.autocomplete = 'off';
-  composerInput.spellcheck = false;
-  const addFromComposer = () => {
-    const parsed = parseComposerLine(composerInput.value);
-    if (!parsed) return;
-    rows.push({
-      key: parsed.key,
-      value: parsed.value,
-      origKey: '',
-      origValue: '',
-      added: true,
-      deleted: false,
-      revealed: true,
-    });
-    composerFocus = true;
-    renderKeys();
-  };
-
-  composerInput.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    addFromComposer();
+    },
+    toggleRowReveal(row) {
+      row.revealed = !row.revealed;
+      renderKeys();
+    },
+    toggleEncrypted(row) {
+      row.encrypted = !row.encrypted;
+      renderKeys();
+    },
+    addRow(parsed) {
+      rows.push({
+        key: parsed.key,
+        value: parsed.value,
+        origKey: '',
+        origValue: '',
+        added: true,
+        deleted: false,
+        revealed: true,
+        encrypted: true,
+        origEncrypted: false,
+      });
+      composerFocus = true;
+      renderKeys();
+    },
+    consumeComposerFocus() {
+      if (!composerFocus) return false;
+      composerFocus = false;
+      return true;
+    },
+    onDirty() {
+      saveEl().disabled = dirtyCount() === 0;
+      syncCommitMessage();
+      renderEncryptedFields();
+    },
   });
-  composer.append(composerInput, iconButton('composer-add', 'Add key', 'plus', addFromComposer));
-  box.append(composer);
   saveEl().disabled = dirtyCount() === 0;
   syncCommitMessage();
   sublineEl().textContent = `${visible.length} secrets · ${dirtyCount() ? 'edited locally' : 'never uploaded'}`;
-  if (composerFocus) {
-    composerFocus = false;
-    composerInput.focus();
-  }
+  renderEncryptedFields();
 }
 
 async function addProjectFromPath(path, opts = {}) {
   const select = opts.select !== false;
   let state = await invoke('inspect_project', { path });
-  await ensureAccount(path);
-  if (!state.initialized) {
+  if (select) await ensureAccount(path);
+  if (!state.initialized && select) {
     const selectedFiles = await chooseProjectFiles(path, state.candidates || []);
     if (selectedFiles) {
       await invoke('initialize_project', { path, files: selectedFiles });
@@ -1225,7 +1189,7 @@ async function addProjectFromPath(path, opts = {}) {
     renderWorkspace();
   }
 
-  await loadProjectConfig(path);
+  if (select) await loadProjectConfig(path);
 }
 
 function avatarURL(kind, seed) {
@@ -1270,14 +1234,25 @@ function renderAccountKey() {
   if (keyStatus) keyStatus.textContent = account.hasIdentity ? 'Configured' : 'Not configured';
   const createIdentity = document.getElementById('account-create-identity');
   if (createIdentity) {
+    createIdentity.hidden = account.hasIdentity;
     createIdentity.disabled = account.hasIdentity;
-    createIdentity.textContent = account.hasIdentity ? 'Identity configured' : 'Create identity';
+    createIdentity.textContent = 'Create identity';
   }
 
   const keyField = document.getElementById('account-key-field');
   const keyInput = document.getElementById('account-public-key');
   if (keyField) keyField.hidden = !account.hasIdentity || !account.publicKey;
   if (keyInput) keyInput.value = account.publicKey || '';
+  renderAccountRequest();
+}
+
+function renderAccountRequest() {
+  const wrap = document.getElementById('account-request');
+  const template = document.getElementById('account-request-template');
+  if (!wrap || !template) return;
+  const ready = Boolean(account.hasIdentity && account.publicKey);
+  wrap.hidden = !ready;
+  if (ready) template.value = accessRequestMessage();
 }
 
 function accountComplete() {
@@ -1301,6 +1276,7 @@ async function openAccountDialog(required = false, path = '') {
   nameInput.readOnly = Boolean(account.name);
   emailInput.readOnly = Boolean(account.email);
   error.hidden = true;
+  document.getElementById('account-status').hidden = true;
   document.getElementById('account-later').hidden = !required;
   const saveAccount = document.getElementById('account-save');
   saveAccount.hidden = Boolean(account.name && account.email);
@@ -1457,20 +1433,13 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     const keyInputs = [];
     const keyList = document.createElement('div');
     keyList.className = 'setup-project-keys';
-    for (const key of keys) {
-      const keyLabel = document.createElement('label');
-      keyLabel.className = 'setup-project-key';
-      const keyInput = document.createElement('input');
-      keyInput.type = 'checkbox';
-      keyInput.value = key;
-      keyInput.checked = opts.manageAll === true;
-      keyInput.dataset.testid = 'setup-project-key-toggle';
-      const keyName = document.createElement('code');
-      keyName.textContent = key;
-      keyLabel.append(keyInput, keyName);
+    appendSetupKeyTree(keyList, nestLeaves(keys), {
+      keyInputs,
+      depth: 0,
+      checked: opts.manageAll === true,
+    });
+    for (const keyInput of keyInputs) {
       keyInput.addEventListener('change', updateSelection);
-      keyList.append(keyLabel);
-      keyInputs.push(keyInput);
     }
 
     input.addEventListener('change', () => {
@@ -1585,10 +1554,10 @@ function decorateButton(id, kind) {
 function decorateChrome() {
   decorateButton('add-file', 'file');
   decorateButton('whats-new', 'spark');
+  decorateButton('docs-link', 'book');
   decorateButton('add-project', 'folder');
   decorateButton('save', 'save');
   decorateButton('grant-access', 'grant');
-  decorateButton('request-access', 'grant');
   for (const [id, kind] of [
     ['file-lock', 'unlock'],
     ['copy-file', 'copy'],
@@ -1711,6 +1680,18 @@ async function saveFile() {
       }
 
       rows = live;
+      if (isStructuredFormat(formatOf(selected.path))) {
+        const nextKeys = live.filter((row) => row.encrypted).map((row) => row.key);
+        const prevKeys = live
+          .filter((row) => row.origEncrypted)
+          .map((row) => row.origKey || row.key);
+        if ([...nextKeys].sort().join('\0') !== [...prevKeys].sort().join('\0')) {
+          await invoke('set_encrypted_keys', { path: selected.path, keys: nextKeys });
+        }
+
+        for (const row of live) row.origEncrypted = row.encrypted;
+      }
+
       await invoke('commit_managed_file', { path: selected.path, message });
     });
 
@@ -1748,7 +1729,7 @@ async function addManagedFile() {
       const selected = await chooseProjectFiles(project.path, [existing], {
         action: 'Add file',
         heading: `Manage ${rel}?`,
-        manageAll: true,
+        manageAll: false,
         skipLabel: 'Cancel',
       });
       if (!selected?.length) return;
@@ -1824,13 +1805,11 @@ function syncAccessChrome(empty, fileOpen) {
   const form = document.querySelector('.access-form');
   const list = document.getElementById('access-list');
   const count = document.getElementById('access-count');
-  const request = document.getElementById('request-access');
   if (!emptyActions || !toolbar || !form || !list || !count) return false;
   emptyActions.hidden = !(empty && !accessFormOpen && canGrant && fileOpen);
   toolbar.hidden = empty;
   form.hidden = !canGrant || (empty && !accessFormOpen);
   list.hidden = empty;
-  if (request) request.hidden = !fileOpen;
   if (empty && !accessFormOpen) {
     list.replaceChildren();
     return false;
@@ -1945,6 +1924,7 @@ function renderProjectPanel() {
   }
 
   if (copyKey) copyKey.disabled = !account.publicKey;
+  renderEncryptedFields();
   if (!ownersEl) return;
   const owners = Array.isArray(projectConfig.owners) ? projectConfig.owners : [];
   if (owners.length === 0) {
@@ -1959,36 +1939,91 @@ function renderProjectPanel() {
     : `Owners: ${names}. Ask an owner to add people, or copy a request.`;
 }
 
-async function copyPublicKey() {
+function renderEncryptedFields() {
+  const wrap = document.getElementById('file-fields');
+  const list = document.getElementById('encrypted-paths');
+  if (!wrap || !list) return;
+  const structured = Boolean(selected) && isStructuredFormat(formatOf(selected.path));
+  wrap.hidden = !structured;
+  if (!structured) {
+    list.replaceChildren();
+    return;
+  }
+
+  list.replaceChildren();
+  const encrypted = visibleRows().filter((row) => row.encrypted);
+  if (encrypted.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'save-note';
+    empty.textContent = 'No encrypted paths. Values stay plaintext until you lock a path.';
+    list.append(empty);
+    return;
+  }
+
+  for (const row of encrypted) {
+    const item = document.createElement('li');
+    item.className = 'encrypted-path';
+    const code = document.createElement('code');
+    code.textContent = row.key;
+    const remove = iconButton(
+      'remove-encrypted-path',
+      `Stop encrypting ${row.key}`,
+      'trash',
+      () => {
+        row.encrypted = false;
+        renderKeys();
+      },
+    );
+    remove.classList.add('danger');
+    item.append(code, remove);
+    list.append(item);
+  }
+}
+
+function addEncryptedPath() {
+  const input = document.getElementById('add-encrypted-path');
+  const path = input?.value.trim();
+  if (!path || !selected) return;
+  const existing = rows.find((row) => !row.deleted && row.key === path);
+  if (existing) {
+    existing.encrypted = true;
+  } else {
+    rows.push({
+      key: path,
+      value: '',
+      origKey: '',
+      origValue: '',
+      added: true,
+      deleted: false,
+      revealed: true,
+      encrypted: true,
+      origEncrypted: false,
+    });
+  }
+
+  input.value = '';
+  renderKeys();
+}
+
+async function copyPublicKey(statusKind = 'account') {
   if (!account.publicKey) {
     showError('Create an Age identity first');
     return;
   }
 
   if (await copyText(account.publicKey)) {
-    setStatus('access', 'Copied your Age public key');
+    setStatus(statusKind, 'Copied your Age public key');
   }
 }
 
 async function requestAccess() {
-  if (!selected) return;
   if (!account.publicKey) {
-    showError('Create an Age identity first, then copy a request', 'access');
+    setStatus('account', 'Create an Age identity first, then copy a request');
     return;
   }
 
-  const file = selected.rel || selected.name || selected.path;
-  const project = selected.project?.name || projectConfig.name || 'this Project';
-  const who = account.name ? `${account.name}${account.email ? ` <${account.email}>` : ''}` : 'me';
-  const message = `Hi — please grant me Access to ${file} in ${project}.
-
-Name: ${who}
-Age public key:
-${account.publicKey}
-
-You can add this key in Sopsdeck (Access → Add recipient) if you are a Project owner.`;
-  if (await copyText(message)) {
-    setStatus('access', 'Copied an access request including your public key');
+  if (await copyText(accessRequestMessage())) {
+    setStatus('account', 'Copied an access request including your public key');
   }
 }
 
@@ -2048,7 +2083,6 @@ function openTeamMemberForm() {
 
 function openRobotDialog() {
   document.getElementById('robot-name').value = '';
-  document.getElementById('robot-result').hidden = true;
   document.getElementById('robot-create').hidden = false;
   document.getElementById('robot-error').hidden = true;
   document.getElementById('robot-status').hidden = true;
@@ -2136,32 +2170,25 @@ async function createRobotAccount() {
 
   try {
     const robot = await invoke('create_robot_identity', { name });
-    renderAvatar(document.getElementById('robot-avatar'), 'robot', robot.name, robot.name);
-    document.getElementById('robot-display-name').textContent = robot.name;
-    document.getElementById('robot-private-key').value =
-      robot.privateKey || jsonValue(robot, 'private_key');
-    document.getElementById('robot-result').hidden = false;
-    document.getElementById('robot-create').hidden = true;
-    document.getElementById('robot-error').hidden = true;
-    window.robotAccount = robot;
-  } catch (err) {
-    document.getElementById('robot-error').textContent = messageOf(err);
-    document.getElementById('robot-error').hidden = false;
-  }
-}
+    const privateKey = robot.privateKey || jsonValue(robot, 'private_key');
+    if (selected) {
+      await invoke('add_recipient', {
+        path: selected.path,
+        publicKey: robot.publicKey || jsonValue(robot, 'public_key'),
+        name: robot.name,
+        kind: 'robot',
+      });
+      await loadAccess(selected.path);
+    }
 
-async function addRobotToFile() {
-  if (!selected || !window.robotAccount) return;
-  try {
-    await invoke('add_recipient', {
-      path: selected.path,
-      publicKey: window.robotAccount.publicKey || jsonValue(window.robotAccount, 'public_key'),
-      name: window.robotAccount.name,
-      kind: 'robot',
-    });
-    await loadAccess(selected.path);
-    document.getElementById('robot-status').hidden = false;
-    document.getElementById('robot-status').textContent = 'Robot added to this file';
+    const copied = await copyText(privateKey);
+    document.getElementById('robot-dialog').close();
+    setStatus(
+      'access',
+      copied
+        ? 'Robot added; private key copied to the clipboard'
+        : 'Robot added; copy the private key from your password manager if you still have it',
+    );
   } catch (err) {
     document.getElementById('robot-error').textContent = messageOf(err);
     document.getElementById('robot-error').hidden = false;
@@ -2253,9 +2280,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('account').addEventListener('click', () => openAccountDialog());
   document.getElementById('project-account').addEventListener('click', () => openAccountDialog());
-  document.getElementById('account-copy-key').addEventListener('click', copyPublicKey);
-  document.getElementById('project-copy-key').addEventListener('click', copyPublicKey);
-  document.getElementById('request-access').addEventListener('click', requestAccess);
+  document
+    .getElementById('account-copy-key')
+    .addEventListener('click', () => copyPublicKey('account'));
+  document
+    .getElementById('project-copy-key')
+    .addEventListener('click', () => copyPublicKey('file'));
+  document.getElementById('account-copy-request').addEventListener('click', requestAccess);
+  document
+    .getElementById('access-gate-account')
+    .addEventListener('click', () => openAccountDialog());
+  document.getElementById('add-encrypted-path-btn').addEventListener('click', addEncryptedPath);
+  document.getElementById('add-encrypted-path').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addEncryptedPath();
+  });
   document.getElementById('add-project').addEventListener('click', addProject);
   document.getElementById('add-file').addEventListener('click', addManagedFile);
   document.getElementById('add-file-name').addEventListener('keydown', (event) => {
@@ -2293,17 +2333,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     .addEventListener('click', () => document.getElementById('robot-dialog').close());
   document.getElementById('robot-create').addEventListener('click', createRobotAccount);
   document
-    .getElementById('robot-copy')
-    .addEventListener('click', () => copyText(document.getElementById('robot-private-key').value));
-  document.getElementById('robot-add').addEventListener('click', addRobotToFile);
-  document
     .getElementById('file-history-close')
     .addEventListener('click', () => document.getElementById('file-history-dialog').close());
   document
     .getElementById('secret-history-close')
     .addEventListener('click', () => document.getElementById('secret-history-dialog').close());
   document.getElementById('clipboard-dismiss').addEventListener('click', () => {
-    document.getElementById('clipboard-dialog').close();
+    const dialog = document.getElementById('clipboard-dialog');
+    dismissClipboard(dialog.dataset.clipboardText || '');
+    dialog.close();
   });
   window.addEventListener('focus', () => {
     setTimeout(() => sniffClipboard(clipboardActions), 200);

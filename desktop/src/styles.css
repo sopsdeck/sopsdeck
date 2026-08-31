@@ -690,6 +690,27 @@ h1 {
   margin: 12px 24px 0;
   color: var(--signal);
 }
+.access-gate {
+  margin: 20px 24px 0;
+  padding: 22px 24px;
+  max-width: 44ch;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--input-bg);
+}
+.access-gate h2 {
+  margin: 8px 0 10px;
+  font-size: 22px;
+  letter-spacing: -0.04em;
+}
+.access-gate p {
+  margin: 0 0 16px;
+  color: var(--slate);
+  line-height: 1.5;
+}
+.access-gate .kicker {
+  color: var(--blue);
+}
 .control-error {
   margin: 0 0 8px;
   color: var(--signal);
@@ -754,9 +775,13 @@ h1 {
 .key-head,
 .key-row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) minmax(160px, 1.4fr) 72px auto;
+  grid-template-columns: minmax(140px, 0.8fr) minmax(160px, 1.4fr) auto;
   align-items: center;
   column-gap: 13px;
+}
+.key-head-tree,
+.json-leaf {
+  grid-template-columns: 28px minmax(100px, 0.7fr) minmax(160px, 1.4fr) auto;
 }
 .key-head {
   height: 31px;
@@ -783,6 +808,10 @@ h1 {
   padding: 8px 10px;
   border-bottom: 1px solid var(--line-soft);
   transition: background 0.12s ease;
+  align-items: start;
+}
+.key-head {
+  align-items: center;
 }
 .key-row.changed {
   background: var(--changed-bg);
@@ -791,7 +820,7 @@ h1 {
 .key-cell,
 .value-cell {
   display: flex;
-  align-items: center;
+  align-items: start;
   gap: 4px;
   min-width: 0;
 }
@@ -819,6 +848,7 @@ h1 {
   align-items: center;
   gap: 2px;
   justify-self: end;
+  padding-top: 4px;
 }
 .key-composer {
   display: flex;
@@ -842,15 +872,19 @@ h1 {
 }
 .value {
   width: 100%;
+  min-height: 31px;
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--input-bg);
+  resize: none;
+  overflow: hidden;
   font:
     400 11px 'IBM Plex Mono',
     ui-monospace,
     monospace;
   color: var(--value-fg);
+  line-height: 1.4;
 }
 .masked {
   letter-spacing: 0.12em;
@@ -864,6 +898,101 @@ h1 {
   border-radius: 4px;
   font:
     500 9px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
+.key-cell .kind {
+  flex: none;
+}
+.json-tree {
+  display: grid;
+  gap: 0;
+}
+.json-folder,
+.json-leaf,
+.setup-project-folder,
+.setup-project-key {
+  padding-left: calc(10px + (var(--tree-depth, 0) * 14px));
+}
+.json-folder,
+.setup-project-folder {
+  color: var(--muted);
+  font:
+    600 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-top: 8px;
+  padding-bottom: 4px;
+}
+.json-key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.encrypt-toggle.is-on {
+  color: var(--encrypted-fg);
+}
+.docs-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.file-fields {
+  margin-top: 12px;
+}
+.encrypted-paths {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.encrypted-path {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+.encrypted-path code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+}
+.file-field-add {
+  display: flex;
+  gap: 6px;
+}
+.file-field-add input {
+  flex: 1;
+  min-width: 0;
+  height: 31px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  font:
+    400 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
+.account-request {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.account-request textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+  font:
+    400 11px/1.45 'IBM Plex Mono',
     ui-monospace,
     monospace;
 }
@@ -1137,10 +1266,6 @@ h1 {
     400 10px 'IBM Plex Mono',
     ui-monospace,
     monospace;
-}
-#request-access {
-  width: 100%;
-  margin-top: 8px;
 }
 .integration-grid {
   display: grid;

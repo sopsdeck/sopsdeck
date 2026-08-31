@@ -57,6 +57,15 @@
           <button id="whats-new" class="add-project" type="button" data-testid="whats-new">
             What's new
           </button>
+          <a
+            id="docs-link"
+            class="add-project docs-link"
+            href="https://sopsdeck.com/docs/"
+            target="_blank"
+            rel="noreferrer"
+            data-testid="docs-link"
+            >Docs</a
+          >
           <button id="add-project" class="add-project" type="button" data-testid="add-project">
             Add folder path
           </button>
@@ -93,6 +102,15 @@
           </div>
         </header>
         <p id="error" class="error" hidden data-testid="editor-error"></p>
+        <div id="access-gate" class="access-gate" hidden data-testid="access-gate">
+          <p class="kicker">Access</p>
+          <h2>You don’t have Access to this file</h2>
+          <p>
+            This Managed File is encrypted for other Age keys. Open Account to copy your public key
+            or a request message, then send it to a Project owner.
+          </p>
+          <button id="access-gate-account" class="tool primary" type="button">Open account</button>
+        </div>
         <p id="empty-state" class="empty-state" hidden data-testid="empty-state"></p>
         <p id="file-note" class="file-note" hidden data-testid="file-note"></p>
         <div id="keys" class="keys" data-testid="keys"></div>
@@ -202,6 +220,30 @@
                 ></button>
               </div>
               <p id="file-status" class="control-status" hidden data-testid="file-status"></p>
+              <div id="file-fields" class="file-fields" hidden data-testid="file-fields">
+                <p class="save-note">
+                  Encrypted paths stay ciphertext. Everything else stays plaintext.
+                </p>
+                <ul id="encrypted-paths" class="encrypted-paths" data-testid="encrypted-paths"></ul>
+                <div class="file-field-add">
+                  <input
+                    id="add-encrypted-path"
+                    type="text"
+                    placeholder="build.env.TOKEN"
+                    autocomplete="off"
+                    spellcheck="false"
+                    data-testid="add-encrypted-path"
+                  />
+                  <button
+                    id="add-encrypted-path-btn"
+                    class="tool compact"
+                    type="button"
+                    data-testid="add-encrypted-path-btn"
+                  >
+                    Encrypt path
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
           <section
@@ -221,7 +263,14 @@
             </h2>
             <div class="inspect-section-body">
               <div id="access-empty-actions" class="access-empty-actions" hidden>
-                <button id="add-team-member" class="tool" type="button">Add team member</button>
+                <button
+                  id="add-team-member"
+                  class="tool"
+                  type="button"
+                  data-testid="add-team-member"
+                >
+                  Add team member
+                </button>
                 <button id="add-bot-account" class="tool" type="button">
                   Add bot / integration account
                 </button>
@@ -257,15 +306,6 @@
                   Add recipient
                 </button>
               </div>
-              <button
-                id="request-access"
-                class="tool"
-                type="button"
-                hidden
-                data-testid="request-access"
-              >
-                Request access
-              </button>
               <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
               <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
               <p class="save-note">
@@ -405,6 +445,27 @@
           </button>
         </span>
       </label>
+      <div id="account-request" class="account-request" hidden data-testid="account-request">
+        <span class="kicker">Request Access</span>
+        <p class="save-note">
+          Copy your public key above, or copy this message and send it to a Project owner.
+        </p>
+        <textarea
+          id="account-request-template"
+          readonly
+          rows="8"
+          data-testid="account-request-template"
+        ></textarea>
+        <button
+          id="account-copy-request"
+          class="tool"
+          type="button"
+          data-testid="account-copy-request"
+        >
+          Copy request
+        </button>
+      </div>
+      <p id="account-status" class="control-status" hidden data-testid="account-status"></p>
       <p id="account-error" class="control-error" hidden data-testid="account-error"></p>
       <div class="dialog-actions">
         <button id="account-later" class="tool" type="button" hidden>Continue for now</button>
@@ -468,43 +529,33 @@
       <div class="dialog-actions">
         <button id="integration-cancel" class="tool" type="button">Cancel</button>
         <button id="integration-save" class="tool" type="button">Save configuration</button>
-        <button id="integration-sync" class="tool primary" type="button">Sync now</button>
+        <button
+          id="integration-sync"
+          class="tool primary"
+          type="button"
+          data-testid="integration-sync"
+        >
+          Sync now
+        </button>
       </div>
-      <p id="integration-dialog-status" class="control-status" hidden></p>
+      <p
+        id="integration-dialog-status"
+        class="control-status"
+        hidden
+        data-testid="integration-dialog-status"
+      ></p>
       <p id="integration-dialog-error" class="control-error" hidden></p>
     </dialog>
     <dialog id="robot-dialog" class="product-dialog" data-testid="robot-dialog">
       <p class="kicker">Robot account</p>
       <h2>Create a GitHub Actions identity</h2>
       <p class="dialog-copy">
-        The private key is shown once. Store it as a GitHub Actions secret, then add the public key
-        to this file.
+        Creates a named Age identity, copies the private key once, and adds the public key to this
+        file.
       </p>
       <label class="commit-label"
         >Name<input id="robot-name" type="text" placeholder="Deploy bot"
       /></label>
-      <div id="robot-result" hidden>
-        <div class="account-preview robot-identity-preview">
-          <span
-            id="robot-avatar"
-            class="identity-avatar identity-avatar-large"
-            aria-hidden="true"
-          ></span>
-          <span class="account-preview-copy">
-            <strong id="robot-display-name">Robot identity</strong>
-            <span>Voxel-bot identity ready to add to this file</span>
-          </span>
-        </div>
-        <label class="commit-label"
-          >Private key<textarea id="robot-private-key" readonly rows="4"></textarea>
-        </label>
-        <p class="save-note">
-          Store the private key as a masked GitHub Actions secret and load it into
-          <code>SOPS_AGE_KEY_FILE</code>.
-        </p>
-        <button id="robot-copy" class="tool" type="button">Copy private key</button>
-        <button id="robot-add" class="tool primary" type="button">Add robot to this file</button>
-      </div>
       <div class="dialog-actions">
         <button id="robot-cancel" class="tool" type="button">Close</button>
         <button id="robot-create" class="tool primary" type="button">Create identity</button>

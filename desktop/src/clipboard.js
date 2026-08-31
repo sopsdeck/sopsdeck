@@ -1,5 +1,8 @@
 import { classifyClipboard } from './paste.js';
 
+const DISMISS_KEY = 'sopsdeck-clipboard-dismissed';
+const DISMISS_LIMIT = 50;
+
 let lastClipboardText = '';
 
 const labels = {
@@ -31,6 +34,36 @@ function descriptionOf(item) {
   return (descriptions[item.kind] ?? (() => ''))(item);
 }
 
+export function clipboardFingerprint(text) {
+  let hash = 2_166_136_261;
+  for (const ch of String(text)) {
+    hash = (hash + ch.codePointAt(0) * 16_777_619) % 4_294_967_296;
+  }
+
+  return hash.toString(16);
+}
+
+function readDismissed(storage) {
+  try {
+    const parsed = JSON.parse(storage.getItem(DISMISS_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function wasClipboardDismissed(text, storage = globalThis.localStorage) {
+  if (!storage) return false;
+  return readDismissed(storage).includes(clipboardFingerprint(text));
+}
+
+export function dismissClipboard(text, storage = globalThis.localStorage) {
+  if (!storage) return;
+  const next = readDismissed(storage).filter((item) => item !== clipboardFingerprint(text));
+  next.push(clipboardFingerprint(text));
+  storage.setItem(DISMISS_KEY, JSON.stringify(next.slice(-DISMISS_LIMIT)));
+}
+
 // Read the system clipboard on focus, classify it, and open a modal offering
 // the matching action. actions maps each kind to an async fn.
 export async function sniffClipboard(actions) {
@@ -45,6 +78,7 @@ export async function sniffClipboard(actions) {
 
   if (!text || text === lastClipboardText) return;
   lastClipboardText = text;
+  if (wasClipboardDismissed(text)) return;
   const item = classifyClipboard(text);
   if (!item) return;
   showClipboardModal(item, text, actions);
@@ -60,12 +94,14 @@ function showClipboardModal(item, raw, actions) {
   const actionBox = document.getElementById('clipboard-actions');
   actionBox.replaceChildren();
   summary.textContent = descriptionOf(item);
+  dialog.dataset.clipboardText = raw;
   const add = (label, handler) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'tool has-icon';
     btn.textContent = label;
     btn.addEventListener('click', async () => {
+      dismissClipboard(raw);
       dialog.close();
       try {
         await handler();
