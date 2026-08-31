@@ -609,3 +609,38 @@ func TestDriveInvokeMarksAndUpdatesEncryptedJSONLeaves(t *testing.T) {
 	mustContain(t, text, `"PUBLIC": "ENC[`, "updated path was not encrypted")
 	mustContain(t, text, `"SECRET": "value"`, "removed path stayed encrypted")
 }
+
+// TestDriveDecryptsOwnFileViaKeychainBridge reproduces the "You don't have
+// Access to this file" bug: the desktop stores the Age private key in the OS
+// keychain, but SOPS only reads SOPS_AGE_KEY* from the process env. After
+// creating an identity and encrypting a file, decryption failed because no age
+// env was set. withKeychainAgeKey bridges the keychain identity into
+// SOPS_AGE_KEY so SOPS can decrypt in-process.
+func TestDriveDecryptsOwnFileViaKeychainBridge(t *testing.T) {
+	mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD")
+	keychain := t.TempDir()
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", keychain)
+	identity, err := os.ReadFile(testdata(t, "age.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(keychain, "identity"), identity, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := t.TempDir()
+	env := filepath.Join(root, ".env.production")
+	mustWriteFile(t, env, "HELLO=world\nKEEP=me\n")
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", ".env.production", "--keys", "HELLO"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+
+	srv := httptest.NewServer(&drive{getenv: withKeychainAgeKey(os.Getenv)})
+	t.Cleanup(srv.Close)
+	got := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: env})
+	if !bytes.Contains(got, []byte("HELLO")) || !bytes.Contains(got, []byte("world")) {
+		t.Fatalf("get=%s (owner should decrypt their own file)", got)
+	}
+	if bytes.Contains(got, []byte("no Access")) {
+		t.Fatalf("get reported no Access on owner's own file: %s", got)
+	}
+}

@@ -109,6 +109,7 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 		handler.demo = info
 		handler.getenv = getenvDemo
 	}
+	handler.getenv = withKeychainAgeKey(handler.getenv)
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		fmt.Fprintf(stderr, "drive: %v\n", err)
@@ -770,7 +771,7 @@ func gitTopLevel(path string) (string, error) {
 }
 
 func applyProcessEnv(getenv func(string) string) func() {
-	keys := []string{"SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPSDECK_STATE_DIR", "SOPSDECK_KEYCHAIN_DIR", "SOPSDECK_GITHUB_API", "SOPSDECK_GITHUB_REPO", "HOME", "GIT_CONFIG_GLOBAL"}
+	keys := []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPSDECK_STATE_DIR", "SOPSDECK_KEYCHAIN_DIR", "SOPSDECK_GITHUB_API", "SOPSDECK_GITHUB_REPO", "HOME", "GIT_CONFIG_GLOBAL"}
 	prev := map[string]*string{}
 	for _, key := range keys {
 		if cur, ok := os.LookupEnv(key); ok {
@@ -793,5 +794,27 @@ func applyProcessEnv(getenv func(string) string) func() {
 			}
 			_ = os.Setenv(key, *value)
 		}
+	}
+}
+
+// withKeychainAgeKey bridges the OS-keychain Age identity into SOPS decryption.
+// SOPS only reads SOPS_AGE_KEY / SOPS_AGE_KEY_FILE / SOPS_AGE_KEY_CMD from the
+// process environment, but the desktop stores the private key in the OS
+// keychain. Without this bridge, a freshly-created identity can encrypt
+// (ageRecipientFromEnv reads the keychain directly) but not decrypt, so the
+// owner sees "You don't have Access to this file" on their own files. When no
+// age env is already configured, surface the keychain identity as SOPS_AGE_KEY
+// so applyProcessEnv propagates it for SOPS's in-process decrypt.
+func withKeychainAgeKey(getenv func(string) string) func(string) string {
+	return func(key string) string {
+		if key == "SOPS_AGE_KEY" {
+			if getenv("SOPS_AGE_KEY") != "" || getenv("SOPS_AGE_KEY_FILE") != "" || getenv("SOPS_AGE_KEY_CMD") != "" {
+				return getenv(key)
+			}
+			if body, err := getIdentity(getenv); err == nil && strings.TrimSpace(body) != "" {
+				return body
+			}
+		}
+		return getenv(key)
 	}
 }
