@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/getsops/sops/v3"
@@ -16,7 +18,7 @@ import (
 func cmdRecipient(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	_ = stdout
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove|request|grant ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove|list|request|grant ...")
 		return 1
 	}
 	switch args[0] {
@@ -24,12 +26,14 @@ func cmdRecipient(args []string, stdout, stderr io.Writer, getenv func(string) s
 		return recipientAdd(args[1:], stderr, getenv)
 	case "remove":
 		return recipientRemove(args[1:], stderr, getenv)
+	case "list":
+		return recipientList(args[1:], stdout, stderr, getenv)
 	case "request":
 		return recipientRequest(args[1:], stdout, stderr, getenv)
 	case "grant":
 		return recipientGrant(args[1:], stdout, stderr, getenv)
 	default:
-		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove|request|grant ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck recipient add|remove|list|request|grant ...")
 		return 1
 	}
 }
@@ -39,7 +43,7 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		restore := applyProcessEnv(getenv)
 		defer restore()
 	}
-	file, pub, errMsg := parseRecipientArgs("add", args)
+	file, pub, name, kind, errMsg := parseRecipientArgs("add", args)
 	if errMsg != "" {
 		fmt.Fprintln(stderr, errMsg)
 		return 1
@@ -52,6 +56,10 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		return 1
 	}
 	if hasRecipient(*tree, pub) {
+		if err := setRecipientLabel(file, pub, name, kind); err != nil {
+			fmt.Fprintf(stderr, "recipient add: %v\n", err)
+			return 1
+		}
 		return 0
 	}
 	svcs := []keyservice.KeyServiceClient{keyservice.NewLocalClient()}
@@ -94,6 +102,10 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
+	if err := setRecipientLabel(file, pub, name, kind); err != nil {
+		fmt.Fprintf(stderr, "recipient add: %v\n", err)
+		return 1
+	}
 	return 0
 }
 
@@ -102,7 +114,7 @@ func recipientRemove(args []string, stderr io.Writer, getenv func(string) string
 		restore := applyProcessEnv(getenv)
 		defer restore()
 	}
-	file, pub, errMsg := parseRecipientArgs("remove", args)
+	file, pub, _, _, errMsg := parseRecipientArgs("remove", args)
 	if errMsg != "" {
 		fmt.Fprintln(stderr, errMsg)
 		return 1
@@ -153,33 +165,114 @@ func recipientRemove(args []string, stderr io.Writer, getenv func(string) string
 		fmt.Fprintf(stderr, "recipient remove: %v\n", err)
 		return 1
 	}
+	if err := removeRecipientLabel(file, pub); err != nil {
+		fmt.Fprintf(stderr, "recipient remove: %v\n", err)
+		return 1
+	}
 	fmt.Fprintln(stderr, "recipient remove: Access dropped. Git history and copies they already have still decrypt.")
 	return 0
 }
 
-func parseRecipientArgs(verb string, args []string) (file, pub, errMsg string) {
+func removeRecipientLabel(file, key string) error {
+	_, manifestPath := findManifest(file)
+	if manifestPath == "" {
+		return nil
+	}
+	m, err := loadManifest(manifestPath)
+	if err != nil {
+		return err
+	}
+	kept := m.Recipient[:0]
+	for _, item := range m.Recipient {
+		if !strings.EqualFold(item.Key, key) {
+			kept = append(kept, item)
+		}
+	}
+	m.Recipient = kept
+	return writeManifest(manifestPath, m)
+}
+
+func parseRecipientArgs(verb string, args []string) (file, pub, name, kind, errMsg string) {
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-f", "--env-file":
 			i++
 			if i >= len(args) {
-				return "", "", "recipient " + verb + ": -f requires a file"
+				return "", "", "", "", "recipient " + verb + ": -f requires a file"
 			}
 			file = args[i]
+		case "--name":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "recipient " + verb + ": --name requires a value"
+			}
+			name = strings.TrimSpace(args[i])
+		case "--kind":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "recipient " + verb + ": --kind requires a value"
+			}
+			kind = strings.TrimSpace(args[i])
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return "", "", "recipient " + verb + ": unknown flag " + args[i]
+				return "", "", "", "", "recipient " + verb + ": unknown flag " + args[i]
 			}
 			if pub != "" {
-				return "", "", "recipient " + verb + ": extra argument"
+				return "", "", "", "", "recipient " + verb + ": extra argument"
 			}
 			pub = args[i]
 		}
 	}
 	if file == "" || pub == "" {
-		return "", "", "usage: sopsdeck recipient " + verb + " AGE1... -f FILE"
+		return "", "", "", "", "usage: sopsdeck recipient " + verb + " AGE1... -f FILE"
 	}
-	return file, pub, ""
+	return file, pub, name, kind, ""
+}
+
+type accessRecipient struct {
+	Key  string `json:"key"`
+	Name string `json:"name,omitempty"`
+	Kind string `json:"kind,omitempty"`
+	Self bool   `json:"self,omitempty"`
+}
+
+func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+	if len(args) != 2 || args[0] != "-f" {
+		fmt.Fprintln(stderr, "usage: sopsdeck recipient list -f FILE")
+		return 1
+	}
+	file := args[1]
+	format := fileFormat(file)
+	tree, err := common.LoadEncryptedFile(common.StoreForFormat(format, config.NewStoresConfig()), file)
+	if err != nil {
+		fmt.Fprintf(stderr, "recipient list: %v\n", err)
+		return 1
+	}
+	_, root, _ := mappingFor(file)
+	m, _ := loadManifest(filepath.Join(root, ".sopsdeck.toml"))
+	labels := make(map[string]manifestRecipient, len(m.Recipient))
+	for _, item := range m.Recipient {
+		labels[strings.ToLower(item.Key)] = item
+	}
+	self, _ := ageRecipientFromEnv(getenv)
+	list := make([]accessRecipient, 0)
+	for _, group := range tree.Metadata.KeyGroups {
+		for _, key := range group {
+			pub := key.ToString()
+			label := labels[strings.ToLower(pub)]
+			list = append(list, accessRecipient{
+				Key:  pub,
+				Name: label.Name,
+				Kind: label.Kind,
+				Self: self != "" && strings.EqualFold(pub, self),
+			})
+		}
+	}
+	if err := json.NewEncoder(stdout).Encode(list); err != nil {
+		fmt.Fprintf(stderr, "recipient list: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func hasRecipient(tree sops.Tree, pub string) bool {

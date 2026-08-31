@@ -38,7 +38,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|run|identity|commit|sync|review|history|restore|recipient|publish|files|references|unused|rename|drive|scan|mcp> ...")
+		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|lock|unlock|status|copy|run|identity|account|robot|commit|sync|review|history|restore|recipient|publish|files|project|references|unused|rename|drive|scan|mcp> ...")
 		return 1
 	}
 	switch args[0] {
@@ -47,6 +47,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 		return 0
 	case "get":
 		return cmdGet(args[1:], stdout, stderr)
+	case "lock":
+		return cmdLock(args[1:], stdout, stderr, getenv)
+	case "unlock":
+		return cmdUnlock(args[1:], stdout, stderr)
+	case "status":
+		return cmdFileStatus(args[1:], stdout, stderr)
+	case "copy":
+		return cmdCopy(args[1:], stdin, stderr)
 	case "set":
 		return cmdSet(args[1:], stdin, stdout, stderr, getenv)
 	case "del":
@@ -55,6 +63,20 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 		return cmdRun(args[1:], stdin, stdout, stderr)
 	case "identity":
 		return cmdIdentity(args[1:], stdout, stderr, getenv)
+	case "account":
+		return cmdAccount(args[1:], stdout, stderr, getenv)
+	case "robot":
+		return cmdRobot(args[1:], stdout, stderr)
+	case "configure_integration":
+		if len(args) != 8 {
+			fmt.Fprintln(stderr, "usage: sopsdeck configure_integration FILE SCOPE REPO ORG ENVIRONMENT PREFIX VISIBILITY")
+			return 1
+		}
+		if err := configureIntegration(args[1], args[2], args[3], args[4], args[5], args[6], args[7]); err != nil {
+			fmt.Fprintf(stderr, "configure integration: %v\n", err)
+			return 1
+		}
+		return 0
 	case "commit":
 		return cmdCommit(args[1:], stdout, stderr)
 	case "sync":
@@ -75,6 +97,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 		return cmdDrive(args[1:], stdout, stderr, getenv)
 	case "scan":
 		return cmdScan(args[1:], stdout, stderr)
+	case "project":
+		return cmdProject(args[1:], stdout, stderr, getenv)
 	case "mcp":
 		return cmdMCP(args[1:], stdin, stdout, stderr, getenv)
 	case "references", "unused", "rename":
@@ -168,13 +192,21 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 		plain, err = decrypt.File(file, formatName(format))
 	}
 	if err != nil {
+		mapping, _, _ := mappingFor(file)
+		if flags.at == "" && mapping.Path != "" {
+			if raw, readErr := os.ReadFile(file); readErr == nil && !isEncryptedBytes(raw) {
+				plain, err = raw, nil
+			}
+		}
+	}
+	if err != nil {
 		fmt.Fprintln(stderr, explainGet(err))
 		return 1
 	}
 	warnEASCLI(file, stderr)
 	if key == "" {
 		if output == "json" {
-			pairs, err := plainEnv(plain, format)
+			pairs, err := plainPairs(plain, format)
 			if err != nil {
 				fmt.Fprintf(stderr, "get: %v\n", err)
 				return 1
@@ -196,11 +228,12 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	value, ok, err := lookupValue(plain, format, key)
+	pairs, err := plainPairs(plain, format)
 	if err != nil {
 		fmt.Fprintf(stderr, "get: %v\n", err)
 		return 1
 	}
+	value, ok := pairs[key]
 	if !ok {
 		fmt.Fprintf(stderr, "get: missing key %s\n", key)
 		return 1
@@ -258,6 +291,34 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
+	path, err := treePath(key, format != formats.Dotenv)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	if raw, readErr := os.ReadFile(file); readErr == nil && !isEncryptedBytes(raw) {
+		mapping, _, _ := mappingFor(file)
+		if mapping.Path == "" {
+			fmt.Fprintln(stderr, "set: not a SOPS-encrypted file")
+			return 1
+		}
+		branches, err := store.LoadPlainFile(raw)
+		if err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		branches[0], _ = branches[0].Set(path, value)
+		out, err := store.EmitPlainFile(branches)
+		if err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		if err := writeAtomic(file, out); err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		return 0
+	}
 	tree, err := common.LoadEncryptedFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
@@ -273,7 +334,7 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
 	}
-	tree.Branches[0], _ = tree.Branches[0].Set([]interface{}{key}, value)
+	tree.Branches[0], _ = tree.Branches[0].Set(path, value)
 	if err := common.EncryptTree(common.EncryptTreeOpts{DataKey: dataKey, Tree: tree, Cipher: cipher}); err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
@@ -350,6 +411,39 @@ func cmdDel(args []string, stdout, stderr io.Writer) int {
 
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
+	path, err := treePath(key, format != formats.Dotenv)
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	if raw, readErr := os.ReadFile(file); readErr == nil && !isEncryptedBytes(raw) {
+		mapping, _, _ := mappingFor(file)
+		if mapping.Path == "" {
+			fmt.Fprintln(stderr, "del: not a SOPS-encrypted file")
+			return 1
+		}
+		branches, err := store.LoadPlainFile(raw)
+		if err != nil {
+			fmt.Fprintf(stderr, "del: %v\n", err)
+			return 1
+		}
+		branch, err := branches[0].Unset(path)
+		if err != nil {
+			fmt.Fprintf(stderr, "del: %v\n", err)
+			return 1
+		}
+		branches[0] = branch
+		out, err := store.EmitPlainFile(branches)
+		if err != nil {
+			fmt.Fprintf(stderr, "del: %v\n", err)
+			return 1
+		}
+		if err := writeAtomic(file, out); err != nil {
+			fmt.Fprintf(stderr, "del: %v\n", err)
+			return 1
+		}
+		return 0
+	}
 	tree, err := common.LoadEncryptedFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "del: %v\n", err)
@@ -365,7 +459,7 @@ func cmdDel(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "del: %v\n", err)
 		return 1
 	}
-	branch, err := tree.Branches[0].Unset([]interface{}{key})
+	branch, err := tree.Branches[0].Unset(path)
 	if err != nil {
 		fmt.Fprintf(stderr, "del: %v\n", err)
 		return 1
@@ -479,6 +573,49 @@ func plainEnv(plain []byte, format formats.Format) (map[string]string, error) {
 		out[k] = fmt.Sprint(raw)
 	}
 	return out, nil
+}
+
+func plainPairs(plain []byte, format formats.Format) (map[string]string, error) {
+	if format == formats.Dotenv {
+		return dotenvMap(plain), nil
+	}
+	var doc any
+	var err error
+	switch format {
+	case formats.Json:
+		err = json.Unmarshal(plain, &doc)
+	case formats.Yaml:
+		err = yaml.Unmarshal(plain, &doc)
+	default:
+		return nil, fmt.Errorf("unsupported format")
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	flattenPairs(out, "", doc)
+	return out, nil
+}
+
+func flattenPairs(out map[string]string, prefix string, value any) {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, child := range value {
+			path := key
+			if prefix != "" {
+				path = prefix + "." + key
+			}
+			flattenPairs(out, path, child)
+		}
+	case []any:
+		for i, child := range value {
+			flattenPairs(out, fmt.Sprintf("%s[%d]", prefix, i), child)
+		}
+	case nil:
+		out[prefix] = ""
+	default:
+		out[prefix] = fmt.Sprint(value)
+	}
 }
 
 func dotenvMap(plain []byte) map[string]string {

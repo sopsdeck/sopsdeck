@@ -2,11 +2,13 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"filippo.io/age"
 	"github.com/getsops/sops/v3/aes"
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/config"
@@ -267,6 +269,53 @@ func TestRecipientRemoveUnknownIsNoOp(t *testing.T) {
 	after := fileDataKey(t, envFile, aliceKey)
 	if !bytes.Equal(before, after) {
 		t.Fatal("data key changed for unknown Recipient")
+	}
+}
+
+func TestRecipientLabelsRoundTrip(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, ".env")
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"set", "HELLO", "world", "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("set exit %d stderr=%q", code, stderr.String())
+	}
+	manifest := "[[managed_file]]\npath = \".env\"\n"
+	if err := os.WriteFile(filepath.Join(root, ".sopsdeck.toml"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	robot, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "add", robot.Recipient().String(), "-f", file, "--name", "Deploy bot", "--kind", "robot"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("add exit %d stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "list", "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("list exit %d stderr=%q", code, stderr.String())
+	}
+	var recipients []accessRecipient
+	if err := json.Unmarshal(stdout.Bytes(), &recipients); err != nil {
+		t.Fatal(err)
+	}
+	if len(recipients) != 2 || recipients[1].Name != "Deploy bot" || recipients[1].Kind != "robot" {
+		t.Fatalf("recipients=%+v", recipients)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "remove", robot.Recipient().String(), "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("remove exit %d stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	if code := Main([]string{"recipient", "list", "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("list after remove exit %d stderr=%q", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), robot.Recipient().String()) {
+		t.Fatalf("removed recipient still listed: %s", stdout.String())
 	}
 }
 
