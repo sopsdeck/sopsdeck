@@ -7,6 +7,11 @@ go test ./internal/studio/ ./internal/cli/ -count=1 \
   -run 'TestTeammate|TestPublish|TestRecipient|TestDrive|TestFiles'
 
 printf '== UI smoke ==\n'
+port="${SOPSDECK_SMOKE_PORT:-4178}"
 export CI=1
+export SOPSDECK_DRIVE_URL="http://127.0.0.1:${port}"
+# Playwright wipes test-results/ before the run; keep the binary outside that tree.
+go build -o sopsdeck ./cmd/sopsdeck
+export SOPSDECK_BIN="$PWD/sopsdeck"
 bunx playwright install chromium
 bunx playwright test --project=smoke --project=chrome

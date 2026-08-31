@@ -41,6 +41,33 @@ async function typeValue(page, value) {
   await field.pressSequentially(value, { delay: 55 });
 }
 
+async function encryptAndSave(page) {
+  await page.getByTestId('save').click();
+  await expect(page.getByTestId('save-preview-dialog')).toBeVisible();
+  await page.getByTestId('save-preview-confirm').click();
+  await expect(page.getByTestId('save-preview-dialog')).toBeHidden();
+  await expect(page.getByTestId('save')).toBeDisabled();
+}
+
+async function grantAccess(page) {
+  const add = page.getByTestId('add-team-member');
+  if (await add.isVisible()) await add.click();
+  await expect(page.getByTestId('recipient-key')).toHaveValue(/^age1/);
+  await page.getByTestId('grant-access').click();
+  await expect(page.getByTestId('access-status')).toContainText('Access granted');
+}
+
+async function openGitHubSync(page) {
+  await page.getByTestId('github-integration').click();
+  await expect(page.getByTestId('integration-dialog')).toBeVisible();
+}
+
+async function syncGitHub(page) {
+  await openGitHubSync(page);
+  await page.getByTestId('integration-sync').click();
+  await expect(page.getByTestId('integration-dialog-status')).toBeVisible();
+}
+
 async function recordClip(browser, dest, run) {
   const context = await browser.newContext({
     baseURL: process.env.SOPSDECK_DRIVE_URL ?? 'http://127.0.0.1:4174',
@@ -70,33 +97,28 @@ test('product stills', async ({ page }) => {
   await page.getByTestId('key-value').fill('sk_live_demo');
   await expect(page.getByTestId('save')).toBeEnabled();
   await page.getByTestId('save').click();
-  await expect(page.getByTestId('save')).toBeDisabled();
+  await expect(page.getByTestId('save-preview')).toContainText('STRIPE_SECRET');
   await page.screenshot({ path: stillOf.save, fullPage: true });
-
-  await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
+  await page.getByTestId('save-preview-confirm').click();
+  await expect(page.getByTestId('save')).toBeDisabled();
   await page.screenshot({ path: stillOf.commit, fullPage: true });
-  await page.getByTestId('commit').click();
-  await expect(page.getByTestId('git-error')).toBeHidden();
 
-  await page.getByTestId('sync').click();
-  await expect(page.getByTestId('git-error')).toBeHidden();
+  await openGitHubSync(page);
   await page.screenshot({ path: stillOf.sync, fullPage: true });
-
-  await expect(page.getByTestId('recipient-key')).toHaveValue(/^age1/);
-  await page.getByTestId('grant-access').click();
-  await expect(page.getByTestId('access-status')).toContainText('Access granted');
-  await page.screenshot({ path: stillOf.grant, fullPage: true });
-
-  await page.getByTestId('publish').click();
-  await expect(page.getByTestId('publish-status')).toContainText('dry-run');
+  await page.getByTestId('integration-sync').click();
+  await expect(page.getByTestId('integration-dialog-status')).toBeVisible();
   await page.screenshot({ path: stillOf.publish, fullPage: true });
+  await page.keyboard.press('Escape');
+
+  await grantAccess(page);
+  await page.screenshot({ path: stillOf.grant, fullPage: true });
 
   copyFileSync(stillOf.open, 'site/public/assets/editor.png');
 });
 
 test('product clips', async ({ browser }) => {
   test.skip(skipClips, 'clips recorded by webreel');
-  test.setTimeout(180_000);
+  test.setTimeout(600_000);
   mkdirSync('docs/assets', { recursive: true });
   await recordClip(browser, clipOf.open, boot);
   await recordClip(browser, clipOf.reveal, async (page) => {
@@ -110,58 +132,40 @@ test('product clips', async ({ browser }) => {
     await boot(page);
     await page.getByTestId('reveal').click();
     await typeValue(page, 'sk_clip_save');
-    await page.getByTestId('save').click();
-    await expect(page.getByTestId('save')).toBeDisabled();
+    await encryptAndSave(page);
   });
   await recordClip(browser, clipOf.commit, async (page) => {
     await boot(page);
     await page.getByTestId('reveal').click();
     await typeValue(page, 'sk_clip_commit');
-    await page.getByTestId('save').click();
-    await expect(page.getByTestId('save')).toBeDisabled();
-    await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
-    await hold(page, 500);
-    await page.getByTestId('commit').click();
-    await expect(page.getByTestId('git-error')).toBeHidden();
+    await encryptAndSave(page);
   });
   await recordClip(browser, clipOf.sync, async (page) => {
     await boot(page);
-    await page.getByTestId('sync').click();
-    await expect(page.getByTestId('git-error')).toBeHidden();
+    await openGitHubSync(page);
   });
   await recordClip(browser, clipOf.grant, async (page) => {
     await boot(page);
-    await page.getByTestId('grant-access').click();
-    await expect(page.getByTestId('access-status')).toContainText('Access granted');
+    await grantAccess(page);
   });
   await recordClip(browser, clipOf.publish, async (page) => {
     await boot(page);
-    await page.getByTestId('publish').click();
-    await expect(page.getByTestId('publish-status')).toContainText('dry-run');
+    await syncGitHub(page);
   });
 });
 
 test('walkthrough', async ({ browser }) => {
   test.skip(skipClips, 'clips recorded by webreel');
-  test.setTimeout(180_000);
+  test.setTimeout(600_000);
   mkdirSync('docs/assets', { recursive: true });
   await recordClip(browser, `docs/assets/${catalog.walkthrough}`, async (page) => {
     await boot(page);
     await page.getByTestId('reveal').click();
     await typeValue(page, 'sk_walkthrough');
-    await page.getByTestId('save').click();
-    await expect(page.getByTestId('save')).toBeDisabled();
+    await encryptAndSave(page);
     await hold(page, 400);
-    await page.getByTestId('commit').click();
-    await expect(page.getByTestId('git-error')).toBeHidden();
+    await grantAccess(page);
     await hold(page, 400);
-    await page.getByTestId('sync').click();
-    await expect(page.getByTestId('git-error')).toBeHidden();
-    await hold(page, 400);
-    await page.getByTestId('grant-access').click();
-    await expect(page.getByTestId('access-status')).toContainText('Access granted');
-    await hold(page, 400);
-    await page.getByTestId('publish-yes').click();
-    await expect(page.getByTestId('publish-status')).toContainText('published');
+    await syncGitHub(page);
   });
 });

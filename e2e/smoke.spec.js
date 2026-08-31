@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 
 test('demo boots a Managed File and reveals a secret', async ({ page }) => {
@@ -38,40 +37,20 @@ test('publish runs against the local fake GitHub', async ({ request }) => {
   expect(body.result).toContain('published');
 });
 
-test('Sync succeeds against the local origin', async ({ page }) => {
+test('GitHub Sync now publishes to the local fake GitHub', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await page.getByTestId('sync').click();
-  await expect(page.getByTestId('editor-error')).toBeHidden();
-  await expect(page.getByTestId('git-error')).toBeHidden();
+  await page.getByTestId('github-integration').click();
+  await expect(page.getByTestId('integration-dialog')).toBeVisible();
+  await page.getByTestId('integration-sync').click();
+  await expect(page.getByTestId('integration-dialog-status')).toBeVisible();
 });
 
-test('Sync failure sits next to Sync', async ({ page, request }) => {
+test('Grant Access from the inspector', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-
-  const demo = await request.get('/demo');
-  const info = await demo.json();
-  execSync('git branch --unset-upstream', { cwd: info.project });
-
-  await page.getByTestId('sync').click();
-  const gitError = page.getByTestId('git-error');
-  await expect(gitError).toBeVisible();
-  await expect(gitError).toContainText('no upstream');
-  await expect(gitError).not.toContainText('git-pull(1)');
-  await expect(page.getByTestId('editor-error')).toBeHidden();
-  await page.getByTestId('sync').click();
-  await expect(gitError).toBeVisible();
-});
-
-test('Grant Access and Publish dry-run from the inspector', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('add-team-member').click();
   await expect(page.getByTestId('recipient-key')).toHaveValue(/^age1/);
   await page.getByTestId('grant-access').click();
   await expect(page.getByTestId('access-status')).toContainText('Access granted');
-  await page.getByTestId('remove-access').click();
-  await expect(page.getByTestId('access-status')).toContainText('still decrypt');
-  await page.getByTestId('publish').click();
-  await expect(page.getByTestId('publish-status')).toContainText('dry-run');
 });

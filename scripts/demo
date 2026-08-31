@@ -8,7 +8,15 @@ if [ "${1:-}" = "--check" ]; then
 fi
 
 printf '== product stills, clips, walkthrough, and CLI casts ==\n'
+port="${SOPSDECK_DEMO_PORT:-4179}"
 export CI=1
+# Do not inherit SOPSDECK_DRIVE_URL — a leftover 4174 from ./scripts/dev --team
+# makes Playwright refuse to start, or seed against the wrong server.
+export SOPSDECK_DRIVE_URL="http://127.0.0.1:${port}"
+# Playwright wipes test-results/ before the run; keep the binary outside that tree.
+go build -o sopsdeck ./cmd/sopsdeck
+export SOPSDECK_BIN="$PWD/sopsdeck"
+printf 'demo drive %s\n' "$SOPSDECK_DRIVE_URL"
 bunx playwright install chromium
 bunx playwright test --project=demo --workers=1
 bun scripts/cli-demo.mjs

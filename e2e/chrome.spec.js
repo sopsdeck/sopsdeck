@@ -404,17 +404,21 @@ test('project panel shows the open Project', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await expect(page.getByTestId('project-panel-name')).toHaveText('checkout');
-  await expect(page.getByTestId('request-access')).toBeVisible();
+  await expect(page.getByTestId('docs-link')).toHaveAttribute('href', 'https://sopsdeck.com/docs/');
 });
 
-test('account modal copies the Age public key', async ({ page }) => {
+test('account modal copies the Age public key and an access request', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await page.getByTestId('account').click();
   const key = page.getByTestId('account-public-key');
   await expect(key).toBeVisible();
   await expect(key).toHaveValue(/age1/);
+  await expect(page.getByTestId('account-request')).toBeVisible();
+  await expect(page.getByTestId('account-request-template')).toContainText('Age public key');
   await page.getByTestId('account-copy-key').click();
+  await expect(page.getByTestId('account-status')).toContainText('Copied your Age public key');
+  await expect(page.getByTestId('access-status')).toBeHidden();
 });
 
 test('sidebar stacks Project name above the path', async ({ page }) => {
@@ -457,4 +461,47 @@ test('focused Project hides recents and extra folders', async ({ page }) => {
   await expect(page.getByTestId('recents')).toHaveCount(0);
   await expect(page.getByTestId('add-project')).toBeHidden();
   await expect(page.getByTestId('tree-project').filter({ hasText: 'atlas-web' })).toHaveCount(0);
+});
+
+test('missing Access shows a recovery panel instead of a raw error', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const data = route.request().postDataJSON();
+    if (data?.cmd === 'get_managed_file') {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'get: no Access to this Managed File' }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('access-gate')).toBeVisible();
+  await expect(page.getByTestId('access-gate')).toContainText('don’t have Access');
+  await expect(page.getByTestId('editor-error')).toBeHidden();
+  await page.getByRole('button', { name: 'Open account' }).click();
+  await expect(page.getByTestId('account-dialog')).toBeVisible();
+});
+
+test('JSON files render a tree with encrypt toggles', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('managed-file').filter({ hasText: 'eas.json' }).click();
+  await expect(page.getByTestId('json-tree')).toBeVisible();
+  await expect(page.getByTestId('encrypt-toggle').first()).toBeVisible();
+  await expect(page.getByTestId('file-fields')).toBeVisible();
+  await expect(page.locator('.key-head')).not.toContainText('Type');
+});
+
+test('secret values can be edited on more than one line', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  const row = await keyRowByName(page, 'STRIPE_SECRET');
+  await row.getByTestId('reveal-key').click();
+  const value = row.getByTestId('key-value');
+  await expect(value).toHaveJSProperty('tagName', 'TEXTAREA');
+  await value.fill('line-one\nline-two');
+  await expect(value).toHaveValue('line-one\nline-two');
 });
