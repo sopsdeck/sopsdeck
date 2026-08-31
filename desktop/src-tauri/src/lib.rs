@@ -15,17 +15,30 @@ struct Pair {
     value: String,
 }
 
+// Tauri runs a synchronous #[tauri::command] on the main UI thread, so any
+// blocking I/O freezes the window (the macOS beachball). Each command below
+// shells out to the sopsdeck CLI or walks the filesystem, so they are async
+// and move that work onto the blocking pool via spawn_blocking.
+
 #[tauri::command]
-fn list_managed_files(path: String) -> Result<Vec<ManagedFile>, String> {
-    managed::list_in(&PathBuf::from(path))
+async fn list_managed_files(path: String) -> Result<Vec<ManagedFile>, String> {
+    tauri::async_runtime::spawn_blocking(move || managed::list_in(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn get_managed_file(path: String, at: Option<String>) -> Result<Vec<Pair>, String> {
+async fn get_managed_file(path: String, at: Option<String>) -> Result<Vec<Pair>, String> {
+    tauri::async_runtime::spawn_blocking(move || load_pairs(&path, at))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn load_pairs(path: &str, at: Option<String>) -> Result<Vec<Pair>, String> {
     let mut args = vec![
         "get".to_string(),
         "-f".to_string(),
-        path,
+        path.to_string(),
         "--output".to_string(),
         "json".to_string(),
     ];
@@ -52,75 +65,86 @@ fn get_managed_file(path: String, at: Option<String>) -> Result<Vec<Pair>, Strin
 }
 
 #[tauri::command]
-fn set_managed_key(path: String, key: String, value: String) -> Result<(), String> {
-    run_sopsdeck(&["set", &key, &value, "-f", &path]).map(|_| ())
+async fn set_managed_key(path: String, key: String, value: String) -> Result<(), String> {
+    run_blocking(move || run_sopsdeck(&["set", &key, &value, "-f", &path]).map(|_| ())).await
 }
 
 #[tauri::command]
-fn del_managed_key(path: String, key: String) -> Result<(), String> {
-    run_sopsdeck(&["del", &key, "-f", &path]).map(|_| ())
+async fn del_managed_key(path: String, key: String) -> Result<(), String> {
+    run_blocking(move || run_sopsdeck(&["del", &key, "-f", &path]).map(|_| ())).await
 }
 
 #[tauri::command]
-fn create_managed_file(path: String) -> Result<(), String> {
-    run_sopsdeck(&["set", "-f", &path]).map(|_| ())
+async fn create_managed_file(path: String) -> Result<(), String> {
+    run_blocking(move || run_sopsdeck(&["set", "-f", &path]).map(|_| ())).await
 }
 
 #[tauri::command]
-fn commit_managed_file(path: String, message: String) -> Result<(), String> {
-    let message = message.trim();
+async fn commit_managed_file(path: String, message: String) -> Result<(), String> {
+    let message = message.trim().to_string();
     if message.is_empty() {
         return Err("commit message is required".into());
     }
-    run_sopsdeck(&["commit", "-m", message, "-f", &path]).map(|_| ())
+    run_blocking(move || run_sopsdeck(&["commit", "-m", &message, "-f", &path]).map(|_| ())).await
 }
 
 #[tauri::command]
-fn sync_project(path: String) -> Result<(), String> {
-    let root = git_root(&path)?;
-    run_sopsdeck_in(&root, &["sync"]).map(|_| ())
+async fn sync_project(path: String) -> Result<(), String> {
+    run_blocking(move || {
+        let root = git_root(&path)?;
+        run_sopsdeck_in(&root, &["sync"]).map(|_| ())
+    })
+    .await
 }
 
 #[tauri::command]
-fn add_recipient(path: String, public_key: String) -> Result<(), String> {
-    run_sopsdeck(&["recipient", "add", &public_key, "-f", &path]).map(|_| ())
+async fn add_recipient(path: String, public_key: String) -> Result<(), String> {
+    run_blocking(move || run_sopsdeck(&["recipient", "add", &public_key, "-f", &path]).map(|_| ()))
+        .await
 }
 
 #[tauri::command]
-fn remove_recipient(path: String, public_key: String) -> Result<(), String> {
-    run_sopsdeck(&["recipient", "remove", &public_key, "-f", &path]).map(|_| ())
+async fn remove_recipient(path: String, public_key: String) -> Result<(), String> {
+    run_blocking(move || {
+        run_sopsdeck(&["recipient", "remove", &public_key, "-f", &path]).map(|_| ())
+    })
+    .await
 }
 
 #[tauri::command]
-fn review_managed_file(path: String) -> Result<String, String> {
-    run_sopsdeck(&["review", "-f", &path])
+async fn review_managed_file(path: String) -> Result<String, String> {
+    run_blocking(move || run_sopsdeck(&["review", "-f", &path])).await
 }
 
 #[tauri::command]
-fn history_managed_file(path: String) -> Result<String, String> {
-    run_sopsdeck(&["history", "-f", &path])
+async fn history_managed_file(path: String) -> Result<String, String> {
+    run_blocking(move || run_sopsdeck(&["history", "-f", &path])).await
 }
 
 #[tauri::command]
-fn restore_managed_file(path: String, at: String) -> Result<(), String> {
-    let at = at.trim();
+async fn restore_managed_file(path: String, at: String) -> Result<(), String> {
+    let at = at.trim().to_string();
     if at.is_empty() {
         return Err("pick a revision from History".into());
     }
-    run_sopsdeck(&["restore", "-f", &path, "--at", at]).map(|_| ())
+    run_blocking(move || run_sopsdeck(&["restore", "-f", &path, "--at", &at]).map(|_| ())).await
 }
 
 #[tauri::command]
-fn publish_managed_file(
+async fn publish_managed_file(
     path: String,
     prefix: String,
     yes: bool,
     prune: bool,
 ) -> Result<String, String> {
-    let mut args = vec!["publish".to_string(), "-f".to_string(), path];
+    run_blocking(move || publish(&path, &prefix, yes, prune)).await
+}
+
+fn publish(path: &str, prefix: &str, yes: bool, prune: bool) -> Result<String, String> {
+    let mut args = vec!["publish".to_string(), "-f".to_string(), path.to_string()];
     if !prefix.is_empty() {
         args.push("--prefix".to_string());
-        args.push(prefix);
+        args.push(prefix.to_string());
     }
     if yes {
         args.push("--yes".to_string());
@@ -133,9 +157,12 @@ fn publish_managed_file(
 }
 
 #[tauri::command]
-fn get_publish_mapping(path: String) -> Result<serde_json::Value, String> {
-    let out = run_sopsdeck(&["publish", "-f", &path, "--mapping"])?;
-    serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+async fn get_publish_mapping(path: String) -> Result<serde_json::Value, String> {
+    run_blocking(move || {
+        let out = run_sopsdeck(&["publish", "-f", &path, "--mapping"])?;
+        serde_json::from_str(out.trim()).map_err(|error| error.to_string())
+    })
+    .await
 }
 
 #[allow(clippy::unused_async)]
@@ -167,6 +194,18 @@ fn whats_new() -> Result<serde_json::Value, String> {
 #[tauri::command]
 fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+// run_blocking runs a blocking closure on Tauri's blocking pool and flattens
+// the JoinError into the command's String error type.
+async fn run_blocking<F, T>(f: F) -> Result<T, String>
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 pub fn run() {

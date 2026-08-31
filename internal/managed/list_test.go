@@ -58,6 +58,27 @@ func TestListExcludesPlainDotenv(t *testing.T) {
 	}
 }
 
+func TestListSkipsGeneratedBuildDirs(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{".next", "build", "coverage", "__pycache__", ".turbo"} {
+		path := filepath.Join(root, dir, ".env")
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		body := "HELLO=world\nsops_mac=ENC[AES256_GCM,data:.,tag:.=,type:str]\n"
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files, err := List(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("generated dirs should be skipped: %v", files)
+	}
+}
+
 func TestListFindsCommittedComposeYAMLAndMultilineDotenv(t *testing.T) {
 	root := filepath.Join("..", "..", "testdata")
 	files, err := List(root)

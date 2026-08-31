@@ -55,7 +55,11 @@ func List(root string) ([]File, error) {
 
 func skipDir(name string) bool {
 	switch name {
-	case ".git", "node_modules", "target", "dist", "vendor", ".scratch":
+	case ".git", "node_modules", "target", "dist", "vendor", ".scratch",
+		".next", ".nuxt", ".svelte-kit", ".turbo", ".gradle",
+		"build", "out", "coverage", ".cache", "__pycache__",
+		".parcel-cache", ".pnpm-store", ".venv", ".tox",
+		".mypy_cache", ".pytest_cache", ".dart_tool":
 		return true
 	default:
 		return false
