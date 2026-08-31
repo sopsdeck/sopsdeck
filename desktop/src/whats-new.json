@@ -1,7 +1,7 @@
 {
   "version": "0.1.0",
-  "heading": "Unreleased",
-  "date": "",
+  "heading": "0.1.0",
+  "date": "2026-09-01",
   "notes": [
     {
       "text": "Opening a Managed File without Access shows a recovery panel instead of a raw decrypt error.",

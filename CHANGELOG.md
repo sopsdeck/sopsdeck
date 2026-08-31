@@ -4,6 +4,8 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+## 0.1.0 - 2026-09-01
+
 ### Added
 
 - Opening a Managed File without Access shows a recovery panel instead of a raw decrypt error.
