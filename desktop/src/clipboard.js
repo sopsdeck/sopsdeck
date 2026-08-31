@@ -14,7 +14,10 @@ const descriptions = {
     return `Folder path: ${item.path}`;
   },
   recipient(item) {
-    return `Age recipient: ${item.publicKey.slice(0, 24)}…`;
+    const who = item.name ? `${item.name}${item.email ? ` <${item.email}>` : ''}` : '';
+    return who
+      ? `${who} · ${item.publicKey.slice(0, 24)}…`
+      : `Age recipient: ${item.publicKey.slice(0, 24)}…`;
   },
   bulk(item) {
     return `Secrets: ${item.names.join(', ')}`;
@@ -78,7 +81,7 @@ function showClipboardModal(item, raw, actions) {
       add(labels.path, () => actions.path(item.path));
     },
     recipient() {
-      add(labels.recipient, () => actions.recipient(item.publicKey));
+      add(labels.recipient, () => actions.recipient(item));
     },
     bulk() {
       add(labels.bulk, () => actions.bulk(item.pairs));

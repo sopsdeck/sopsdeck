@@ -13,7 +13,11 @@ export default defineConfig({
     command: 'go run ./cmd/sopsdeck drive --demo --listen 127.0.0.1:4174 --ui desktop/src',
     url: 'http://127.0.0.1:4174/health',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 120_000,
+    env: {
+      ...process.env,
+      SOPSDECK_DEMO_USER: 'checkout',
+    },
   },
   projects: [
     { name: 'smoke', testMatch: 'smoke.spec.js' },

@@ -1,5 +1,11 @@
-import { classifyPasteKeys, parsePastePayload, pastePreviewText } from './paste.js';
+import {
+  classifyPasteKeys,
+  parseGitIdentity,
+  parsePastePayload,
+  pastePreviewText,
+} from './paste.js';
 import { resetClipboardSeen, sniffClipboard } from './clipboard.js';
+import { icon, iconButton } from './icons.js';
 import { showWhatsNew } from './whatsnew.js';
 
 const invoke = invokeOverHTTP;
@@ -49,14 +55,16 @@ let rows = [];
 let revealed = false;
 let commitAuto = true;
 let lastAuto = '';
-let historyRev = '';
 let access = [];
 let accessFormOpen = false;
+let focusedProject = false;
+let canGrant = true;
+let projectConfig = { path: '', name: '', owners: [], canGrant: true };
 let account = {
   name: '',
   email: '',
-  public_key: '',
-  has_identity: false,
+  publicKey: '',
+  hasIdentity: false,
 };
 let integration = {
   scope: 'repo',
@@ -75,142 +83,39 @@ function messageOf(err) {
   return String(err);
 }
 
+function jsonValue(obj, key, fallback = '') {
+  if (!obj || !Object.hasOwn(obj, key)) return fallback;
+  return obj[key];
+}
+
+function accountFrom(raw = {}) {
+  return {
+    name: raw.name || '',
+    email: raw.email || '',
+    publicKey: raw.publicKey || jsonValue(raw, 'public_key'),
+    hasIdentity: Boolean(raw.hasIdentity ?? jsonValue(raw, 'has_identity')),
+  };
+}
+
+function withDialog(dialog, setup) {
+  return new Promise((resolve) => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    let finished = false;
+    const finish = (value) => {
+      if (finished) return;
+      finished = true;
+      ac.abort();
+      if (dialog.open) dialog.close();
+      resolve(value);
+    };
+
+    setup({ signal, finish });
+  });
+}
+
 function skipBoot() {
   return new URLSearchParams(location.search).has('empty');
-}
-
-const stroke = {
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '1.8',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round',
-};
-
-function svgEl(name, attrs, children = []) {
-  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
-  for (const [key, value] of Object.entries(attrs)) {
-    el.setAttribute(key, value);
-  }
-
-  for (const child of children) el.append(child);
-  return el;
-}
-
-function icon(kind) {
-  const parts = {
-    eye: [
-      svgEl('path', { d: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z', ...stroke }),
-      svgEl('circle', { cx: '12', cy: '12', r: '2.5', ...stroke }),
-    ],
-    'eye-off': [
-      svgEl('path', { d: 'M3 3l18 18', ...stroke }),
-      svgEl('path', { d: 'M10.6 10.6a2.5 2.5 0 0 0 3.5 3.5', ...stroke }),
-      svgEl('path', {
-        d: 'M9.9 5.1A11 11 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.2 3.8',
-        ...stroke,
-      }),
-      svgEl('path', { d: 'M6.1 6.1C3.6 8 2 12 2 12s3.5 7 10 7a10 10 0 0 0 4.2-.9', ...stroke }),
-    ],
-    copy: [
-      svgEl('rect', { x: '9', y: '9', width: '13', height: '13', rx: '2', ...stroke }),
-      svgEl('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1', ...stroke }),
-    ],
-    trash: [
-      svgEl('path', { d: 'M4 7h16', ...stroke }),
-      svgEl('path', { d: 'M10 11v6M14 11v6', ...stroke }),
-      svgEl('path', { d: 'M6 7l1 14h10l1-14', ...stroke }),
-      svgEl('path', { d: 'M9 7V4h6v3', ...stroke }),
-    ],
-    plus: [svgEl('path', { d: 'M12 5v14M5 12h14', ...stroke })],
-    folder: [
-      svgEl('path', { d: 'M3 7h6l2 2h10v10H3z', ...stroke }),
-      svgEl('path', { d: 'M3 7V5h5l2 2', ...stroke }),
-    ],
-    file: [
-      svgEl('path', { d: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z', ...stroke }),
-      svgEl('path', { d: 'M14 3v6h6', ...stroke }),
-    ],
-    spark: [
-      svgEl('path', { d: 'M12 3v4M12 17v4M3 12h4M17 12h4', ...stroke }),
-      svgEl('circle', { cx: '12', cy: '12', r: '3', ...stroke }),
-    ],
-    save: [
-      svgEl('path', { d: 'M5 5h10l4 4v10H5z', ...stroke }),
-      svgEl('path', { d: 'M8 5v5h8', ...stroke }),
-    ],
-    commit: [
-      svgEl('circle', { cx: '12', cy: '12', r: '3', ...stroke }),
-      svgEl('path', { d: 'M12 5v4M12 15v4', ...stroke }),
-    ],
-    sync: [
-      svgEl('path', { d: 'M4 12a8 8 0 0 1 13-5.5L19 9', ...stroke }),
-      svgEl('path', { d: 'M20 12a8 8 0 0 1-13 5.5L5 15', ...stroke }),
-    ],
-    review: [svgEl('path', { d: 'M4 6h16M4 12h10M4 18h13', ...stroke })],
-    history: [
-      svgEl('circle', { cx: '12', cy: '12', r: '9', ...stroke }),
-      svgEl('path', { d: 'M12 7v5l3 2', ...stroke }),
-    ],
-    lock: [
-      svgEl('rect', { x: '5', y: '10', width: '14', height: '11', rx: '2', ...stroke }),
-      svgEl('path', { d: 'M8 10V7a4 4 0 0 1 8 0v3', ...stroke }),
-    ],
-    unlock: [
-      svgEl('rect', { x: '5', y: '10', width: '14', height: '11', rx: '2', ...stroke }),
-      svgEl('path', { d: 'M8 10V7a4 4 0 0 1 7-2', ...stroke }),
-    ],
-    robot: [
-      svgEl('rect', { x: '5', y: '7', width: '14', height: '12', rx: '3', ...stroke }),
-      svgEl('path', { d: 'M12 3v4M8 12h.01M16 12h.01M9 16h6', ...stroke }),
-    ],
-    restore: [
-      svgEl('path', { d: 'M3 12a9 9 0 1 0 3-6.7', ...stroke }),
-      svgEl('path', { d: 'M3 4v5h5', ...stroke }),
-    ],
-    grant: [
-      svgEl('circle', { cx: '9', cy: '8', r: '3', ...stroke }),
-      svgEl('path', { d: 'M3 19c1-4 4-6 6-6s5 2 6 6', ...stroke }),
-      svgEl('path', { d: 'M19 8v6M16 11h6', ...stroke }),
-    ],
-    drop: [
-      svgEl('circle', { cx: '9', cy: '8', r: '3', ...stroke }),
-      svgEl('path', { d: 'M3 19c1-4 4-6 6-6s5 2 6 6M16 11h6', ...stroke }),
-    ],
-    publish: [svgEl('path', { d: 'M12 19V5M6 11l6-6 6 6', ...stroke })],
-    github: [
-      svgEl('path', {
-        d: 'M12 .5C5.65 .5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.1c-3.2.7-3.87-1.35-3.87-1.35-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.74.4-1.25.73-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.03 0 0 .96-.31 3.15 1.17A10.9 10.9 0 0 1 12 6.17c.97 0 1.94.13 2.85.38 2.19-1.48 3.15-1.17 3.15-1.17.62 1.57.23 2.74.11 3.03.73.8 1.18 1.82 1.18 3.07 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.08.78 2.18v3.23c0 .3.2.66.79.55A11.52 11.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z',
-        fill: 'currentColor',
-        stroke: 'none',
-      }),
-    ],
-    sun: [
-      svgEl('circle', { cx: '12', cy: '12', r: '4', ...stroke }),
-      svgEl('path', {
-        d: 'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
-        ...stroke,
-      }),
-    ],
-    moon: [svgEl('path', { d: 'M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z', ...stroke })],
-    chevron: [svgEl('path', { d: 'M8 10l4 4 4-4', ...stroke })],
-  };
-  return svgEl(
-    'svg',
-    { viewBox: '0 0 24 24', width: '14', height: '14', 'aria-hidden': 'true' },
-    parts[kind] || [],
-  );
-}
-
-function iconButton(testid, label, kind, onClick) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'icon-button';
-  btn.dataset.testid = testid;
-  btn.setAttribute('aria-label', label);
-  btn.append(icon(kind));
-  btn.addEventListener('click', onClick);
-  return btn;
 }
 
 async function copyText(text) {
@@ -223,6 +128,7 @@ async function copyText(text) {
     nativeError = err;
     // The server-side clipboard command may be unavailable in a browser-only setup.
   }
+
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(value);
@@ -532,6 +438,7 @@ function removeProject(project) {
     rows = [];
     resetEditorChrome();
   }
+
   renderTree();
   renderWorkspace();
 }
@@ -793,6 +700,7 @@ function appendFileGroup(parent, project, dir, files) {
 }
 
 function renderRecents(nav) {
+  if (focusedProject) return;
   const items = readJSON(RECENTS_KEY, []).filter((item) => item?.path && item?.name);
   if (items.length === 0) return;
   const wrap = document.createElement('div');
@@ -818,6 +726,8 @@ function renderRecents(nav) {
 function renderTree() {
   const nav = treeEl();
   nav.replaceChildren();
+  const kicker = document.getElementById('sidebar-kicker');
+  if (kicker) kicker.textContent = focusedProject ? 'Project' : 'Projects';
   renderRecents(nav);
   for (const [index, project] of projects.entries()) {
     const collapsed = projectCollapsed(project.path, index);
@@ -830,30 +740,39 @@ function renderTree() {
     title.className = 'project';
     title.dataset.testid = 'tree-project';
     title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    title.append(icon('chevron'), project.name);
+    const copy = document.createElement('span');
+    copy.className = 'project-copy';
+    const name = document.createElement('span');
+    name.className = 'project-name';
+    name.textContent = project.name;
     const hint = document.createElement('span');
     hint.className = 'project-path';
     hint.textContent = parentLabel(project.path);
-    title.append(hint);
+    copy.append(name, hint);
+    title.append(icon('chevron'), copy);
     title.addEventListener('click', () => {
       const next = readJSON(TREE_PROJECTS_KEY, {});
       next[project.path] = !collapsed;
       localStorage.setItem(TREE_PROJECTS_KEY, JSON.stringify(next));
       renderTree();
     });
-    const actions = document.createElement('span');
-    actions.className = 'project-actions';
-    const move = iconButton('move-project', 'Choose a new Project path', 'folder', async () => {
-      const path = pickProjectFolder();
-      if (!path || path === project.path) return;
-      await addProjectFromPath(path);
-      removeProject(project);
-    });
-    const remove = iconButton('remove-project', 'Remove Project', 'trash', () =>
-      removeProject(project),
-    );
-    actions.append(move, remove);
-    header.append(title, actions);
+    header.append(title);
+    if (!focusedProject) {
+      const actions = document.createElement('span');
+      actions.className = 'project-actions';
+      const move = iconButton('move-project', 'Choose a new Project path', 'folder', async () => {
+        const path = pickProjectFolder();
+        if (!path || path === project.path) return;
+        await addProjectFromPath(path);
+        removeProject(project);
+      });
+      const remove = iconButton('remove-project', 'Remove Project', 'trash', () =>
+        removeProject(project),
+      );
+      actions.append(move, remove);
+      header.append(actions);
+    }
+
     wrap.append(header);
     if (!collapsed) {
       const files = document.createElement('div');
@@ -886,7 +805,7 @@ async function openFile(project, file) {
   headlineEl().textContent = titleOf(file.name);
   showError('');
   setStatus('file', '');
-  badgeEl().hidden = false;
+  badgeEl().hidden = true;
   document.getElementById('meta-path').textContent = displayPath(project, file);
   document.getElementById('meta-format').textContent = formatOf(file.path);
   document.getElementById('meta-enc').textContent = 'age + SOPS';
@@ -917,6 +836,7 @@ async function openFile(project, file) {
       loadPublishMapping(file.path),
       loadAccess(file.path),
       loadUnusedKeys(file.path),
+      loadProjectConfig(project.path),
     ]);
   } catch (err) {
     rows = [];
@@ -945,6 +865,16 @@ function setFileLockState(locked) {
   button.setAttribute('aria-label', `${action} file`);
   button.title = `${action} file`;
   button.dataset.locked = locked ? 'true' : 'false';
+  const badge = badgeEl();
+  if (!badge) return;
+  if (!selected) {
+    badge.hidden = true;
+    return;
+  }
+
+  badge.hidden = false;
+  badge.textContent = locked ? 'Locked' : 'Unlocked';
+  badge.classList.toggle('unlocked', !locked);
 }
 
 function setRevealed(value) {
@@ -959,6 +889,7 @@ async function unlockFileOnDisk() {
     showError('Encrypt & save before Unlock');
     return;
   }
+
   showError('');
   try {
     await withBusy(fileLockEl(), 'Unlocking…', () =>
@@ -978,6 +909,7 @@ async function lockFileOnDisk() {
     showError('Encrypt & save before Lock');
     return;
   }
+
   showError('');
   try {
     await withBusy(fileLockEl(), 'Locking…', () =>
@@ -995,6 +927,7 @@ function toggleFileLock() {
   if (fileLockEl().dataset.locked === 'true') {
     return unlockFileOnDisk();
   }
+
   return lockFileOnDisk();
 }
 
@@ -1029,6 +962,7 @@ async function showFileHistory() {
       list.append(empty);
       return;
     }
+
     for (const item of items) {
       const li = document.createElement('li');
       const button = document.createElement('button');
@@ -1087,6 +1021,7 @@ async function showSecretHistory(row) {
       li.append(button);
       list.append(li);
     }
+
     if (items.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'save-note';
@@ -1267,6 +1202,7 @@ async function addProjectFromPath(path, opts = {}) {
       state = await invoke('inspect_project', { path });
     }
   }
+
   const files = state.managed || [];
   const name = path.split('/').findLast(Boolean) || path;
   const existing = projects.findIndex((p) => p.path === path);
@@ -1288,6 +1224,8 @@ async function addProjectFromPath(path, opts = {}) {
     selected = null;
     renderWorkspace();
   }
+
+  await loadProjectConfig(path);
 }
 
 function avatarURL(kind, seed) {
@@ -1311,27 +1249,39 @@ function renderAccount() {
     button.title = `Open account · ${label}`;
     button.setAttribute('aria-label', `Open account · ${label}`);
   }
+
+  const seed = account.name || account.email || 'Account';
   const avatar = document.getElementById('account-avatar');
-  if (avatar) renderAvatar(avatar, 'person', account.name || account.email || 'Account', label);
+  if (avatar) renderAvatar(avatar, 'person', seed, label);
   const accountLabel = document.getElementById('account-label');
   if (accountLabel) accountLabel.textContent = label;
   const large = document.getElementById('account-avatar-large');
-  if (large) renderAvatar(large, 'person', account.name || account.email || 'Account', label);
+  if (large) renderAvatar(large, 'person', seed, label);
   const previewName = document.getElementById('account-preview-name');
   if (previewName) previewName.textContent = account.name || 'Not configured';
   const previewEmail = document.getElementById('account-preview-email');
   if (previewEmail) previewEmail.textContent = account.email || 'Configure your Git identity';
+  renderAccountKey();
+  renderProjectPanel();
+}
+
+function renderAccountKey() {
   const keyStatus = document.getElementById('account-key-status');
-  if (keyStatus) keyStatus.textContent = account.has_identity ? 'Configured' : 'Not configured';
+  if (keyStatus) keyStatus.textContent = account.hasIdentity ? 'Configured' : 'Not configured';
   const createIdentity = document.getElementById('account-create-identity');
   if (createIdentity) {
-    createIdentity.disabled = account.has_identity;
-    createIdentity.textContent = account.has_identity ? 'Identity configured' : 'Create identity';
+    createIdentity.disabled = account.hasIdentity;
+    createIdentity.textContent = account.hasIdentity ? 'Identity configured' : 'Create identity';
   }
+
+  const keyField = document.getElementById('account-key-field');
+  const keyInput = document.getElementById('account-public-key');
+  if (keyField) keyField.hidden = !account.hasIdentity || !account.publicKey;
+  if (keyInput) keyInput.value = account.publicKey || '';
 }
 
 function accountComplete() {
-  return Boolean(account.name && account.email && account.has_identity);
+  return Boolean(account.name && account.email && account.hasIdentity);
 }
 
 async function openAccountDialog(required = false, path = '') {
@@ -1341,10 +1291,11 @@ async function openAccountDialog(required = false, path = '') {
   const error = document.getElementById('account-error');
   const currentPath = path || selected?.project.path || projects[0]?.path || '';
   try {
-    account = await invoke('get_account', { path: currentPath });
+    account = accountFrom(await invoke('get_account', { path: currentPath }));
   } catch {
-    account = { name: '', email: '', public_key: '', has_identity: false };
+    account = accountFrom();
   }
+
   nameInput.value = account.name;
   emailInput.value = account.email;
   nameInput.readOnly = Boolean(account.name);
@@ -1357,60 +1308,76 @@ async function openAccountDialog(required = false, path = '') {
     account.name || account.email ? 'Fill missing Git identity' : 'Save Git identity';
   renderAccount();
   dialog.showModal();
-  return new Promise((resolve) => {
-    let finished = false;
-    const finish = (value) => {
-      if (finished) return;
-      finished = true;
-      dialog.close();
-      resolve(value);
-    };
-    dialog.oncancel = () => finish(false);
-    document.getElementById('account-cancel').onclick = () => finish(false);
-    document.getElementById('account-later').onclick = () => finish(false);
-    document.getElementById('account-save').onclick = async () => {
-      const name = nameInput.value.trim();
-      const email = emailInput.value.trim();
-      if (!name || !email) {
-        error.hidden = false;
-        error.textContent = 'Enter the Git name and email used for commits';
-        return;
-      }
-      try {
-        account = await invoke('configure_account', { path: currentPath, name, email });
-        renderAccount();
-        if (required && !accountComplete()) {
+  return withDialog(dialog, ({ signal, finish }) => {
+    dialog.addEventListener('cancel', () => finish(false), { signal });
+    document.getElementById('account-cancel').addEventListener('click', () => finish(false), {
+      signal,
+    });
+    document.getElementById('account-later').addEventListener('click', () => finish(false), {
+      signal,
+    });
+    document.getElementById('account-save').addEventListener(
+      'click',
+      async () => {
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        if (!name || !email) {
           error.hidden = false;
-          error.textContent = 'Create an Age identity before managing encrypted files';
+          error.textContent = 'Enter the Git name and email used for commits';
           return;
         }
-        finish(true);
-      } catch (err) {
-        error.hidden = false;
-        error.textContent = messageOf(err);
-      }
-    };
-    document.getElementById('account-create-identity').onclick = async () => {
-      if (!window.confirm('Save the backup in your password manager before continuing?')) return;
-      try {
-        account = await invoke('create_user_identity', { path: currentPath });
-        renderAccount();
-      } catch (err) {
-        error.hidden = false;
-        error.textContent = messageOf(err);
-      }
-    };
+
+        try {
+          account = accountFrom(
+            await invoke('configure_account', { path: currentPath, name, email }),
+          );
+          renderAccount();
+          if (required && !accountComplete()) {
+            error.hidden = false;
+            error.textContent = 'Create an Age identity before managing encrypted files';
+            return;
+          }
+
+          finish(true);
+        } catch (err) {
+          error.hidden = false;
+          error.textContent = messageOf(err);
+        }
+      },
+      { signal },
+    );
+
+    document.getElementById('account-create-identity').addEventListener(
+      'click',
+      async () => {
+        // eslint-disable-next-line no-alert -- identity backup confirmation is a destructive step.
+        if (!window.confirm('Save the backup in your password manager before continuing?')) return;
+        try {
+          account = accountFrom(await invoke('create_user_identity', { path: currentPath }));
+          renderAccount();
+        } catch (err) {
+          error.hidden = false;
+          error.textContent = messageOf(err);
+        }
+      },
+      { signal },
+    );
   });
 }
 
 async function ensureAccount(path) {
   try {
-    account = await invoke('get_account', { path });
+    account = accountFrom(await invoke('get_account', { path }));
   } catch {
-    account = { name: '', email: '', public_key: '', has_identity: false };
+    account = accountFrom();
   }
+
   renderAccount();
   if (!accountComplete()) await openAccountDialog(true, path);
+}
+
+function chosenKeys(keyInputs) {
+  return keyInputs.filter((keyInput) => keyInput.checked).map((keyInput) => keyInput.value);
 }
 
 function chooseProjectFiles(path, candidates, opts = {}) {
@@ -1431,28 +1398,31 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     if (lower.endsWith('.yaml') || lower.endsWith('.yml')) return 'YAML';
     return 'Configuration file';
   };
+
   const updateSelection = () => {
     let fileCount = 0;
     let pathCount = 0;
     for (const { input, label, state, keyInputs } of rows) {
       const selectedKeys = keyInputs.filter((keyInput) => keyInput.checked);
-      const managed = keyInputs.length ? selectedKeys.length > 0 : input.checked;
+      const managed = keyInputs.length > 0 ? selectedKeys.length > 0 : input.checked;
       if (managed) fileCount += 1;
       pathCount += selectedKeys.length;
       input.checked = managed;
       input.indeterminate =
         keyInputs.length > 0 && selectedKeys.length > 0 && selectedKeys.length < keyInputs.length;
       label.classList.toggle('is-managed', managed);
-      state.textContent = keyInputs.length
-        ? managed && selectedKeys.length < keyInputs.length
-          ? `${selectedKeys.length}/${keyInputs.length}`
+      state.textContent =
+        keyInputs.length > 0
+          ? managed && selectedKeys.length < keyInputs.length
+            ? `${selectedKeys.length}/${keyInputs.length}`
+            : managed
+              ? 'Manage all'
+              : 'Ignore'
           : managed
-            ? 'Manage all'
-            : 'Ignore'
-        : managed
-          ? 'Manage'
-          : 'Ignore';
+            ? 'Manage'
+            : 'Ignore';
     }
+
     selection.textContent =
       fileCount === 0
         ? 'No paths selected'
@@ -1476,9 +1446,10 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     name.textContent = rel;
     const meta = document.createElement('small');
     const keys = Array.isArray(file.keys) ? file.keys : [];
-    meta.textContent = keys.length
-      ? `${formatFor(rel)} · ${keys.length} selectable path${keys.length === 1 ? '' : 's'}`
-      : formatFor(rel);
+    meta.textContent =
+      keys.length > 0
+        ? `${formatFor(rel)} · ${keys.length} selectable path${keys.length === 1 ? '' : 's'}`
+        : formatFor(rel);
     copy.append(name, meta);
     const state = document.createElement('span');
     state.className = 'setup-project-file-state';
@@ -1501,17 +1472,20 @@ function chooseProjectFiles(path, candidates, opts = {}) {
       keyList.append(keyLabel);
       keyInputs.push(keyInput);
     }
+
     input.addEventListener('change', () => {
-      keyInputs.forEach((keyInput) => {
+      for (const keyInput of keyInputs) {
         keyInput.checked = input.checked;
-      });
+      }
+
       updateSelection();
     });
     entry.append(label);
-    if (keys.length) entry.append(keyList);
+    if (keys.length > 0) entry.append(keyList);
     list.append(entry);
     rows.push({ input, label, state, keyInputs });
   }
+
   if (candidates.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'save-note';
@@ -1524,47 +1498,57 @@ function chooseProjectFiles(path, candidates, opts = {}) {
   document.getElementById('setup-project-skip').textContent =
     opts.skipLabel || 'Open without initializing';
   document.getElementById('setup-project-init').textContent = opts.action || 'Initialize Project';
-  selectAll.onclick = () => {
-    rows.forEach(({ input, keyInputs }) => {
-      input.checked = true;
-      keyInputs.forEach((keyInput) => {
-        keyInput.checked = true;
-      });
-    });
-    updateSelection();
-  };
-  ignoreAll.onclick = () => {
-    rows.forEach(({ input, keyInputs }) => {
-      input.checked = false;
-      keyInputs.forEach((keyInput) => {
-        keyInput.checked = false;
-      });
-    });
-    updateSelection();
-  };
   updateSelection();
   dialog.showModal();
-  return new Promise((resolve) => {
-    const finish = (files) => {
-      dialog.close();
-      resolve(files);
-    };
-    dialog.addEventListener('cancel', () => finish(null), { once: true });
-    document.getElementById('setup-project-init').onclick = () => {
-      finish(
-        rows
-          .map(({ input, keyInputs }) => ({
-            path: input.value,
-            hasPaths: keyInputs.length > 0,
-            keys: keyInputs.length
-              ? keyInputs.filter((keyInput) => keyInput.checked).map((keyInput) => keyInput.value)
-              : [],
-          }))
-          .filter(({ hasPaths, keys }) => !hasPaths || keys.length > 0)
-          .map(({ path, keys }) => ({ path, keys })),
-      );
-    };
-    document.getElementById('setup-project-skip').onclick = () => finish(null);
+  return withDialog(dialog, ({ signal, finish }) => {
+    selectAll.addEventListener(
+      'click',
+      () => {
+        for (const { input, keyInputs } of rows) {
+          input.checked = true;
+          for (const keyInput of keyInputs) {
+            keyInput.checked = true;
+          }
+        }
+
+        updateSelection();
+      },
+      { signal },
+    );
+    ignoreAll.addEventListener(
+      'click',
+      () => {
+        for (const { input, keyInputs } of rows) {
+          input.checked = false;
+          for (const keyInput of keyInputs) {
+            keyInput.checked = false;
+          }
+        }
+
+        updateSelection();
+      },
+      { signal },
+    );
+    dialog.addEventListener('cancel', () => finish(null), { signal });
+    document.getElementById('setup-project-init').addEventListener(
+      'click',
+      () => {
+        finish(
+          rows
+            .map(({ input, keyInputs }) => ({
+              path: input.value,
+              hasPaths: keyInputs.length > 0,
+              keys: chosenKeys(keyInputs),
+            }))
+            .filter(({ hasPaths, keys }) => !hasPaths || keys.length > 0)
+            .map(({ path, keys }) => ({ path, keys })),
+        );
+      },
+      { signal },
+    );
+    document.getElementById('setup-project-skip').addEventListener('click', () => finish(null), {
+      signal,
+    });
   });
 }
 
@@ -1603,16 +1587,20 @@ function decorateChrome() {
   decorateButton('whats-new', 'spark');
   decorateButton('add-project', 'folder');
   decorateButton('save', 'save');
+  decorateButton('grant-access', 'grant');
+  decorateButton('request-access', 'grant');
   for (const [id, kind] of [
     ['file-lock', 'unlock'],
     ['copy-file', 'copy'],
     ['file-history', 'history'],
     ['create-robot', 'robot'],
-    ['grant-access', 'grant'],
+    ['project-copy-key', 'copy'],
+    ['project-account', 'grant'],
   ]) {
     const button = document.getElementById(id);
     if (button) button.append(icon(kind));
   }
+
   document.querySelector('#github-integration .integration-logo')?.append(icon('github'));
 }
 
@@ -1640,6 +1628,7 @@ function changePreview(current) {
     else if (row.key !== row.origKey) lines.push(`Rename ${row.origKey} → ${row.key}`);
     else if (row.value !== row.origValue) lines.push(`Update ${row.key}`);
   }
+
   return lines.join('\n');
 }
 
@@ -1657,23 +1646,26 @@ function confirmSave(current) {
     label.append(checkbox, ` Rewrite references from ${row.origKey} to ${row.key}`);
     choices.append(label);
   }
+
   document.getElementById('save-preview-copy').textContent =
     `${selected?.name || 'Managed file'} will be encrypted and committed to Git.`;
   document.getElementById('save-preview').textContent = changePreview(current);
   dialog.showModal();
-  return new Promise((resolve) => {
-    document.getElementById('save-preview-cancel').onclick = () => {
-      dialog.close();
-      resolve(null);
-    };
-    document.getElementById('save-preview-confirm').onclick = () => {
-      dialog.close();
-      resolve({
-        rewriteRefs: new Set(
-          [...choices.querySelectorAll('input:checked')].map((input) => input.value),
-        ),
-      });
-    };
+  return withDialog(dialog, ({ signal, finish }) => {
+    document.getElementById('save-preview-cancel').addEventListener('click', () => finish(null), {
+      signal,
+    });
+    document.getElementById('save-preview-confirm').addEventListener(
+      'click',
+      () => {
+        finish({
+          rewriteRefs: new Set(
+            [...choices.querySelectorAll('input:checked')].map((input) => input.value),
+          ),
+        });
+      },
+      { signal },
+    );
   });
 }
 
@@ -1762,6 +1754,7 @@ async function addManagedFile() {
       if (!selected?.length) return;
       keys = selected[0].keys;
     }
+
     await invoke('add_project_file', { path: project.path, file: rel, keys });
     const state = await invoke('inspect_project', { path: project.path });
     project.files = state.managed || [];
@@ -1791,8 +1784,9 @@ function renderIntegrationSummary() {
         ? `${integration.repo} / ${integration.environment}`
         : 'repository environment not configured';
   } else {
-    target = integration.repo ? integration.repo : 'repository not configured';
+    target = integration.repo || 'repository not configured';
   }
+
   const configured = !target.endsWith('not configured');
   el.classList.toggle('configured', configured);
   el.title = `GitHub · ${target}`;
@@ -1820,31 +1814,47 @@ async function loadPublishMapping(path) {
       visibility: 'all',
     };
   }
+
   renderIntegrationSummary();
 }
 
-function renderAccess() {
+function syncAccessChrome(empty, fileOpen) {
   const emptyActions = document.getElementById('access-empty-actions');
   const toolbar = document.getElementById('access-toolbar');
   const form = document.querySelector('.access-form');
   const list = document.getElementById('access-list');
   const count = document.getElementById('access-count');
-  if (!emptyActions || !toolbar || !form || !list || !count) return;
-  const empty = access.length === 0;
-  emptyActions.hidden = !empty || accessFormOpen;
+  const request = document.getElementById('request-access');
+  if (!emptyActions || !toolbar || !form || !list || !count) return false;
+  emptyActions.hidden = !(empty && !accessFormOpen && canGrant && fileOpen);
   toolbar.hidden = empty;
-  form.hidden = empty && !accessFormOpen;
+  form.hidden = !canGrant || (empty && !accessFormOpen);
   list.hidden = empty;
-  if (empty && !accessFormOpen) return;
+  if (request) request.hidden = !fileOpen;
+  if (empty && !accessFormOpen) {
+    list.replaceChildren();
+    return false;
+  }
+
+  return true;
+}
+
+function renderAccess() {
+  const empty = access.length === 0;
+  const fileOpen = Boolean(selected);
+  if (!syncAccessChrome(empty, fileOpen)) return;
+  const list = document.getElementById('access-list');
+  const count = document.getElementById('access-count');
   count.textContent = `${access.length} other ${access.length === 1 ? 'recipient' : 'recipients'}`;
   list.replaceChildren();
-  if (access.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'save-note access-empty';
-    empty.textContent = 'No recipients found in this file.';
-    list.append(empty);
+  if (empty) {
+    const note = document.createElement('p');
+    note.className = 'save-note access-empty';
+    note.textContent = 'No recipients found in this file.';
+    list.append(note);
     return;
   }
+
   for (const recipient of access) {
     const row = document.createElement('div');
     row.className = 'access-row';
@@ -1858,12 +1868,20 @@ function renderAccess() {
     const name = document.createElement('strong');
     name.textContent = nameLabel;
     details.append(name);
+    if (recipient.email) {
+      const email = document.createElement('span');
+      email.className = 'access-email';
+      email.textContent = recipient.email;
+      details.append(email);
+    }
+
     if (recipient.kind === 'robot') {
       const badge = document.createElement('span');
       badge.className = 'access-kind';
       badge.textContent = 'robot';
       details.append(badge);
     }
+
     const remove = iconButton(
       'remove-recipient',
       `Remove access for ${name.textContent}`,
@@ -1883,20 +1901,121 @@ async function loadAccess(path) {
   } catch {
     // An unlocked file no longer contains SOPS recipient metadata; keep the last known list.
   }
+
   renderAccess();
+}
+
+function jsonFlag(obj, key, fallback = true) {
+  if (!obj || !Object.hasOwn(obj, key)) return fallback;
+  return Boolean(obj[key]);
+}
+
+async function loadProjectConfig(path) {
+  const target = path || selected?.project.path || projects[0]?.path || '';
+  if (!target) return;
+  try {
+    const next = await invoke('get_account', { path: target });
+    projectConfig = {
+      path: target,
+      name: '',
+      owners: next.owners || [],
+      canGrant: jsonFlag(next, 'can_grant'),
+    };
+    account = accountFrom(next);
+  } catch {
+    projectConfig = { path: target, name: '', owners: [], canGrant: true };
+  }
+
+  canGrant = projectConfig.canGrant !== false;
+  renderProjectPanel();
+  renderAccess();
+}
+
+function renderProjectPanel() {
+  const project = selected?.project || projects[0];
+  const nameEl = document.getElementById('project-panel-name');
+  const pathEl = document.getElementById('project-panel-path');
+  const identityEl = document.getElementById('project-panel-identity');
+  const ownersEl = document.getElementById('project-owners');
+  const copyKey = document.getElementById('project-copy-key');
+  if (nameEl) nameEl.textContent = project?.name || '—';
+  if (pathEl) pathEl.textContent = project ? parentLabel(project.path) : projectConfig.path || '—';
+  if (identityEl) {
+    identityEl.textContent = account.name || account.email || 'Not configured';
+  }
+
+  if (copyKey) copyKey.disabled = !account.publicKey;
+  if (!ownersEl) return;
+  const owners = Array.isArray(projectConfig.owners) ? projectConfig.owners : [];
+  if (owners.length === 0) {
+    ownersEl.textContent =
+      'No Project owners listed yet. Anyone with Access can add people until owners are recorded in .sopsdeck.toml.';
+    return;
+  }
+
+  const names = owners.map((owner) => owner.name || owner.key).join(', ');
+  ownersEl.textContent = canGrant
+    ? `Owners: ${names}. You can grant Access on this Project.`
+    : `Owners: ${names}. Ask an owner to add people, or copy a request.`;
+}
+
+async function copyPublicKey() {
+  if (!account.publicKey) {
+    showError('Create an Age identity first');
+    return;
+  }
+
+  if (await copyText(account.publicKey)) {
+    setStatus('access', 'Copied your Age public key');
+  }
+}
+
+async function requestAccess() {
+  if (!selected) return;
+  if (!account.publicKey) {
+    showError('Create an Age identity first, then copy a request', 'access');
+    return;
+  }
+
+  const file = selected.rel || selected.name || selected.path;
+  const project = selected.project?.name || projectConfig.name || 'this Project';
+  const who = account.name ? `${account.name}${account.email ? ` <${account.email}>` : ''}` : 'me';
+  const message = `Hi — please grant me Access to ${file} in ${project}.
+
+Name: ${who}
+Age public key:
+${account.publicKey}
+
+You can add this key in Sopsdeck (Access → Add recipient) if you are a Project owner.`;
+  if (await copyText(message)) {
+    setStatus('access', 'Copied an access request including your public key');
+  }
 }
 
 async function addRecipient() {
   if (!selected) return;
-  const name = document.getElementById('recipient-name').value.trim();
-  const key = document.getElementById('recipient-key').value.trim();
-  if (!name || !key) {
-    showError('Enter a name and an Age public key', 'access');
+  if (!canGrant) {
+    showError('Only a Project owner can add Access. Copy a request instead.', 'access');
     return;
   }
+
+  const entered = document.getElementById('recipient-name').value.trim();
+  const key = document.getElementById('recipient-key').value.trim();
+  const { name, email } = parseGitIdentity(entered);
+  if (!name || !key) {
+    showError('Enter a name or git identity and an Age public key', 'access');
+    return;
+  }
+
   try {
     await withBusy(document.getElementById('grant-access'), '', () =>
-      invoke('add_recipient', { path: selected.path, publicKey: key, name, kind: 'person' }),
+      invoke('add_recipient', {
+        path: selected.path,
+        publicKey: key,
+        name,
+        email,
+        kind: 'person',
+      }),
     );
     document.getElementById('recipient-name').value = '';
     document.getElementById('recipient-key').value = '';
@@ -1908,8 +2027,9 @@ async function addRecipient() {
 }
 
 async function removeRecipient(recipient) {
-  if (!selected || !window.confirm(`Remove ${recipient.name || 'this recipient'} from this file?`))
-    return;
+  if (!selected) return;
+  // eslint-disable-next-line no-alert -- removing Access is a destructive confirmation.
+  if (!window.confirm(`Remove ${recipient.name || 'this recipient'} from this file?`)) return;
   try {
     await invoke('remove_recipient', { path: selected.path, publicKey: recipient.key });
     accessFormOpen = false;
@@ -2002,6 +2122,7 @@ async function syncIntegration() {
     error.hidden = false;
     error.textContent = messageOf(err);
   }
+
   if (!dialog.open) renderIntegrationSummary();
 }
 
@@ -2012,11 +2133,13 @@ async function createRobotAccount() {
     document.getElementById('robot-error').hidden = false;
     return;
   }
+
   try {
     const robot = await invoke('create_robot_identity', { name });
     renderAvatar(document.getElementById('robot-avatar'), 'robot', robot.name, robot.name);
     document.getElementById('robot-display-name').textContent = robot.name;
-    document.getElementById('robot-private-key').value = robot.private_key;
+    document.getElementById('robot-private-key').value =
+      robot.privateKey || jsonValue(robot, 'private_key');
     document.getElementById('robot-result').hidden = false;
     document.getElementById('robot-create').hidden = true;
     document.getElementById('robot-error').hidden = true;
@@ -2032,7 +2155,7 @@ async function addRobotToFile() {
   try {
     await invoke('add_recipient', {
       path: selected.path,
-      publicKey: window.robotAccount.public_key,
+      publicKey: window.robotAccount.publicKey || jsonValue(window.robotAccount, 'public_key'),
       name: window.robotAccount.name,
       kind: 'robot',
     });
@@ -2063,7 +2186,9 @@ async function loadDemoHints() {
     if (!response.ok) return;
     const info = await response.json();
     const input = document.getElementById('recipient-key');
+    const nameInput = document.getElementById('recipient-name');
     if (input && info.bobPublicKey) input.value = info.bobPublicKey;
+    if (nameInput && info.teammateName) nameInput.value = info.teammateName;
     const extras = Array.isArray(info.projects) ? info.projects : [];
     for (const path of extras) {
       if (!path || projects.some((p) => p.path === path)) continue;
@@ -2078,10 +2203,22 @@ const clipboardActions = {
   path(folderPath) {
     return addProjectFromPath(folderPath, { select: true });
   },
-  recipient(publicKey) {
-    const input = document.getElementById('recipient-key');
-    if (input) input.value = publicKey;
-    document.getElementById('grant-access').click();
+  recipient(item) {
+    const keyInput = document.getElementById('recipient-key');
+    const nameInput = document.getElementById('recipient-name');
+    if (keyInput) keyInput.value = item.publicKey;
+    if (nameInput && item.name) {
+      nameInput.value = item.email ? `${item.name} <${item.email}>` : item.name;
+    }
+
+    accessFormOpen = true;
+    renderAccess();
+    if (item.name) {
+      document.getElementById('grant-access').click();
+      return;
+    }
+
+    nameInput?.focus();
   },
   bulk(pairs) {
     if (!selected) return;
@@ -2115,6 +2252,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
   });
   document.getElementById('account').addEventListener('click', () => openAccountDialog());
+  document.getElementById('project-account').addEventListener('click', () => openAccountDialog());
+  document.getElementById('account-copy-key').addEventListener('click', copyPublicKey);
+  document.getElementById('project-copy-key').addEventListener('click', copyPublicKey);
+  document.getElementById('request-access').addEventListener('click', requestAccess);
   document.getElementById('add-project').addEventListener('click', addProject);
   document.getElementById('add-file').addEventListener('click', addManagedFile);
   document.getElementById('add-file-name').addEventListener('keydown', (event) => {
@@ -2174,8 +2315,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (skipBoot()) return;
   try {
     const boot = await invoke('boot_project');
+    let demo = false;
+    try {
+      const response = await fetch('/demo');
+      demo = response.ok;
+    } catch {
+      demo = false;
+    }
+
+    focusedProject = Boolean(boot) && !demo;
+    document.body.classList.toggle('focused-project', focusedProject);
     if (boot) await addProjectFromPath(boot);
-    await loadDemoHints();
+    if (!focusedProject) await loadDemoHints();
   } catch (err) {
     showError(messageOf(err));
   }

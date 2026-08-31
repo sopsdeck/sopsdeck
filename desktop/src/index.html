@@ -19,11 +19,17 @@
     <script type="module" src="/main.js" defer></script>
   </head>
   <body>
+    <p class="dev-banner" data-testid="dev-banner">
+      Sopsdeck is under development. Expect rough edges.
+      <a href="https://github.com/sopsdeck/sopsdeck/issues/new" target="_blank" rel="noreferrer"
+        >Submit a GitHub issue</a
+      >
+    </p>
     <div class="app">
       <aside class="sidebar">
         <div class="side-head">
           <div class="side-head-row">
-            <span class="kicker">Projects</span>
+            <span class="kicker" id="sidebar-kicker">Projects</span>
             <button
               id="theme-toggle"
               class="icon-button theme-toggle"
@@ -82,7 +88,7 @@
                 ></span>
                 <span id="account-label">Set up account</span>
               </button>
-              <span id="badge" class="encrypted" hidden>SOPS encrypted</span>
+              <span id="badge" class="encrypted" hidden data-testid="file-badge"></span>
             </div>
           </div>
         </header>
@@ -96,6 +102,59 @@
           <span class="kicker">Environment</span>
         </div>
         <div class="inspect-body">
+          <section
+            class="inspect-section"
+            data-section="project"
+            data-testid="inspector-section-project"
+          >
+            <h2>
+              <button
+                type="button"
+                class="inspect-toggle"
+                data-testid="inspector-toggle-project"
+                aria-expanded="true"
+              >
+                Project
+              </button>
+            </h2>
+            <div class="inspect-section-body">
+              <div class="meta">
+                <span>Name</span
+                ><strong id="project-panel-name" data-testid="project-panel-name">—</strong>
+                <span>Path</span
+                ><strong id="project-panel-path" data-testid="project-panel-path">—</strong>
+                <span>You</span
+                ><strong id="project-panel-identity" data-testid="project-panel-identity">—</strong>
+              </div>
+              <div class="compact-actions" aria-label="Project actions">
+                <button
+                  id="project-copy-key"
+                  class="icon-button panel-action"
+                  type="button"
+                  disabled
+                  data-testid="project-copy-key"
+                  aria-label="Copy your Age public key"
+                  title="Copy your Age public key"
+                ></button>
+                <button
+                  id="project-account"
+                  class="icon-button panel-action"
+                  type="button"
+                  data-testid="project-account"
+                  aria-label="Edit identity"
+                  title="Edit identity"
+                ></button>
+              </div>
+              <p id="project-owners" class="save-note" data-testid="project-owners">
+                No Project owners listed yet. Anyone with Access can add people until owners are
+                recorded in <code>.sopsdeck.toml</code>.
+              </p>
+              <p class="save-note">
+                Owners are the people who may grant Access. Put a CODEOWNERS file on
+                <code>.sopsdeck.toml</code> so GitHub requires their review on Access PRs.
+              </p>
+            </div>
+          </section>
           <section class="inspect-section" data-section="file" data-testid="inspector-section-file">
             <h2>
               <button
@@ -183,7 +242,7 @@
                 <input
                   id="recipient-name"
                   type="text"
-                  placeholder="Person or team name"
+                  placeholder="Name or git identity"
                   autocomplete="off"
                   data-testid="recipient-name"
                 />
@@ -194,19 +253,24 @@
                   autocomplete="off"
                   data-testid="recipient-key"
                 />
-                <button
-                  id="grant-access"
-                  class="icon-button panel-action"
-                  type="button"
-                  data-testid="grant-access"
-                  aria-label="Add access"
-                  title="Add access"
-                ></button>
+                <button id="grant-access" class="tool" type="button" data-testid="grant-access">
+                  Add recipient
+                </button>
               </div>
+              <button
+                id="request-access"
+                class="tool"
+                type="button"
+                hidden
+                data-testid="request-access"
+              >
+                Request access
+              </button>
               <p id="access-status" class="control-status" hidden data-testid="access-status"></p>
               <p id="access-error" class="control-error" hidden data-testid="access-error"></p>
               <p class="save-note">
-                Names stay in the local project manifest; the Age key does not contain a name.
+                Names you assign are stored in .sopsdeck.toml. Project init records your Git
+                identity so teammates can see who you are.
               </p>
             </div>
           </section>
@@ -280,8 +344,20 @@
       </fieldset>
       <pre id="save-preview" class="review-out" data-testid="save-preview"></pre>
       <div class="dialog-actions">
-        <button id="save-preview-cancel" class="tool" type="button">Cancel</button>
-        <button id="save-preview-confirm" class="tool primary" type="button">
+        <button
+          id="save-preview-cancel"
+          class="tool"
+          type="button"
+          data-testid="save-preview-cancel"
+        >
+          Cancel
+        </button>
+        <button
+          id="save-preview-confirm"
+          class="tool primary"
+          type="button"
+          data-testid="save-preview-confirm"
+        >
           Encrypt &amp; commit
         </button>
       </div>
@@ -320,6 +396,15 @@
         <span id="account-key-status">Not configured</span>
         <button id="account-create-identity" class="tool" type="button">Create identity</button>
       </div>
+      <label class="commit-label" id="account-key-field" hidden>
+        Age public key
+        <span class="account-key-row">
+          <input id="account-public-key" type="text" readonly data-testid="account-public-key" />
+          <button id="account-copy-key" class="tool" type="button" data-testid="account-copy-key">
+            Copy
+          </button>
+        </span>
+      </label>
       <p id="account-error" class="control-error" hidden data-testid="account-error"></p>
       <div class="dialog-actions">
         <button id="account-later" class="tool" type="button" hidden>Continue for now</button>
@@ -330,7 +415,7 @@
     <dialog id="file-history-dialog" class="product-dialog" data-testid="file-history-dialog">
       <p class="kicker">File history</p>
       <h2 id="file-history-heading">Revisions</h2>
-      <ul id="file-history-list" class="history-list"></ul>
+      <ul id="file-history-list" class="history-list" data-testid="file-history-list"></ul>
       <pre id="file-history-preview" class="review-out" hidden></pre>
       <div class="dialog-actions">
         <button id="file-history-close" class="tool" type="button">Close</button>

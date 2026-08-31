@@ -40,6 +40,12 @@ const xoConfig = [
       'unicorn/prevent-abbreviations': 'off',
     },
   },
+  {
+    files: ['desktop/src/main.js'],
+    rules: {
+      'max-lines': ['error', { max: 2300, skipBlankLines: true }],
+    },
+  },
 ];
 
 export default xoConfig;

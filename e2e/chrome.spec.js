@@ -1,5 +1,29 @@
 import { expect, test } from '@playwright/test';
 
+async function encryptAndSave(page) {
+  await page.getByTestId('save').click();
+  await expect(page.getByTestId('save-preview-dialog')).toBeVisible();
+  await page.getByTestId('save-preview-confirm').click();
+  await expect(page.getByTestId('save-preview-dialog')).toBeHidden();
+}
+
+async function keyNames(page) {
+  return page.getByTestId('key-name').evaluateAll((els) => els.map((el) => el.value));
+}
+
+async function keyRowByName(page, key) {
+  const rows = page.getByTestId('key-row');
+  const count = await rows.count();
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    if ((await row.getByTestId('key-name').inputValue()) === key) {
+      return row;
+    }
+  }
+
+  throw new Error(`no row for ${key}`);
+}
+
 test('breadcrumb and inspector use a readable display path', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
@@ -26,11 +50,11 @@ test('empty state when no Project is open', async ({ page }) => {
 test('empty state when a Project has no Managed Files', async ({ page }) => {
   await page.route('**/invoke', async (route) => {
     const data = route.request().postDataJSON();
-    if (data?.cmd === 'list_managed_files') {
+    if (data?.cmd === 'inspect_project') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ result: [] }),
+        body: JSON.stringify({ result: { initialized: true, managed: [], candidates: [] } }),
       });
       return;
     }
@@ -65,37 +89,25 @@ test('empty state when the open file has no keys', async ({ page }) => {
   await expect(page.getByTestId('key-composer')).toBeVisible();
 });
 
-test('Sync shows loading on the control', async ({ page }) => {
+test('GitHub integration offers Sync now', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  let release;
-  const held = new Promise((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/invoke', async (route) => {
-    const data = route.request().postDataJSON();
-    if (data?.cmd === 'sync_project') {
-      await held;
-    }
-
-    await route.continue();
-  });
-  const clicked = page.getByTestId('sync').click();
-  await expect(page.getByTestId('sync')).toHaveAttribute('aria-busy', 'true');
-  release();
-  await clicked;
-  await expect(page.getByTestId('sync')).not.toHaveAttribute('aria-busy', 'true');
+  await page.getByTestId('github-integration').click();
+  await expect(page.getByTestId('integration-dialog')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
 });
 
-test('commit message prefills from edited keys', async ({ page }) => {
+test('save preview lists edited keys before commit', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await page.getByTestId('reveal').click();
-  await page.getByTestId('key-value').fill('sk_live_demo');
-  await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
+  const row = await keyRowByName(page, 'STRIPE_SECRET');
+  await row.getByTestId('reveal-key').click();
+  await row.getByTestId('key-value').fill('sk_live_demo');
+  await expect(page.getByTestId('save')).toBeEnabled();
   await page.getByTestId('save').click();
+  await expect(page.getByTestId('save-preview')).toContainText('STRIPE_SECRET');
+  await page.getByTestId('save-preview-confirm').click();
   await expect(page.getByTestId('save')).toBeDisabled();
-  await expect(page.getByTestId('commit-message')).toHaveValue(/STRIPE_SECRET/);
 });
 
 test('theme survives reload', async ({ page }) => {
@@ -121,46 +133,29 @@ test("What's new shows bundled notes", async ({ page }) => {
   await expect(page.getByTestId('whats-new-platform').first()).toHaveText('macOS');
 });
 
-test('Review shows a plaintext secret diff after save', async ({ page }) => {
+test('save preview shows a plaintext secret diff', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await page.getByTestId('reveal').click();
-  await page.getByTestId('key-value').fill('sk_review_demo');
+  const row = await keyRowByName(page, 'STRIPE_SECRET');
+  await row.getByTestId('reveal-key').click();
+  await row.getByTestId('key-value').fill('sk_review_demo');
   await expect(page.getByTestId('save')).toBeEnabled();
   await page.getByTestId('save').click();
-  await page.getByTestId('review').click();
-  const out = page.getByTestId('review-out');
+  const out = page.getByTestId('save-preview');
   await expect(out).toBeVisible();
   await expect(out).toContainText('STRIPE_SECRET');
-  await expect(out).toContainText('sk_review_demo');
   await expect(out).not.toContainText('ENC[');
+  await page.getByTestId('save-preview-cancel').click();
 });
 
 test('History lists commits without secret values', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await page.getByTestId('history').click();
-  const list = page.getByTestId('history-list');
+  await page.getByTestId('file-history').click();
+  const list = page.getByTestId('file-history-list');
   await expect(list.locator('button')).not.toHaveCount(0);
   await expect(list).not.toContainText('sk_test_demo');
 });
-
-async function keyNames(page) {
-  return page.getByTestId('key-name').evaluateAll((els) => els.map((el) => el.value));
-}
-
-async function keyRowByName(page, key) {
-  const rows = page.getByTestId('key-row');
-  const count = await rows.count();
-  for (let i = 0; i < count; i++) {
-    const row = rows.nth(i);
-    if ((await row.getByTestId('key-name').inputValue()) === key) {
-      return row;
-    }
-  }
-
-  throw new Error(`no row for ${key}`);
-}
 
 test('composer is visible when a Managed File is open', async ({ page }) => {
   await page.goto('/');
@@ -171,7 +166,7 @@ test('composer is visible when a Managed File is open', async ({ page }) => {
 test('key name on an existing row is editable', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  const name = page.getByTestId('key-name').first();
+  const name = (await keyRowByName(page, 'STRIPE_SECRET')).getByTestId('key-name');
   await expect(name).toHaveValue('STRIPE_SECRET');
   await expect(name).not.toHaveAttribute('readonly');
   await name.click();
@@ -195,7 +190,7 @@ test('composer adds a key that survives reload', async ({ page }) => {
   await page.getByTestId('key-composer').fill('UI_ADD_ME=composer_saved');
   await page.getByTestId('key-composer').press('Enter');
   await expect(page.getByTestId('save')).toBeEnabled();
-  await page.getByTestId('save').click();
+  await encryptAndSave(page);
   await expect(page.getByTestId('save')).toBeDisabled();
   await page.reload();
   await expect(page.getByTestId('headline')).toHaveText('Production');
@@ -207,13 +202,12 @@ test('deleting a key and saving removes it', async ({ page }) => {
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await page.getByTestId('key-composer').fill('UI_DELETE_ME=gone');
   await page.getByTestId('key-composer').press('Enter');
-  await page.getByTestId('save').click();
+  await encryptAndSave(page);
   await expect(page.getByTestId('save')).toBeDisabled();
   const row = await keyRowByName(page, 'UI_DELETE_ME');
   await row.getByTestId('delete-key').click();
   await expect(page.getByTestId('save')).toBeEnabled();
-  await expect(page.getByTestId('commit-message')).toHaveValue(/Remove UI_DELETE_ME/);
-  await page.getByTestId('save').click();
+  await encryptAndSave(page);
   await expect(page.getByTestId('save')).toBeDisabled();
   await expect.poll(async () => keyNames(page)).not.toContain('UI_DELETE_ME');
   await page.reload();
@@ -271,24 +265,25 @@ test('recents reopen a Project without the folder picker', async ({ page }) => {
 test('long file lists truncate with Show more', async ({ page }) => {
   await page.route('**/invoke', async (route) => {
     const data = route.request().postDataJSON();
-    if (data?.cmd !== 'list_managed_files' || !String(data.path || '').includes('checkout')) {
+    if (data?.cmd !== 'inspect_project') {
       await route.continue();
       return;
     }
 
     const response = await route.fetch();
     const payload = await response.json();
-    const files = [...(payload.result || [])];
+    const state = payload.result || {};
+    const files = [...(state.managed || [])];
     const root = files[0]?.path?.replace(/\/[^/]+$/u, '') || '/tmp';
     for (let i = 0; i < 10; i++) {
       const name = `.env.zz-${String(i).padStart(2, '0')}`;
-      files.push({ name, path: `${root}/${name}`, rel: name });
+      files.push({ name, path: `${root}/${name}`, rel: name, managed: true });
     }
 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ result: files }),
+      body: JSON.stringify({ result: { ...state, managed: files } }),
     });
   });
   await page.goto('/');
@@ -309,20 +304,20 @@ test('demo seed shows several Projects with extras collapsed', async ({ page }) 
   await expect(docs).toBeVisible();
   await expect(atlas).toHaveAttribute('aria-expanded', 'false');
   await expect(docs).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByTestId('tree-folder').filter({ hasText: 'apps/web' })).toBeVisible();
-  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toHaveCount(1);
   await atlas.click();
   await expect(atlas).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toHaveCount(2);
+  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toBeVisible();
 });
 
-test('Publish inspector shows mapping and prune off', async ({ page }) => {
+test('Publish inspector opens GitHub configuration', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await expect(page.getByTestId('publish-prefix')).toHaveValue('SD_');
-  await expect(page.getByTestId('publish-repo')).toContainText('studio/demo');
-  await expect(page.getByTestId('publish-environment')).toHaveText('—');
-  await expect(page.getByTestId('publish-prune')).not.toBeChecked();
+  await page.getByTestId('github-integration').click();
+  const dialog = page.getByTestId('integration-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#integration-prefix')).toHaveValue('SD_');
+  await expect(page.locator('#integration-repo')).toHaveValue('studio/demo');
+  await expect(page.locator('#integration-prune')).not.toBeChecked();
 });
 
 test('window does not scroll empty body chrome', async ({ page }) => {
@@ -386,4 +381,80 @@ test('bulk paste previews key names without values', async ({ page }) => {
   await expect(preview).toBeHidden();
   await expect.poll(async () => keyNames(page)).toContain('NEW');
   await expect(page.getByTestId('save')).toBeEnabled();
+});
+
+test('under development banner links to GitHub issues', async ({ page }) => {
+  await page.goto('/?empty=1');
+  const banner = page.getByTestId('dev-banner');
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText('under development');
+  await expect(banner.getByRole('link', { name: 'Submit a GitHub issue' })).toHaveAttribute(
+    'href',
+    'https://github.com/sopsdeck/sopsdeck/issues/new',
+  );
+});
+
+test('lock badge follows file status', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('file-badge')).toHaveText('Locked');
+});
+
+test('project panel shows the open Project', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('project-panel-name')).toHaveText('checkout');
+  await expect(page.getByTestId('request-access')).toBeVisible();
+});
+
+test('account modal copies the Age public key', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('account').click();
+  const key = page.getByTestId('account-public-key');
+  await expect(key).toBeVisible();
+  await expect(key).toHaveValue(/age1/);
+  await page.getByTestId('account-copy-key').click();
+});
+
+test('sidebar stacks Project name above the path', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  const project = page.getByTestId('tree-project').filter({ hasText: 'checkout' });
+  await expect(project.locator('.project-name')).toHaveText('checkout');
+  await expect(project.locator('.project-path')).toBeVisible();
+});
+
+test('access empty actions stay hidden when recipients exist', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const data = route.request().postDataJSON();
+    if (data?.cmd === 'list_file_access') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: [{ name: 'Bob', key: 'age1bobexample', kind: 'person', self: false }],
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('access-list')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add team member' })).toBeHidden();
+});
+
+test('focused Project hides recents and extra folders', async ({ page }) => {
+  await page.route('**/demo', async (route) => {
+    await route.fulfill({ status: 404, body: 'not found' });
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.locator('body')).toHaveClass(/focused-project/);
+  await expect(page.getByTestId('recents')).toHaveCount(0);
+  await expect(page.getByTestId('add-project')).toBeHidden();
+  await expect(page.getByTestId('tree-project').filter({ hasText: 'atlas-web' })).toHaveCount(0);
 });

@@ -59,6 +59,8 @@ body {
   overscroll-behavior: none;
 }
 body {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   color: var(--ink);
   background: var(--paper);
@@ -66,16 +68,38 @@ body {
     13px/1.4 Manrope,
     sans-serif;
 }
+[hidden] {
+  display: none !important;
+}
+.dev-banner {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  padding: 8px 16px;
+  color: var(--ink);
+  background: color-mix(in srgb, #f5c518 28%, var(--paper));
+  border-bottom: 1px solid color-mix(in srgb, #f5c518 45%, var(--line));
+  font-size: 12px;
+  font-weight: 600;
+}
+.dev-banner a {
+  color: var(--blue);
+  font-weight: 800;
+}
+.app {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 280px minmax(420px, 1fr) 320px;
+  min-height: 0;
+  overflow: hidden;
+}
 button,
 input {
   font: inherit;
   color: inherit;
-}
-.app {
-  display: grid;
-  grid-template-columns: 280px minmax(420px, 1fr) 320px;
-  height: 100%;
-  overflow: hidden;
 }
 .sidebar {
   display: flex;
@@ -142,7 +166,7 @@ input {
 }
 .project {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   width: 100%;
   margin: 0;
@@ -156,15 +180,25 @@ input {
   text-align: left;
   cursor: pointer;
 }
+.project-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .project svg {
   flex: none;
+  margin-top: 2px;
   transition: transform 0.12s ease;
 }
 .tree-project.collapsed .project svg {
   transform: rotate(-90deg);
 }
 .project-path {
-  margin-left: auto;
   color: var(--muted);
   font:
     400 9px 'IBM Plex Mono',
@@ -583,6 +617,11 @@ h1 {
   background: var(--encrypted-bg);
   font-size: 10px;
   font-weight: 700;
+}
+.encrypted.unlocked {
+  color: var(--slate);
+  border-color: var(--line);
+  background: var(--hover);
 }
 .toolbar {
   display: flex;
@@ -1062,6 +1101,15 @@ h1 {
   text-overflow: ellipsis;
   font-size: 11px;
 }
+.access-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--slate);
+  font:
+    400 10px 'IBM Plex Mono',
+    ui-monospace,
+    monospace;
+}
 .access-kind {
   width: max-content;
   padding: 2px 5px;
@@ -1076,11 +1124,9 @@ h1 {
 }
 .access-form {
   display: grid;
-  grid-template-columns: 1fr auto;
   gap: 6px;
 }
 .access-form input {
-  grid-column: 1 / -1;
   min-width: 0;
   height: 31px;
   padding: 0 9px;
@@ -1092,10 +1138,9 @@ h1 {
     ui-monospace,
     monospace;
 }
-.access-form .panel-action {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
+#request-access {
+  width: 100%;
+  margin-top: 8px;
 }
 .integration-grid {
   display: grid;
@@ -1234,6 +1279,20 @@ h1 {
 .account-key-status > span:nth-child(2) {
   color: var(--slate);
   font-size: 11px;
+}
+.account-key-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.account-key-row input {
+  flex: 1;
+  min-width: 0;
+}
+body.focused-project #add-project,
+body.focused-project .recents,
+body.focused-project .project-actions {
+  display: none;
 }
 html[data-theme='dark'] .save {
   color: var(--paper);

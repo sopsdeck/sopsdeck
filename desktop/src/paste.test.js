@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import {
   classifyClipboard,
   classifyPasteKeys,
+  parseGitIdentity,
   parsePastePayload,
   pastePreviewText,
 } from './paste.js';
@@ -35,7 +36,12 @@ test('classifyClipboard routes paths, recipients, bulk secrets, and lone values'
     kind: 'path',
     path: '/Users/alice/code/app',
   });
-  expect(classifyClipboard(recipient)).toEqual({ kind: 'recipient', publicKey: recipient });
+  expect(classifyClipboard(recipient)).toEqual({
+    kind: 'recipient',
+    publicKey: recipient,
+    name: '',
+    email: '',
+  });
   expect(classifyClipboard('TOKEN=supersecret\n')).toEqual({
     kind: 'bulk',
     pairs: { TOKEN: 'supersecret' },
@@ -43,4 +49,22 @@ test('classifyClipboard routes paths, recipients, bulk secrets, and lone values'
   });
   expect(classifyClipboard('supersecret')).toEqual({ kind: 'lone', value: 'supersecret' });
   expect(classifyClipboard('  ')).toBeNull();
+});
+
+test('classifyClipboard reads a git identity from an access request', () => {
+  const recipient = `age1${'q'.repeat(58)}`;
+  expect(parseGitIdentity('Bob Builder <bob@example.com>')).toEqual({
+    name: 'Bob Builder',
+    email: 'bob@example.com',
+  });
+  expect(
+    classifyClipboard(
+      `Hi — please grant me Access to .env in checkout.\n\nName: Bob Builder <bob@example.com>\nAge public key:\n${recipient}\n`,
+    ),
+  ).toEqual({
+    kind: 'recipient',
+    publicKey: recipient,
+    name: 'Bob Builder',
+    email: 'bob@example.com',
+  });
 });

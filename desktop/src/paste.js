@@ -53,6 +53,16 @@ export function pastePreviewText(adds, changes) {
   return lines.join('\n');
 }
 
+export function parseGitIdentity(text) {
+  const raw = String(text ?? '').trim();
+  const match = /^(.*?)\s+<([^<>]+)>\s*$/u.exec(raw);
+  if (match) {
+    return { name: match[1].trim(), email: match[2].trim() };
+  }
+
+  return { name: raw, email: '' };
+}
+
 export function classifyClipboard(text) {
   const trimmed = String(text ?? '').trim();
   if (!trimmed) return null;
@@ -60,8 +70,16 @@ export function classifyClipboard(text) {
     return { kind: 'path', path: trimmed };
   }
 
-  if (/^age1[0-9a-z]{58}$/u.test(trimmed)) {
-    return { kind: 'recipient', publicKey: trimmed };
+  const age = trimmed.match(/\bage1[0-9a-z]{58}\b/u);
+  if (age && (trimmed === age[0] || /^Name:/mu.test(trimmed) || /Age public key/u.test(trimmed))) {
+    const named = trimmed.match(/^Name:\s*(.+)$/mu);
+    const identity = parseGitIdentity(named?.[1] ?? '');
+    return {
+      kind: 'recipient',
+      publicKey: age[0],
+      name: identity.name,
+      email: identity.email,
+    };
   }
 
   try {
