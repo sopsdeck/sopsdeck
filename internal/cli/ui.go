@@ -42,7 +42,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, headingStyle.Render("Usage"))
 	fmt.Fprintf(w, "  %s %s\n\n", commandStyle.Render("sopsdeck"), commandStyle.Render("<command> [args]"))
 	fmt.Fprintln(w, headingStyle.Render("Commands"))
-	fmt.Fprintln(w, "  "+commandStyle.Render("get set del run"), mutedStyle.Render("read, write, remove, or inject secrets"))
+	fmt.Fprintln(w, "  "+commandStyle.Render("get set del lock unlock status copy run"), mutedStyle.Render("read, write, lock, or inject secrets"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("commit sync review history restore"), mutedStyle.Render("move through Secret History"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("identity account robot recipient"), mutedStyle.Render("manage Users and Access"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("files project references unused rename"), mutedStyle.Render("organize a Project"))

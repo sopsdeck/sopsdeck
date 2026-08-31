@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -93,15 +94,18 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 	}
 	handler := &drive{uiRoot: uiRoot, getenv: getenv}
 	if demo {
+		disableGitCommitSigning()
 		demoUser := getenv("SOPSDECK_DEMO_USER")
 		if demoUser == "" {
 			demoUser = "checkout"
 		}
+		fmt.Fprintln(stderr, "drive: seeding demo")
 		info, getenvDemo, err := seedDemoForEnv(demoUser, getenv)
 		if err != nil {
 			fmt.Fprintf(stderr, "drive: %v\n", err)
 			return 1
 		}
+		fmt.Fprintln(stderr, "drive: demo ready")
 		handler.demo = info
 		handler.getenv = getenvDemo
 	}
@@ -116,6 +120,13 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 		return 1
 	}
 	return 0
+}
+
+func disableGitCommitSigning() {
+	_ = os.Setenv("GIT_CONFIG_COUNT", "1")
+	_ = os.Setenv("GIT_CONFIG_KEY_0", "commit.gpgsign")
+	_ = os.Setenv("GIT_CONFIG_VALUE_0", "false")
+	_ = os.Setenv("GIT_TERMINAL_PROMPT", "0")
 }
 
 func seedDemo() (*demoInfo, func(string) string, error) {
@@ -167,7 +178,21 @@ func seedDemoForEnv(demoUser string, getenv func(string) string) (*demoInfo, fun
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
 		return nil, nil, err
 	}
-	manifest := []byte("[[managed_file]]\npath = \".env.production\"\nrepo = \"studio/demo\"\nprefix = \"SD_\"\n")
+	manifest := []byte(`[[managed_file]]
+path = ".env.production"
+repo = "studio/demo"
+prefix = "SD_"
+
+[[managed_file]]
+path = "eas.json"
+encrypted_keys = ["EXPO_PUBLIC_API_URL"]
+
+[[managed_file]]
+path = "compose.yaml"
+
+[[managed_file]]
+path = "apps/web/.env"
+`)
 	if err := os.WriteFile(filepath.Join(alice.Home, ".sopsdeck.toml"), manifest, 0o600); err != nil {
 		return nil, nil, err
 	}
@@ -235,6 +260,13 @@ func seedSiblingProject(alice *studio.User, name, rel, key, value, msg string) (
 	if err := seedFile(alice, filepath.Join(dir, rel), key, value, msg); err != nil {
 		return "", err
 	}
+	manifest := fmt.Sprintf("[[managed_file]]\npath = %q\n", rel)
+	if ext := filepath.Ext(rel); ext == ".json" || ext == ".yaml" || ext == ".yml" {
+		manifest += fmt.Sprintf("encrypted_keys = [%q]\n", key)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".sopsdeck.toml"), []byte(manifest), 0o600); err != nil {
+		return "", err
+	}
 	return dir, nil
 }
 
@@ -248,7 +280,7 @@ func initGitDir(dir, name, email string) error {
 		{"config", "user.name", name},
 	}
 	for _, args := range steps {
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", append([]string{"-c", "commit.gpgsign=false"}, args...)...)
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
@@ -261,7 +293,7 @@ func aliceCLI(alice *studio.User, args ...string) error {
 	var stderr strings.Builder
 	var code int
 	alice.WithWorld(func() {
-		code = Main(args, os.Stdin, io.Discard, &stderr, alice.Getenv)
+		code = Main(args, bytes.NewReader(nil), io.Discard, &stderr, alice.Getenv)
 	})
 	if code != 0 {
 		return fmt.Errorf("%s", strings.TrimSpace(stderr.String()))
@@ -383,6 +415,8 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 	case "add_project_file":
 		out, err := invokeAddProjectFile(req, getenv)
 		return out, err, true
+	case "set_encrypted_keys":
+		return nil, setFileEncryptedKeys(req.Path, req.Keys, getenv), true
 	case "configure_account":
 		out, err := invokeConfigureAccount(req, getenv)
 		return out, err, true
@@ -501,9 +535,14 @@ func invokeGet(path, at string) (any, error) {
 	if err := json.Unmarshal([]byte(stdout.String()), &pairs); err != nil {
 		return nil, err
 	}
-	out := make([]map[string]string, 0, len(pairs))
+	keys, encryptsAll, regex := fileEncryptionPolicy(path)
+	out := make([]managedPair, 0, len(pairs))
 	for key, value := range pairs {
-		out = append(out, map[string]string{"key": key, "value": value})
+		out = append(out, managedPair{
+			Key:       key,
+			Value:     value,
+			Encrypted: pairEncrypted(key, keys, encryptsAll, regex),
+		})
 	}
 	return out, nil
 }

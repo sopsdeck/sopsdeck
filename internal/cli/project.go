@@ -11,7 +11,9 @@ import (
 
 	"github.com/getsops/sops/v3"
 	"github.com/getsops/sops/v3/cmd/sops/common"
+	"github.com/getsops/sops/v3/cmd/sops/formats"
 	"github.com/getsops/sops/v3/config"
+	"github.com/getsops/sops/v3/decrypt"
 	"sopsdeck/internal/managed"
 )
 
@@ -36,9 +38,13 @@ type projectSelection struct {
 	Keys []string `json:"keys"`
 }
 
+const projectUsage = "usage: sopsdeck project files FOLDER | init FOLDER [--file PATH]... | add FOLDER --file PATH | encrypt FILE --keys PATH,..."
+
+const neverMatchRegex = `[^\s\S]`
+
 func cmdProject(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) < 2 {
-		fmt.Fprintln(stderr, "usage: sopsdeck project files FOLDER | init FOLDER [--file PATH]... | add FOLDER --file PATH")
+		fmt.Fprintln(stderr, projectUsage)
 		return 1
 	}
 	switch args[0] {
@@ -61,8 +67,10 @@ func cmdProject(args []string, stdout, stderr io.Writer, getenv func(string) str
 		return initProject(args[1:], stdout, stderr, getenv)
 	case "add":
 		return addProjectFile(args[1:], stdout, stderr, getenv)
+	case "encrypt":
+		return encryptProjectKeys(args[1:], stdout, stderr, getenv)
 	default:
-		fmt.Fprintln(stderr, "usage: sopsdeck project files FOLDER | init FOLDER [--file PATH]... | add FOLDER --file PATH")
+		fmt.Fprintln(stderr, projectUsage)
 		return 1
 	}
 }
@@ -285,15 +293,100 @@ func splitKeys(raw string) []string {
 	return out
 }
 
+func encryptProjectKeys(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+	file, keys, errMsg := parseEncryptArgs(args)
+	if errMsg != "" {
+		fmt.Fprintln(stderr, errMsg)
+		return 1
+	}
+	if err := setFileEncryptedKeys(file, keys, getenv); err != nil {
+		fmt.Fprintf(stderr, "project encrypt: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "encrypted keys updated")
+	return 0
+}
+
+func parseEncryptArgs(args []string) (file string, keys []string, errMsg string) {
+	keys = []string{}
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--keys":
+			i++
+			if i >= len(args) {
+				return "", nil, "usage: sopsdeck project encrypt FILE --keys PATH,..."
+			}
+			keys = splitKeys(args[i])
+		case "-f", "--file":
+			i++
+			if i >= len(args) {
+				return "", nil, "usage: sopsdeck project encrypt FILE --keys PATH,..."
+			}
+			file = args[i]
+		default:
+			if strings.HasPrefix(args[i], "-") {
+				return "", nil, "usage: sopsdeck project encrypt FILE --keys PATH,..."
+			}
+			if file != "" {
+				return "", nil, "usage: sopsdeck project encrypt FILE --keys PATH,..."
+			}
+			file = args[i]
+		}
+	}
+	if file == "" {
+		return "", nil, "usage: sopsdeck project encrypt FILE --keys PATH,..."
+	}
+	return file, keys, ""
+}
+
+func setFileEncryptedKeys(file string, keys []string, getenv func(string) string) error {
+	mapping, _, manifestPath := mappingFor(file)
+	if manifestPath == "" {
+		return fmt.Errorf("file is not managed")
+	}
+	m, err := loadManifest(manifestPath)
+	if err != nil {
+		return err
+	}
+	rel := filepath.ToSlash(mapping.Path)
+	found := false
+	for i := range m.ManagedFile {
+		if filepath.ToSlash(m.ManagedFile[i].Path) != rel {
+			continue
+		}
+		m.ManagedFile[i].EncryptedKeys = keys
+		found = true
+		break
+	}
+	if !found {
+		return fmt.Errorf("file is not managed")
+	}
+	if err := writeManifest(manifestPath, m); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	if !isEncryptedBytes(data) {
+		return nil
+	}
+	plain, err := decryptManaged(file)
+	if err != nil {
+		return err
+	}
+	return encryptPlainFile(file, plain, getenv, keys)
+}
+
+func decryptManaged(file string) ([]byte, error) {
+	return decrypt.File(file, formatName(fileFormat(file)))
+}
+
 func encryptedKeyRegex(keys []string) string {
 	seen := make(map[string]bool, len(keys))
 	parts := make([]string, 0, len(keys))
 	for _, key := range keys {
-		key = strings.TrimSpace(key)
-		if i := strings.LastIndex(key, "."); i >= 0 {
-			key = key[i+1:]
-		}
-		key = strings.Trim(key, "[]")
+		key = encryptedLeafName(key)
 		if key == "" || seen[key] {
 			continue
 		}
@@ -304,6 +397,71 @@ func encryptedKeyRegex(keys []string) string {
 		return ""
 	}
 	return "^(?:" + strings.Join(parts, "|") + ")$"
+}
+
+func encryptedLeafName(key string) string {
+	key = strings.TrimSpace(key)
+	if i := strings.LastIndex(key, "."); i >= 0 {
+		key = key[i+1:]
+	}
+	return strings.Trim(key, "[]")
+}
+
+func encryptedLeaf(key string, keys []string) bool {
+	if len(keys) == 0 {
+		return false
+	}
+	leaf := encryptedLeafName(key)
+	for _, item := range keys {
+		if item == key || encryptedLeafName(item) == leaf {
+			return true
+		}
+	}
+	return false
+}
+
+func pairEncrypted(key string, keys []string, encryptsAll bool, regex string) bool {
+	if encryptsAll {
+		return true
+	}
+	if len(keys) > 0 {
+		return encryptedLeaf(key, keys)
+	}
+	if regex == "" || regex == neverMatchRegex {
+		return false
+	}
+	re, err := regexp.Compile(regex)
+	if err != nil {
+		return false
+	}
+	return re.MatchString(encryptedLeafName(key))
+}
+
+func fileEncryptionPolicy(path string) (keys []string, encryptsAll bool, regex string) {
+	mapping, _, _ := mappingFor(path)
+	keys = mapping.EncryptedKeys
+	if fileFormat(path) == formats.Dotenv {
+		return keys, true, ""
+	}
+	if len(keys) > 0 {
+		return keys, false, encryptedKeyRegex(keys)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || !isEncryptedBytes(data) {
+		return keys, false, ""
+	}
+	tree, err := common.LoadEncryptedFile(common.StoreForFormat(fileFormat(path), config.NewStoresConfig()), path)
+	if err != nil {
+		return keys, false, ""
+	}
+	regex = tree.Metadata.EncryptedRegex
+	return keys, regex == "", regex
+}
+
+type managedPair struct {
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	Encrypted bool   `json:"encrypted"`
 }
 
 func projectPath(root, raw string) (string, string, error) {

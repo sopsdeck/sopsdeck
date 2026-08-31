@@ -162,6 +162,46 @@ func mustContain(t *testing.T, text, want, msg string) {
 	}
 }
 
+func TestProjectInitJSONWithoutKeysLeavesLeavesPlaintext(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, "eas.json")
+	plain := `{"cli":{"version":"20.5.1"},"build":{"env":{"SECRET":"value"}}}`
+	mustWriteFile(t, file, plain)
+
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "eas.json"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	text := mustReadFile(t, file)
+	mustContain(t, text, `"version": "20.5.1"`, "unselected values were encrypted")
+	mustContain(t, text, `"SECRET": "value"`, "unselected values were encrypted")
+	if strings.Contains(text, `"SECRET": "ENC[`) {
+		t.Fatalf("json without selected keys encrypted fields: %s", text)
+	}
+}
+
+func TestProjectEncryptUpdatesSelectedJSONLeaves(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, "eas.json")
+	plain := `{"cli":{"version":"20.5.1"},"build":{"env":{"SECRET":"value","PUBLIC":"safe"}}}`
+	mustWriteFile(t, file, plain)
+
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "eas.json", "--keys", "build.env.PUBLIC"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	mustCLI(t, cmdProject([]string{"encrypt", file, "--keys", "build.env.SECRET"}, &stdout, &stderr, os.Getenv), &stderr, "encrypt")
+	text := mustReadFile(t, file)
+	mustContain(t, text, `"SECRET": "ENC[`, "new path was not encrypted")
+	mustContain(t, text, `"PUBLIC": "safe"`, "removed path stayed encrypted")
+	mustContain(t, text, `"version": "20.5.1"`, "unselected values were changed")
+	manifest, err := loadManifest(filepath.Join(root, ".sopsdeck.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(manifest.ManagedFile[0].EncryptedKeys, ","); got != "build.env.SECRET" {
+		t.Fatalf("encrypted keys=%q", got)
+	}
+}
+
 func TestProjectInitRecordsOwner(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
 	root := t.TempDir()

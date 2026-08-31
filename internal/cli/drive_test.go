@@ -326,7 +326,13 @@ func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(info.Projects[1], "eas.json")); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := os.Stat(filepath.Join(info.Projects[1], ".sopsdeck.toml")); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(filepath.Join(info.Projects[2], ".env")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(info.Projects[2], ".sopsdeck.toml")); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -581,4 +587,25 @@ func TestDriveInvokeDeletesManagedKey(t *testing.T) {
 	if !bytes.Contains(got, []byte("KEEP")) {
 		t.Fatalf("get=%s", got)
 	}
+}
+
+func TestDriveInvokeMarksAndUpdatesEncryptedJSONLeaves(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, "eas.json")
+	mustWriteFile(t, file, `{"build":{"env":{"SECRET":"value","PUBLIC":"safe"}}}`)
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "eas.json", "--keys", "build.env.SECRET"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+
+	srv := httptest.NewServer(&drive{getenv: os.Getenv})
+	t.Cleanup(srv.Close)
+	got := postInvoke(t, srv.URL, invokeReq{Cmd: "get_managed_file", Path: file})
+	if !bytes.Contains(got, []byte(`"encrypted":true`)) || !bytes.Contains(got, []byte(`"encrypted":false`)) {
+		t.Fatalf("get=%s", got)
+	}
+
+	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "set_encrypted_keys", Path: file, Keys: []string{"build.env.PUBLIC"}})
+	text := mustReadFile(t, file)
+	mustContain(t, text, `"PUBLIC": "ENC[`, "updated path was not encrypted")
+	mustContain(t, text, `"SECRET": "value"`, "removed path stayed encrypted")
 }
