@@ -6,6 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "preview_urls": true,
   "workers_dev": true,
+  "routes": [{ "pattern": "sopsdeck.com", "custom_domain": true }],
   "assets": {
     "binding": "ASSETS",
     "directory": "./site/dist/client",
