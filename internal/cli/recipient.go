@@ -43,9 +43,14 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		restore := applyProcessEnv(getenv)
 		defer restore()
 	}
-	file, pub, name, kind, errMsg := parseRecipientArgs("add", args)
+	file, pub, name, kind, email, errMsg := parseRecipientArgs("add", args)
 	if errMsg != "" {
 		fmt.Fprintln(stderr, errMsg)
+		return 1
+	}
+	name, email = displayIdentity(name, email)
+	if err := denyUnlessOwner(file, getenv); err != nil {
+		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
 	format := fileFormat(file)
@@ -56,7 +61,7 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		return 1
 	}
 	if hasRecipient(*tree, pub) {
-		if err := setRecipientLabel(file, pub, name, kind); err != nil {
+		if err := setRecipientLabel(file, pub, name, kind, email); err != nil {
 			fmt.Fprintf(stderr, "recipient add: %v\n", err)
 			return 1
 		}
@@ -102,7 +107,7 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
-	if err := setRecipientLabel(file, pub, name, kind); err != nil {
+	if err := setRecipientLabel(file, pub, name, kind, email); err != nil {
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
@@ -114,7 +119,7 @@ func recipientRemove(args []string, stderr io.Writer, getenv func(string) string
 		restore := applyProcessEnv(getenv)
 		defer restore()
 	}
-	file, pub, _, _, errMsg := parseRecipientArgs("remove", args)
+	file, pub, _, _, _, errMsg := parseRecipientArgs("remove", args)
 	if errMsg != "" {
 		fmt.Fprintln(stderr, errMsg)
 		return 1
@@ -192,48 +197,76 @@ func removeRecipientLabel(file, key string) error {
 	return writeManifest(manifestPath, m)
 }
 
-func parseRecipientArgs(verb string, args []string) (file, pub, name, kind, errMsg string) {
+func parseRecipientArgs(verb string, args []string) (file, pub, name, kind, email, errMsg string) {
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-f", "--env-file":
 			i++
 			if i >= len(args) {
-				return "", "", "", "", "recipient " + verb + ": -f requires a file"
+				return "", "", "", "", "", "recipient " + verb + ": -f requires a file"
 			}
 			file = args[i]
 		case "--name":
 			i++
 			if i >= len(args) {
-				return "", "", "", "", "recipient " + verb + ": --name requires a value"
+				return "", "", "", "", "", "recipient " + verb + ": --name requires a value"
 			}
 			name = strings.TrimSpace(args[i])
+		case "--email":
+			i++
+			if i >= len(args) {
+				return "", "", "", "", "", "recipient " + verb + ": --email requires a value"
+			}
+			email = strings.TrimSpace(args[i])
 		case "--kind":
 			i++
 			if i >= len(args) {
-				return "", "", "", "", "recipient " + verb + ": --kind requires a value"
+				return "", "", "", "", "", "recipient " + verb + ": --kind requires a value"
 			}
 			kind = strings.TrimSpace(args[i])
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return "", "", "", "", "recipient " + verb + ": unknown flag " + args[i]
+				return "", "", "", "", "", "recipient " + verb + ": unknown flag " + args[i]
 			}
 			if pub != "" {
-				return "", "", "", "", "recipient " + verb + ": extra argument"
+				return "", "", "", "", "", "recipient " + verb + ": extra argument"
 			}
 			pub = args[i]
 		}
 	}
 	if file == "" || pub == "" {
-		return "", "", "", "", "usage: sopsdeck recipient " + verb + " AGE1... -f FILE"
+		return "", "", "", "", "", "usage: sopsdeck recipient " + verb + " AGE1... -f FILE [--name NAME] [--email EMAIL]"
 	}
-	return file, pub, name, kind, ""
+	return file, pub, name, kind, email, ""
+}
+
+func displayIdentity(name, email string) (string, string) {
+	parsedName, parsedEmail := splitDisplayIdentity(name)
+	email = strings.TrimSpace(email)
+	if email == "" {
+		email = parsedEmail
+	}
+	return parsedName, email
+}
+
+func splitDisplayIdentity(raw string) (name, email string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", ""
+	}
+	start := strings.LastIndex(raw, "<")
+	if start >= 0 && strings.HasSuffix(raw, ">") {
+		return strings.TrimSpace(raw[:start]), strings.TrimSpace(raw[start+1 : len(raw)-1])
+	}
+	return raw, ""
 }
 
 type accessRecipient struct {
-	Key  string `json:"key"`
-	Name string `json:"name,omitempty"`
-	Kind string `json:"kind,omitempty"`
-	Self bool   `json:"self,omitempty"`
+	Key   string `json:"key"`
+	Name  string `json:"name,omitempty"`
+	Email string `json:"email,omitempty"`
+	Kind  string `json:"kind,omitempty"`
+	Self  bool   `json:"self,omitempty"`
 }
 
 func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
@@ -250,10 +283,7 @@ func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) 
 	}
 	_, root, _ := mappingFor(file)
 	m, _ := loadManifest(filepath.Join(root, ".sopsdeck.toml"))
-	labels := make(map[string]manifestRecipient, len(m.Recipient))
-	for _, item := range m.Recipient {
-		labels[strings.ToLower(item.Key)] = item
-	}
+	labels := identityLabels(m)
 	self, _ := ageRecipientFromEnv(getenv)
 	list := make([]accessRecipient, 0)
 	for _, group := range tree.Metadata.KeyGroups {
@@ -261,10 +291,11 @@ func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) 
 			pub := key.ToString()
 			label := labels[strings.ToLower(pub)]
 			list = append(list, accessRecipient{
-				Key:  pub,
-				Name: label.Name,
-				Kind: label.Kind,
-				Self: self != "" && strings.EqualFold(pub, self),
+				Key:   pub,
+				Name:  label.Name,
+				Email: label.Email,
+				Kind:  label.Kind,
+				Self:  self != "" && strings.EqualFold(pub, self),
 			})
 		}
 	}
@@ -273,6 +304,28 @@ func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) 
 		return 1
 	}
 	return 0
+}
+
+func identityLabels(m projectManifest) map[string]manifestRecipient {
+	labels := make(map[string]manifestRecipient, len(m.Owner)+len(m.Recipient))
+	for _, item := range m.Owner {
+		labels[strings.ToLower(item.Key)] = item
+	}
+	for _, item := range m.Recipient {
+		key := strings.ToLower(item.Key)
+		prev := labels[key]
+		if item.Name == "" {
+			item.Name = prev.Name
+		}
+		if item.Email == "" {
+			item.Email = prev.Email
+		}
+		if item.Kind == "" {
+			item.Kind = prev.Kind
+		}
+		labels[key] = item
+	}
+	return labels
 }
 
 func hasRecipient(tree sops.Tree, pub string) bool {

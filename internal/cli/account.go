@@ -11,10 +11,12 @@ import (
 )
 
 type accountIdentity struct {
-	Name        string `json:"name"`
-	Email       string `json:"email"`
-	PublicKey   string `json:"public_key"`
-	HasIdentity bool   `json:"has_identity"`
+	Name        string              `json:"name"`
+	Email       string              `json:"email"`
+	PublicKey   string              `json:"public_key"`
+	HasIdentity bool                `json:"has_identity"`
+	Owners      []manifestRecipient `json:"owners,omitempty"`
+	CanGrant    bool                `json:"can_grant"`
 }
 
 func cmdAccount(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
@@ -66,11 +68,14 @@ func cmdAccount(args []string, stdout, stderr io.Writer, getenv func(string) str
 func accountForPath(path string, getenv func(string) string) accountIdentity {
 	name, email := gitIdentity(path)
 	publicKey, err := ageRecipientFromEnv(getenv)
+	cfg := projectConfigFor(path, getenv)
 	return accountIdentity{
 		Name:        name,
 		Email:       email,
 		PublicKey:   publicKey,
 		HasIdentity: err == nil && publicKey != "",
+		Owners:      cfg.Owners,
+		CanGrant:    cfg.CanGrant,
 	}
 }
 

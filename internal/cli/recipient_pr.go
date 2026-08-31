@@ -63,11 +63,14 @@ func recipientGrant(args []string, stdout, stderr io.Writer, getenv func(string)
 	mutate := func() error {
 		for _, file := range files {
 			var addErr bytes.Buffer
-			if code := recipientAdd([]string{flags.pub, "-f", filepath.Join(root, filepath.FromSlash(file))}, &addErr, nil); code != 0 {
+			if code := recipientAdd([]string{flags.pub, "-f", filepath.Join(root, filepath.FromSlash(file)), "--name", flags.name}, &addErr, getenv); code != 0 {
 				return fmt.Errorf("%s", strings.TrimSpace(addErr.String()))
 			}
 		}
 		args := append([]string{"add", "--"}, files...)
+		if _, manifestPath := findManifest(filepath.Join(root, filepath.FromSlash(files[0]))); manifestPath != "" {
+			args = append(args, manifestPath)
+		}
 		return runGitCmd(root, args...)
 	}
 	if err := openRecipientPR(root, "sopsdeck/access-"+slug(flags.name), title, body, mutate, stdout); err != nil {

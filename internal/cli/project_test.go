@@ -96,29 +96,17 @@ func TestProjectInitEncryptsOnlySelectedJSONLeaf(t *testing.T) {
 	root := t.TempDir()
 	file := filepath.Join(root, "eas.json")
 	plain := `{"cli":{"version":"20.5.1"},"build":{"env":{"EXPO_NO_DOTENV":"1","EXPO_PUBLIC_FOO":"FOO"}}}`
-	if err := os.WriteFile(file, []byte(plain), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteFile(t, file, plain)
 
 	var stdout, stderr bytes.Buffer
-	if code := cmdProject([]string{"init", root, "--file", "eas.json", "--keys", "build.env.EXPO_NO_DOTENV"}, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("init exit %d: %s", code, stderr.String())
-	}
-	raw, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(raw)
-	if !strings.Contains(text, `"EXPO_NO_DOTENV": "ENC[`) {
-		t.Fatalf("selected path was not encrypted: %s", text)
-	}
-	if !strings.Contains(text, `"EXPO_PUBLIC_FOO": "FOO"`) || !strings.Contains(text, `"version": "20.5.1"`) {
-		t.Fatalf("unselected values were changed: %s", text)
-	}
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "eas.json", "--keys", "build.env.EXPO_NO_DOTENV"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	text := mustReadFile(t, file)
+	mustContain(t, text, `"EXPO_NO_DOTENV": "ENC[`, "selected path was not encrypted")
+	mustContain(t, text, `"EXPO_PUBLIC_FOO": "FOO"`, "unselected values were changed")
+	mustContain(t, text, `"version": "20.5.1"`, "unselected values were changed")
+
 	var getOut, getErr bytes.Buffer
-	if code := cmdGet([]string{"-f", file, "--output", "json"}, &getOut, &getErr); code != 0 {
-		t.Fatalf("get exit %d: %s", code, getErr.String())
-	}
+	mustCLI(t, cmdGet([]string{"-f", file, "--output", "json"}, &getOut, &getErr), &getErr, "get")
 	var pairs map[string]string
 	if err := json.Unmarshal(getOut.Bytes(), &pairs); err != nil {
 		t.Fatal(err)
@@ -126,33 +114,78 @@ func TestProjectInitEncryptsOnlySelectedJSONLeaf(t *testing.T) {
 	if pairs["build.env.EXPO_NO_DOTENV"] != "1" || pairs["build.env.EXPO_PUBLIC_FOO"] != "FOO" {
 		t.Fatalf("pairs=%v", pairs)
 	}
+
 	var lockOut, lockErr bytes.Buffer
-	if code := cmdUnlock([]string{"-f", file}, &lockOut, &lockErr); code != 0 {
-		t.Fatalf("unlock exit %d: %s", code, lockErr.String())
+	mustCLI(t, cmdUnlock([]string{"-f", file}, &lockOut, &lockErr), &lockErr, "unlock")
+	if strings.Contains(mustReadFile(t, file), "ENC[") {
+		t.Fatalf("unlock left ciphertext on disk: %s", mustReadFile(t, file))
 	}
-	plainRaw, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(plainRaw), "ENC[") {
-		t.Fatalf("unlock left ciphertext on disk: %s", plainRaw)
-	}
-	if code := cmdSet([]string{"build.env.EXPO_NO_DOTENV", "2", "-f", file}, strings.NewReader(""), &lockOut, &lockErr, os.Getenv); code != 0 {
-		t.Fatalf("set while unlocked exit %d: %s", code, lockErr.String())
-	}
-	if code := cmdLock([]string{"-f", file}, &lockOut, &lockErr, os.Getenv); code != 0 {
-		t.Fatalf("lock exit %d: %s", code, lockErr.String())
-	}
-	lockedRaw, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(lockedRaw), `"EXPO_NO_DOTENV": "ENC[`) || !strings.Contains(string(lockedRaw), `"EXPO_PUBLIC_FOO": "FOO"`) {
-		t.Fatalf("lock did not restore selective encryption: %s", lockedRaw)
-	}
+	mustCLI(t, cmdSet([]string{"build.env.EXPO_NO_DOTENV", "2", "-f", file}, strings.NewReader(""), &lockOut, &lockErr, os.Getenv), &lockErr, "set while unlocked")
+	mustCLI(t, cmdLock([]string{"-f", file}, &lockOut, &lockErr, os.Getenv), &lockErr, "lock")
+	locked := mustReadFile(t, file)
+	mustContain(t, locked, `"EXPO_NO_DOTENV": "ENC[`, "lock did not restore selective encryption")
+	mustContain(t, locked, `"EXPO_PUBLIC_FOO": "FOO"`, "lock did not restore selective encryption")
 	getOut.Reset()
 	getErr.Reset()
 	if code := cmdGet([]string{"build.env.EXPO_NO_DOTENV", "-f", file}, &getOut, &getErr); code != 0 || strings.TrimSpace(getOut.String()) != "2" {
 		t.Fatalf("updated value=%q err=%s", getOut.String(), getErr.String())
+	}
+}
+
+func mustWriteFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustReadFile(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func mustCLI(t *testing.T, code int, errBuf *bytes.Buffer, name string) {
+	t.Helper()
+	if code != 0 {
+		t.Fatalf("%s exit %d: %s", name, code, errBuf.String())
+	}
+}
+
+func mustContain(t *testing.T, text, want, msg string) {
+	t.Helper()
+	if !strings.Contains(text, want) {
+		t.Fatalf("%s: %s", msg, text)
+	}
+}
+
+func TestProjectInitRecordsOwner(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, ".env.production")
+	if err := os.WriteFile(file, []byte("API_URL=https://example.test\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := cmdProject([]string{"init", root, "--file", ".env.production"}, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("init exit %d: %s", code, stderr.String())
+	}
+	manifest, err := loadManifest(filepath.Join(root, ".sopsdeck.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ageRecipientFromEnv(os.Getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Owner) != 1 || manifest.Owner[0].Key != key {
+		t.Fatalf("owners=%+v want %s", manifest.Owner, key)
+	}
+	cfg := projectConfigFor(root, os.Getenv)
+	if !cfg.CanGrant || cfg.Name == "" {
+		t.Fatalf("config=%+v", cfg)
 	}
 }

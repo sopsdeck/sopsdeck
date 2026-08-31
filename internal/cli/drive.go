@@ -44,6 +44,7 @@ type demoInfo struct {
 	Project      string   `json:"project"`
 	Projects     []string `json:"projects"`
 	BobPublicKey string   `json:"bobPublicKey"`
+	TeammateName string   `json:"teammateName"`
 	GitHubAPI    string   `json:"githubAPI"`
 }
 
@@ -96,7 +97,7 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 		if demoUser == "" {
 			demoUser = "checkout"
 		}
-		info, getenvDemo, err := seedDemoFor(demoUser)
+		info, getenvDemo, err := seedDemoForEnv(demoUser, getenv)
 		if err != nil {
 			fmt.Fprintf(stderr, "drive: %v\n", err)
 			return 1
@@ -118,10 +119,16 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 }
 
 func seedDemo() (*demoInfo, func(string) string, error) {
-	return seedDemoFor("checkout")
+	return seedDemoForEnv("checkout", os.Getenv)
 }
 
-func seedDemoFor(demoUser string) (*demoInfo, func(string) string, error) {
+func seedDemoForEnv(demoUser string, getenv func(string) string) (*demoInfo, func(string) string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if root := strings.TrimSpace(getenv("SOPSDECK_TEAM_ROOT")); root != "" {
+		return seedTeam(root, demoUser)
+	}
 	dir, err := os.MkdirTemp("", "sopsdeck-demo-")
 	if err != nil {
 		return nil, nil, err
@@ -176,13 +183,39 @@ func seedDemoFor(demoUser string) (*demoInfo, func(string) string, error) {
 		Project:      alice.Home,
 		Projects:     []string{alice.Home, atlas, docs},
 		BobPublicKey: bob.PublicKey,
+		TeammateName: bob.Name + " <" + bob.Email + ">",
 		GitHubAPI:    alice.Getenv("SOPSDECK_GITHUB_API"),
 	}
-	getenv := func(key string) string {
+	demoGetenv := func(key string) string {
 		if key == "SOPSDECK_DEV_PROJECT" {
 			return alice.Home
 		}
 		return alice.Getenv(key)
+	}
+	return info, demoGetenv, nil
+}
+
+func seedTeam(root, demoUser string) (*demoInfo, func(string) string, error) {
+	_, alice, bob, err := studio.Prepare(root)
+	if err != nil {
+		return nil, nil, err
+	}
+	user, other := alice, bob
+	if strings.EqualFold(demoUser, "bob") {
+		user, other = bob, alice
+	}
+	info := &demoInfo{
+		Project:      user.Home,
+		Projects:     []string{user.Home},
+		BobPublicKey: other.PublicKey,
+		TeammateName: other.Name + " <" + other.Email + ">",
+		GitHubAPI:    user.Getenv("SOPSDECK_GITHUB_API"),
+	}
+	getenv := func(key string) string {
+		if key == "SOPSDECK_DEV_PROJECT" {
+			return user.Home
+		}
+		return user.Getenv(key)
 	}
 	return info, getenv, nil
 }
@@ -289,88 +322,146 @@ func (d *drive) invoke(req invokeReq) (any, error) {
 	}
 	restore := applyProcessEnv(getenv)
 	defer restore()
+	if out, err, ok := invokeRead(req, getenv); ok {
+		return out, err
+	}
+	if out, err, ok := invokeWrite(req, getenv); ok {
+		return out, err
+	}
+	return invokeShare(d, req)
+}
+
+func invokeRead(req invokeReq, getenv func(string) string) (any, error, bool) {
 	switch req.Cmd {
 	case "list_managed_files":
-		return managed.List(req.Path)
+		out, err := managed.List(req.Path)
+		return out, err, true
 	case "inspect_project":
-		return invokeProject([]string{"files", req.Path}, getenv)
-	case "initialize_project":
-		args := []string{"init", req.Path}
-		for _, file := range req.Files {
-			args = append(args, "--file", file.Path)
-			if len(file.Keys) > 0 {
-				args = append(args, "--keys", strings.Join(file.Keys, ","))
-			}
-		}
-		return invokeProject(args, getenv)
-	case "add_project_file":
-		args := []string{"add", req.Path, "--file", req.File}
-		if len(req.Keys) > 0 {
-			args = append(args, "--keys", strings.Join(req.Keys, ","))
-		}
-		return invokeProject(args, getenv)
+		out, err := invokeProject([]string{"files", req.Path}, getenv)
+		return out, err, true
 	case "get_managed_file":
-		return invokeGet(req.Path, req.At)
+		out, err := invokeGet(req.Path, req.At)
+		return out, err, true
 	case "get_managed_file_contents":
-		return invokeContents(req.Path)
+		out, err := invokeContents(req.Path)
+		return out, err, true
 	case "copy_text":
-		return nil, copyToClipboard(req.Text)
+		return nil, copyToClipboard(req.Text), true
 	case "get_managed_file_status":
-		return invokeFileStatus(req.Path)
+		out, err := invokeFileStatus(req.Path)
+		return out, err, true
 	case "get_account":
-		return accountForPath(req.Path, getenv), nil
-	case "configure_account":
-		if err := configureGitIdentity(req.Path, req.Name, req.Email); err != nil {
-			return nil, err
-		}
-		return accountForPath(req.Path, getenv), nil
-	case "create_user_identity":
-		return invokeCreateUserIdentity(req.Path, getenv)
+		return accountForPath(req.Path, getenv), nil, true
 	case "list_file_access":
-		return invokeRecipientList(req.Path, getenv)
+		out, err := invokeRecipientList(req.Path, getenv)
+		return out, err, true
+	case "review_managed_file":
+		out, err := invokeReview(req)
+		return out, err, true
+	case "history_managed_file":
+		out, err := invokeHistory(req)
+		return out, err, true
+	case "get_publish_mapping":
+		out, err := invokePublishMapping(req, getenv)
+		return out, err, true
+	case "references", "unused", "rename_key":
+		out, err := invokeReferenceCommands(req)
+		return out, err, true
+	case "boot_project":
+		out, err := invokeBootProject(getenv)
+		return out, err, true
+	default:
+		return nil, nil, false
+	}
+}
+
+func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
+	switch req.Cmd {
+	case "initialize_project":
+		out, err := invokeInitializeProject(req, getenv)
+		return out, err, true
+	case "add_project_file":
+		out, err := invokeAddProjectFile(req, getenv)
+		return out, err, true
+	case "configure_account":
+		out, err := invokeConfigureAccount(req, getenv)
+		return out, err, true
+	case "create_user_identity":
+		out, err := invokeCreateUserIdentity(req.Path, getenv)
+		return out, err, true
 	case "create_robot_identity":
-		return invokeRobot(req.Name)
+		out, err := invokeRobot(req.Name)
+		return out, err, true
 	case "configure_integration":
-		return nil, configureIntegration(req.Path, req.Scope, req.Repo, req.Org, req.Environment, req.Prefix, req.Visibility)
+		return nil, configureIntegration(req.Path, req.Scope, req.Repo, req.Org, req.Environment, req.Prefix, req.Visibility), true
 	case "unlock_managed_file":
-		return nil, invokeFileLock("unlock", req.Path, getenv)
+		return nil, invokeFileLock("unlock", req.Path, getenv), true
 	case "lock_managed_file":
-		return nil, invokeFileLock("lock", req.Path, getenv)
+		return nil, invokeFileLock("lock", req.Path, getenv), true
 	case "set_managed_key":
-		return nil, invokeSet(req, getenv)
+		return nil, invokeSet(req, getenv), true
 	case "del_managed_key":
-		return nil, invokeDel(req)
+		return nil, invokeDel(req), true
 	case "create_managed_file":
-		return nil, invokeCreate(req, getenv)
+		return nil, invokeCreate(req, getenv), true
 	case "commit_managed_file":
-		return nil, invokeCommit(req)
+		return nil, invokeCommit(req), true
+	case "restore_managed_file":
+		return nil, invokeRestore(req), true
+	case "add_recipient":
+		return nil, invokeRecipientAdd(req, getenv), true
+	case "remove_recipient":
+		out, err := invokeRecipientRemove(req, getenv)
+		return out, err, true
+	case "publish_managed_file":
+		out, err := invokePublish(req, getenv)
+		return out, err, true
+	default:
+		return nil, nil, false
+	}
+}
+
+func invokeShare(d *drive, req invokeReq) (any, error) {
+	switch req.Cmd {
 	case "sync_project":
 		return nil, d.invokeSync(req.Path)
-	case "review_managed_file":
-		return invokeReview(req)
-	case "history_managed_file":
-		return invokeHistory(req)
-	case "restore_managed_file":
-		return nil, invokeRestore(req)
-	case "add_recipient":
-		return nil, invokeRecipientAdd(req, getenv)
-	case "remove_recipient":
-		return invokeRecipientRemove(req, getenv)
-	case "publish_managed_file":
-		return invokePublish(req, getenv)
-	case "get_publish_mapping":
-		return invokePublishMapping(req, getenv)
-	case "references", "unused", "rename_key":
-		return invokeReferenceCommands(req)
-	case "boot_project":
-		project := getenv("SOPSDECK_DEV_PROJECT")
-		if project == "" {
-			return nil, nil
-		}
-		return project, nil
 	default:
 		return nil, fmt.Errorf("unknown command %q", req.Cmd)
 	}
+}
+
+func invokeInitializeProject(req invokeReq, getenv func(string) string) (any, error) {
+	args := []string{"init", req.Path}
+	for _, file := range req.Files {
+		args = append(args, "--file", file.Path)
+		if len(file.Keys) > 0 {
+			args = append(args, "--keys", strings.Join(file.Keys, ","))
+		}
+	}
+	return invokeProject(args, getenv)
+}
+
+func invokeAddProjectFile(req invokeReq, getenv func(string) string) (any, error) {
+	args := []string{"add", req.Path, "--file", req.File}
+	if len(req.Keys) > 0 {
+		args = append(args, "--keys", strings.Join(req.Keys, ","))
+	}
+	return invokeProject(args, getenv)
+}
+
+func invokeConfigureAccount(req invokeReq, getenv func(string) string) (any, error) {
+	if err := configureGitIdentity(req.Path, req.Name, req.Email); err != nil {
+		return nil, err
+	}
+	return accountForPath(req.Path, getenv), nil
+}
+
+func invokeBootProject(getenv func(string) string) (any, error) {
+	project := getenv("SOPSDECK_DEV_PROJECT")
+	if project == "" {
+		return nil, nil
+	}
+	return project, nil
 }
 
 func invokeProject(args []string, getenv func(string) string) (any, error) {
@@ -524,6 +615,9 @@ func invokeRecipientAdd(req invokeReq, getenv func(string) string) error {
 	if req.Name != "" {
 		args = append(args, "--name", req.Name)
 	}
+	if req.Email != "" {
+		args = append(args, "--email", req.Email)
+	}
 	if req.Kind != "" {
 		args = append(args, "--kind", req.Kind)
 	}
@@ -637,7 +731,7 @@ func gitTopLevel(path string) (string, error) {
 }
 
 func applyProcessEnv(getenv func(string) string) func() {
-	keys := []string{"SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPSDECK_STATE_DIR", "SOPSDECK_KEYCHAIN_DIR", "SOPSDECK_GITHUB_API", "SOPSDECK_GITHUB_REPO"}
+	keys := []string{"SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPSDECK_STATE_DIR", "SOPSDECK_KEYCHAIN_DIR", "SOPSDECK_GITHUB_API", "SOPSDECK_GITHUB_REPO", "HOME", "GIT_CONFIG_GLOBAL"}
 	prev := map[string]*string{}
 	for _, key := range keys {
 		if cur, ok := os.LookupEnv(key); ok {

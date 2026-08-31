@@ -104,10 +104,13 @@ func addProjectFile(args []string, stdout, stderr io.Writer, getenv func(string)
 	manifestPath := filepath.Join(root, ".sopsdeck.toml")
 	m, err := loadManifest(manifestPath)
 	if os.IsNotExist(err) {
-		if err := writeManifest(manifestPath, projectManifest{ManagedFile: []manifestFile{{
-			Path:          filepath.ToSlash(rel),
-			EncryptedKeys: keys,
-		}}}); err != nil {
+		if err := writeManifest(manifestPath, projectManifest{
+			ManagedFile: []manifestFile{{
+				Path:          filepath.ToSlash(rel),
+				EncryptedKeys: keys,
+			}},
+			Owner: ownersFromEnv(root, getenv),
+		}); err != nil {
 			fmt.Fprintf(stderr, "project add: %v\n", err)
 			return 1
 		}
@@ -261,7 +264,10 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 		}
 		entries = append(entries, manifestFile{Path: filepath.ToSlash(rel), EncryptedKeys: selection.Keys})
 	}
-	if err := writeManifest(filepath.Join(root, ".sopsdeck.toml"), projectManifest{ManagedFile: entries}); err != nil {
+	if err := writeManifest(filepath.Join(root, ".sopsdeck.toml"), projectManifest{
+		ManagedFile: entries,
+		Owner:       ownersFromEnv(root, getenv),
+	}); err != nil {
 		fmt.Fprintf(stderr, "project init: %v\n", err)
 		return 1
 	}

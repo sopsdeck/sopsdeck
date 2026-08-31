@@ -319,6 +319,150 @@ func TestRecipientLabelsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRecipientListShowsInitOwnerAndAssignedIdentity(t *testing.T) {
+	aliceDir := t.TempDir()
+	bobDir := t.TempDir()
+	aliceKey := filepath.Join(aliceDir, "identity")
+	bobKey := filepath.Join(bobDir, "identity")
+	aliceEnv := identityEnv(aliceDir, aliceKey)
+	bobEnv := identityEnv(bobDir, bobKey)
+
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("alice identity exit %d stderr=%q", code, stderr.String())
+	}
+	alicePub := strings.TrimSpace(stdout.String())
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, bobEnv); code != 0 {
+		t.Fatalf("bob identity exit %d stderr=%q", code, stderr.String())
+	}
+	bobPub := strings.TrimSpace(stdout.String())
+
+	root := t.TempDir()
+	file := filepath.Join(root, ".env")
+	t.Setenv("SOPS_AGE_KEY_FILE", aliceKey)
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"set", "HELLO", "world", "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("set exit %d stderr=%q", code, stderr.String())
+	}
+	manifest := "[[managed_file]]\npath = \".env\"\n\n[[owner]]\nkey = \"" + alicePub + "\"\nname = \"Alice Example\"\nemail = \"alice@example.com\"\n"
+	if err := os.WriteFile(filepath.Join(root, ".sopsdeck.toml"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "add", bobPub, "-f", file, "--name", "Bob Builder <bob@example.com>"}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("add exit %d stderr=%q", code, stderr.String())
+	}
+
+	aliceList := listFileAccess(t, file, aliceEnv)
+	bobRow := accessByKey(aliceList, bobPub)
+	if bobRow.Name != "Bob Builder" || bobRow.Email != "bob@example.com" || bobRow.Self {
+		t.Fatalf("alice view of bob=%+v", bobRow)
+	}
+
+	t.Setenv("SOPS_AGE_KEY_FILE", bobKey)
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"get", "HELLO", "-f", file}, os.Stdin, &stdout, &stderr, bobEnv); code != 0 {
+		t.Fatalf("bob get exit %d stderr=%q", code, stderr.String())
+	}
+
+	bobList := listFileAccess(t, file, bobEnv)
+	aliceRow := accessByKey(bobList, alicePub)
+	if aliceRow.Name != "Alice Example" || aliceRow.Email != "alice@example.com" || aliceRow.Self {
+		t.Fatalf("bob view of alice=%+v (want Alice’s init identity)", aliceRow)
+	}
+	if accessByKey(bobList, bobPub).Name != "Bob Builder" {
+		t.Fatalf("bob should still see the name Alice assigned: %+v", bobList)
+	}
+}
+
+func TestRecipientAddRefusesWhenNotOwner(t *testing.T) {
+	aliceDir := t.TempDir()
+	aliceKey := filepath.Join(aliceDir, "identity")
+	aliceEnv := identityEnv(aliceDir, aliceKey)
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("alice identity exit %d stderr=%q", code, stderr.String())
+	}
+	root := t.TempDir()
+	file := filepath.Join(root, ".env")
+	t.Setenv("SOPS_AGE_KEY_FILE", aliceKey)
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"set", "HELLO", "world", "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("set exit %d stderr=%q", code, stderr.String())
+	}
+	outsider, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := "[[managed_file]]\npath = \".env\"\n\n[[owner]]\nkey = \"" + outsider.Recipient().String() + "\"\nname = \"Lead\"\n"
+	if err := os.WriteFile(filepath.Join(root, ".sopsdeck.toml"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	extra, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "add", extra.Recipient().String(), "-f", file, "--name", "Bob"}, os.Stdin, &stdout, &stderr, aliceEnv); code == 0 {
+		t.Fatal("non-owner recipient add succeeded")
+	}
+	if !strings.Contains(stderr.String(), "only a Project owner") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+}
+
+func TestRecipientAddAllowedWhenOwner(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, ".env")
+	if err := os.WriteFile(file, []byte("HELLO=world\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := cmdProject([]string{"init", root, "--file", ".env"}, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("init exit %d: %s", code, stderr.String())
+	}
+	extra, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "add", extra.Recipient().String(), "-f", file, "--name", "Bot"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("owner add exit %d stderr=%q", code, stderr.String())
+	}
+}
+
+func listFileAccess(t *testing.T, file string, getenv func(string) string) []accessRecipient {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"recipient", "list", "-f", file}, os.Stdin, &stdout, &stderr, getenv); code != 0 {
+		t.Fatalf("recipient list exit %d stderr=%q", code, stderr.String())
+	}
+	var list []accessRecipient
+	if err := json.Unmarshal(stdout.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	return list
+}
+
+func accessByKey(list []accessRecipient, key string) accessRecipient {
+	for _, item := range list {
+		if strings.EqualFold(item.Key, key) {
+			return item
+		}
+	}
+	return accessRecipient{}
+}
+
 func identityEnv(stateDir, ageKey string) func(string) string {
 	return func(key string) string {
 		switch key {

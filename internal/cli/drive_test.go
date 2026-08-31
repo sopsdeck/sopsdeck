@@ -281,6 +281,7 @@ func postInvoke(t *testing.T, base string, req invokeReq) []byte {
 }
 
 func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
+	t.Setenv("SOPSDECK_TEAM_ROOT", "")
 	info, getenv, err := seedDemo()
 	if err != nil {
 		t.Fatal(err)
@@ -327,6 +328,47 @@ func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(info.Projects[2], ".env")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDriveTeamRootUsesSharedStudio(t *testing.T) {
+	root := t.TempDir()
+	getenv := func(key string) string {
+		switch key {
+		case "SOPSDECK_TEAM_ROOT":
+			return root
+		default:
+			return os.Getenv(key)
+		}
+	}
+	aliceInfo, aliceEnv, err := seedDemoForEnv("alice", getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobInfo, bobEnv, err := seedDemoForEnv("bob", getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aliceInfo.Project != filepath.Join(root, "alice-home", "checkout") {
+		t.Fatalf("alice project %q", aliceInfo.Project)
+	}
+	if bobInfo.Project != filepath.Join(root, "bob-home", "checkout") {
+		t.Fatalf("bob project %q", bobInfo.Project)
+	}
+	if aliceInfo.BobPublicKey == bobInfo.BobPublicKey {
+		t.Fatal("both windows received the same teammate key")
+	}
+	if !strings.HasPrefix(aliceInfo.BobPublicKey, "age1") || !strings.HasPrefix(bobInfo.BobPublicKey, "age1") {
+		t.Fatalf("keys alice-sees=%q bob-sees=%q", aliceInfo.BobPublicKey, bobInfo.BobPublicKey)
+	}
+	if aliceEnv("HOME") != filepath.Join(root, "alice-home") {
+		t.Fatalf("alice HOME %q", aliceEnv("HOME"))
+	}
+	if bobEnv("HOME") != filepath.Join(root, "bob-home") {
+		t.Fatalf("bob HOME %q", bobEnv("HOME"))
+	}
+	if aliceEnv("SOPSDECK_DEV_PROJECT") != aliceInfo.Project {
+		t.Fatalf("alice boot %q", aliceEnv("SOPSDECK_DEV_PROJECT"))
 	}
 }
 
