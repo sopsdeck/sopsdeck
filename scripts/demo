@@ -12,4 +12,4 @@ export CI=1
 bunx playwright install chromium
 bunx playwright test --project=demo --workers=1
 bun scripts/cli-demo.mjs
-printf 'wrote docs/assets stills, clips, walkthrough, CLI casts, and site/assets/editor.png\n'
+printf 'wrote docs/assets stills, clips, walkthrough, CLI casts, and site/public/assets/editor.png\n'

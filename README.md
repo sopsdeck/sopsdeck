@@ -118,14 +118,15 @@ Build the Go runner and launch the browser app:
 Release assets include native runners for macOS, Windows, and Linux (`sopsdeck-darwin-arm64`, `sopsdeck-darwin-amd64`, `sopsdeck-windows-amd64.exe`, `sopsdeck-linux-amd64`, `sopsdeck-linux-arm64`). The npm launcher downloads the matching runner. Tag `vX.Y.Z` publishes notes plus those binaries.
 
 ```bash
-python3 -m http.server 4173 --directory site
+bun run site:dev
 ```
 
-Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/) — [changelog.html](site/changelog.html) is generated from `CHANGELOG.md`. Docs are at [site/docs/](site/docs/). Clone from [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
+Open the printed local URL — [changelog.html](site/src/pages/changelog.html.astro) is rendered from `CHANGELOG.md`. Docs are at [site/src/pages/docs/](site/src/pages/docs/), and the roadmap is at `/roadmap.html`. Clone from [github.com/sopsdeck/sopsdeck](https://github.com/sopsdeck/sopsdeck).
 
-Deploy the same `site/` tree with Wrangler (Cloudflare Workers static assets; custom domain sopsdeck.com in the dashboard):
+Build and deploy the Astro site with Wrangler (Cloudflare Workers; custom domain sopsdeck.com in the dashboard):
 
 ```bash
+bun run site:build
 bunx wrangler@4 deploy
 ```
 

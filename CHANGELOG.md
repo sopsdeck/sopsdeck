@@ -11,6 +11,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - `sopsdeck references -f FILE` lists each key with its reference count and files; `sopsdeck unused -f FILE` lists keys with zero references; the inspector shows an "unused" badge.
 - Native Go runners for macOS, Windows, and Linux attach to GitHub Releases; the npm launcher downloads the matching runner.
 - Landing install points at the npm package; the hero plays the catalog walkthrough.
+- Public site pages now render from Astro and deploy through the Cloudflare adapter, including the roadmap.
 - Public site deploys with Wrangler from `site/`.
 - Demo seed opens several Projects with nested Managed Files.
 - Notes show type tags, group by Added/Fixed/Changed, and platform when a bullet names macOS, Windows, or Linux.

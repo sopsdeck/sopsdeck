@@ -11,6 +11,10 @@ export function rewriteDocHrefs(href) {
   const hash = trimmed.indexOf('#');
   const path = hash === -1 ? trimmed : trimmed.slice(0, hash);
   const suffix = hash === -1 ? '' : trimmed.slice(hash);
+  if (path.includes('.scratch')) {
+    return `/roadmap.html${suffix}`;
+  }
+
   const base = path.split('/').pop() ?? path;
   if (base === 'CONTEXT.md') {
     return `glossary.html${suffix}`;
@@ -21,7 +25,7 @@ export function rewriteDocHrefs(href) {
   }
 
   if (path.startsWith('assets/')) {
-    return `../../docs/${path}${suffix}`;
+    return `/assets/${path.slice('assets/'.length)}${suffix}`;
   }
 
   return trimmed;

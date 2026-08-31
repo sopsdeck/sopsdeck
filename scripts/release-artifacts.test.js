@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const yaml = readFileSync(join(root, '.github/workflows/release.yml'), 'utf8');
-const html = readFileSync(join(root, 'site/index.html'), 'utf8');
+const landing = readFileSync(join(root, 'site/src/pages/index.astro'), 'utf8');
+const astroConfig = readFileSync(join(root, 'site/astro.config.mjs'), 'utf8');
 const wrangler = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
 
 test('release workflow attaches native CLI binaries', () => {
@@ -30,11 +31,17 @@ test('npm package exposes browser launcher aliases', () => {
 });
 
 test('landing page documents the npm browser install', () => {
-  expect(html).toContain('walkthrough.webm');
-  expect(html).toContain('npm install -D sopsdeck');
-  expect(html).toContain('npx sopsdeck .');
+  expect(landing).toContain('walkthrough.webm');
+  expect(landing).toContain('npm install -D sopsdeck');
+  expect(landing).toContain('npx sopsdeck .');
 });
 
-test('Wrangler serves site/ as static assets', () => {
-  expect(wrangler).toContain('"directory": "./site"');
+test('site uses the Astro Cloudflare adapter', () => {
+  expect(astroConfig).toContain("import cloudflare from '@astrojs/cloudflare'");
+  expect(astroConfig).toContain('adapter: cloudflare()');
+});
+
+test('Wrangler serves the Astro Worker and assets', () => {
+  expect(wrangler).toContain('"main": "./site/dist/server/entry.mjs"');
+  expect(wrangler).toContain('"directory": "./site/dist/client"');
 });

@@ -10,7 +10,7 @@ user_facing_path() {
     *_test.go | *_test.rs) return 1 ;;
     e2e/* | scripts/* | .scratch/* | .github/*) return 1 ;;
     docs/features.md | docs/seams.md | docs/assets.md | docs/assets/*) return 1 ;;
-    site/changelog.html | site/docs/* | desktop/src/whats-new.json) return 1 ;;
+    site/src/* | site/public/* | desktop/src/whats-new.json) return 0 ;;
     cmd/* | internal/* | desktop/src/*) return 0 ;;
     site/index.html | README.md | CONTEXT.md | docs/* | desktop/README.md) return 0 ;;
     *) return 1 ;;

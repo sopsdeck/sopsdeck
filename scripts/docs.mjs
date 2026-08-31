@@ -12,8 +12,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { mediaDurationSeconds, minClipSeconds } from './clip-duration.mjs';
-import { changelogSectionNotes, parseChangelog, typeLabel } from './changelog-notes.mjs';
-import { mdToHtml, sitePage } from './site-pages.mjs';
+import { changelogSectionNotes, parseChangelog } from './changelog-notes.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const check = process.argv.includes('--check');
@@ -231,13 +230,21 @@ function requiredAssetFiles(catalog) {
     `docs/assets/${item.clip}`,
   ]);
   files.push(`docs/assets/${catalog.walkthrough}`);
-  files.push('site/assets/editor.png');
-  files.push(`site/assets/${catalog.walkthrough}`);
   for (const item of catalogCasts(catalog)) {
     files.push(`docs/assets/${item.cast}`);
   }
+  files.push(...publicAssetFiles(catalog).map((name) => `site/public/assets/${name}`));
 
   return files;
+}
+
+function publicAssetFiles(catalog) {
+  return [
+    'catalog.json',
+    catalog.walkthrough,
+    ...catalog.items.flatMap((item) => [item.still, item.clip]),
+    ...catalogCasts(catalog).map((item) => item.cast),
+  ];
 }
 
 function unlinkedAssets(catalog) {
@@ -245,9 +252,9 @@ function unlinkedAssets(catalog) {
     'README.md',
     'docs/README.md',
     'docs/assets.md',
-    'site/index.html',
-    'site/docs/index.html',
-    'site/docs/assets.html',
+    'site/src/pages/index.astro',
+    'site/src/pages/docs/index.astro',
+    'site/src/pages/docs/assets.html.astro',
   ];
   const combined = roots
     .map((rel) => {
@@ -278,90 +285,6 @@ function appVersion() {
   }
 
   return match[1];
-}
-
-function escapeHtml(text) {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-function changelogPage(md) {
-  const sections = parseChangelog(md).map((section) => {
-    const items = section.notes;
-    const bullets =
-      items.length === 0
-        ? '          <li>No notes.</li>'
-        : items
-            .map((item) => {
-              const tag = `<span class="note-tag">${escapeHtml(typeLabel(item.type))}</span>`;
-              const platforms = `<span class="note-platforms">${item.platforms
-                .map((name) => `<span class="note-platform">${escapeHtml(name)}</span>`)
-                .join('')}</span>`;
-              return `          <li>${tag}<span class="note-text">${escapeHtml(item.text)}</span>${platforms}</li>`;
-            })
-            .join('\n');
-    const kicker = section.heading === 'Unreleased' ? 'In development' : 'Release';
-    const date = section.date ? `<p class="release-date">${escapeHtml(section.date)}</p>` : '';
-    return `      <section class="release">
-        <p class="kicker">${escapeHtml(kicker)}</p>
-        <h2>${escapeHtml(section.heading)}</h2>
-        ${date}
-        <ol class="notes">
-${bullets}
-        </ol>
-      </section>`;
-  });
-  return sitePage({
-    title: 'Sopsdeck — notes',
-    kicker: 'Changelog',
-    heading: "What's new",
-    lede: 'From <code>CHANGELOG.md</code>. Versioning is <a href="docs/versioning.html">Epoch SemVer</a>.',
-    active: 'notes',
-    base: '',
-    body: sections.join('\n'),
-  });
-}
-
-function stripFirstHeading(md) {
-  return md.replace(/^# .+\n+/, '');
-}
-
-function markdownSitePage({ title, kicker, heading, lede, md }) {
-  const html = mdToHtml(stripFirstHeading(md))
-    .split('\n')
-    .map((line) => (line ? `        ${line}` : line))
-    .join('\n');
-  return sitePage({
-    title,
-    kicker,
-    heading,
-    lede,
-    active: 'docs',
-    base: '../',
-    body: html,
-  });
-}
-
-function docsHubPage() {
-  return sitePage({
-    title: 'Sopsdeck — docs',
-    kicker: 'Documentation',
-    heading: 'What the product is, proved',
-    lede: 'Living pages generated from tests, the asset catalog, and CHANGELOG.md.',
-    active: 'docs',
-    base: '../',
-    body: `        <ul class="doc-index">
-          <li><a href="features.html">Living features</a> — generated from test names. If a behavior is not named here, it is not specified by a test yet.</li>
-          <li><a href="seams.html">Public seams</a> — where tests must live, and which delivery phases still have none.</li>
-          <li><a href="assets.html">Product assets</a> — stills, clips, walkthrough, and CLI casts from <code>./scripts/demo</code>.</li>
-          <li><a href="versioning.html">Versioning</a> — Epoch SemVer; CHANGELOG.md is canonical.</li>
-          <li><a href="glossary.html">Domain language</a> — words from CONTEXT.md.</li>
-          <li><a href="../changelog.html">Notes</a> — generated from CHANGELOG.md.</li>
-        </ul>`,
-  });
 }
 
 function whatsNewPayload(md, version) {
@@ -399,43 +322,6 @@ const files = {
   'docs/features.md': featuresMd,
   'docs/seams.md': seamsMd,
   'docs/assets.md': assetsMd,
-  'site/changelog.html': changelogPage(changelogMd),
-  'site/docs/index.html': docsHubPage(),
-  'site/docs/features.html': markdownSitePage({
-    title: 'Sopsdeck — features',
-    kicker: 'Living spec',
-    heading: 'Features proved by tests',
-    lede: 'Generated from test names. If a behavior is not named here, it is not specified by a test yet.',
-    md: featuresMd,
-  }),
-  'site/docs/seams.html': markdownSitePage({
-    title: 'Sopsdeck — seams',
-    kicker: 'Delivery',
-    heading: 'Public seams',
-    lede: 'Where tests must live, and which delivery phases still have none.',
-    md: seamsMd,
-  }),
-  'site/docs/assets.html': markdownSitePage({
-    title: 'Sopsdeck — assets',
-    kicker: 'Catalog',
-    heading: 'Product assets',
-    lede: 'Stills, clips, walkthrough, and CLI casts from <code>./scripts/demo</code>.',
-    md: assetsMd,
-  }),
-  'site/docs/versioning.html': markdownSitePage({
-    title: 'Sopsdeck — versioning',
-    kicker: 'Releases',
-    heading: 'Versioning',
-    lede: 'Epoch SemVer. CHANGELOG.md is the source of truth.',
-    md: readFileSync(join(root, 'docs/versioning.md'), 'utf8'),
-  }),
-  'site/docs/glossary.html': markdownSitePage({
-    title: 'Sopsdeck — domain language',
-    kicker: 'Glossary',
-    heading: 'Domain language',
-    lede: 'Words from CONTEXT.md. Use these in tests, UI copy, and docs.',
-    md: readFileSync(join(root, 'CONTEXT.md'), 'utf8'),
-  }),
   'desktop/src/whats-new.json': whatsNewPayload(changelogMd, version),
 };
 
@@ -459,11 +345,13 @@ for (const [rel, body] of Object.entries(files)) {
   writeFileSync(path, body);
 }
 
-const walkthroughSrc = join(root, 'docs/assets', catalog.walkthrough);
-const walkthroughDest = join(root, 'site/assets', catalog.walkthrough);
-if (!check && existsSync(walkthroughSrc)) {
-  mkdirSync(join(root, 'site/assets'), { recursive: true });
-  copyFileSync(walkthroughSrc, walkthroughDest);
+if (!check) {
+  const publicAssets = join(root, 'site/public/assets');
+  mkdirSync(publicAssets, { recursive: true });
+  for (const name of publicAssetFiles(catalog)) {
+    const source = join(root, 'docs/assets', name);
+    if (existsSync(source)) copyFileSync(source, join(publicAssets, name));
+  }
 }
 
 if (check) {

@@ -59,7 +59,7 @@ async function recordClip(browser, dest, run) {
 
 test('product stills', async ({ page }) => {
   mkdirSync('docs/assets', { recursive: true });
-  mkdirSync('site/assets', { recursive: true });
+  mkdirSync('site/public/assets', { recursive: true });
   await boot(page);
   await page.screenshot({ path: stillOf.open, fullPage: true });
 
@@ -91,7 +91,7 @@ test('product stills', async ({ page }) => {
   await expect(page.getByTestId('publish-status')).toContainText('dry-run');
   await page.screenshot({ path: stillOf.publish, fullPage: true });
 
-  copyFileSync(stillOf.open, 'site/assets/editor.png');
+  copyFileSync(stillOf.open, 'site/public/assets/editor.png');
 });
 
 test('product clips', async ({ browser }) => {

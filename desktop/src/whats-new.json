@@ -33,6 +33,11 @@
       "platforms": []
     },
     {
+      "text": "Public site pages now render from Astro and deploy through the Cloudflare adapter, including the roadmap.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
       "text": "Public site deploys with Wrangler from `site/`.",
       "type": "feature",
       "platforms": []

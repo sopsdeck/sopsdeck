@@ -6,3 +6,4 @@ cd "$(dirname "$0")/.."
 ./scripts/test
 ./scripts/cover
 ./scripts/docs --check
+bun run site:build
