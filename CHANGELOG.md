@@ -4,7 +4,10 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+## 0.1.2 - 2026-09-01
+
 ### Fixed
+
 - Opening `sd` in a project with a lockfile (e.g. `package-lock.json`) crashed the setup tree on the empty-string root key under `packages`. Lockfiles are now excluded from candidates and the key-path tree tolerates empty segments.
 - A freshly-created identity could encrypt a file but not decrypt it: the desktop stores the Age key in the OS keychain, but SOPS only reads `SOPS_AGE_KEY*` from the environment. The drive now bridges the keychain identity into `SOPS_AGE_KEY` so owners can open their own files.
 
