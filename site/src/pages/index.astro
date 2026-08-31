@@ -1,0 +1,103 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+  title="Sopsdeck — edit secrets locally, ship them encrypted"
+  description="Edit SOPS-encrypted dotenv, JSON, and YAML files locally. Grant access with public keys and commit encrypted changes to Git—without a hosted vault."
+  active="product"
+>
+  <section class="hero hero--landing">
+    <div class="hero-copy">
+      <div class="kicker">sopsdeck.com</div>
+      <h1>Edit secrets locally. Ship them encrypted.</h1>
+      <p>
+        Edit SOPS-encrypted dotenv, JSON, and YAML files in a local browser workspace. Grant access
+        with public keys, then commit encrypted changes to Git—no hosted vault or shared private
+        keys.
+      </p>
+      <div class="actions">
+        <a class="button primary" href="#start">Install with npm</a>
+        <a class="button ghost" href="#product">See how it works</a>
+      </div>
+    </div>
+    <video
+      class="hero-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      poster="/assets/editor.png"
+      aria-label="Sopsdeck walkthrough from the product demo catalog"
+    >
+      <source src="/assets/walkthrough.webm" type="video/webm" />
+    </video>
+  </section>
+
+  <section class="grid" id="product">
+    <article class="card">
+      <div class="kicker">Source of truth</div>
+      <h2>Your files, on disk</h2>
+      <p>
+        Projects are folders. Managed Files are dotenv, JSON, and YAML encrypted with SOPS. GitHub
+        and CI are destinations, not a second vault.
+      </p>
+    </article>
+    <article class="card">
+      <div class="kicker">Access</div>
+      <h2>Public keys only</h2>
+      <p>
+        Teammates and CI receive Age public keys. Private keys never go in Git, chat, or a shared
+        <code class="mono">.env.keys</code> file.
+      </p>
+    </article>
+    <article class="card">
+      <div class="kicker">Git</div>
+      <h2>Sync, never force</h2>
+      <p>
+        Commit ciphertext, then Sync: fetch, fast-forward only, push. Diverged branches stop.
+        History stays encrypted until you open it.
+      </p>
+    </article>
+  </section>
+
+  <section class="split" id="trust">
+    <div>
+      <div class="kicker">Workspace</div>
+      <h2>Folder-first, like a focused editor.</h2>
+      <p>
+        One sidebar of project folders, files as leaves, values masked until you reveal them.
+        Encrypt &amp; save writes only to the local file. The WebView never holds keys on disk.
+      </p>
+    </div>
+    <figure class="product-still">
+      <img
+        src="/assets/editor.png"
+        width="1440"
+        height="900"
+        alt="Sopsdeck editor with a Production Managed File open"
+      />
+      <figcaption>Generated still from <code class="mono">./scripts/demo</code>.</figcaption>
+    </figure>
+  </section>
+
+  <section class="start" id="start">
+    <div class="kicker">Install · macOS, Windows, and Linux</div>
+    <h2>One npm package. Your browser.</h2>
+    <p>
+      Install Sopsdeck as a development dependency and run it from any project folder. The package
+      downloads the matching native runner on first launch; SOPS is embedded, so there is no Go,
+      Rust, Bun, Apple Developer account, or separate SOPS setup.
+    </p>
+    <pre>npm install -D sopsdeck
+npx sopsdeck .
+
+# global shortcut
+npm install -g sopsdeck
+sd .</pre>
+    <p>
+      SOPS v3.11.0 is bundled with the local runner. Git remains the only project-level system
+      dependency.
+    </p>
+  </section>
+</SiteLayout>

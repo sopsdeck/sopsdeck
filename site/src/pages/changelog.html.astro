@@ -1,0 +1,51 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { changelogSections } from '../lib/content.mjs';
+import { typeLabel } from '../../../scripts/changelog-notes.mjs';
+
+const sections = changelogSections();
+---
+
+<SiteLayout
+  title="Sopsdeck — notes"
+  description="What's new in Sopsdeck, generated from CHANGELOG.md."
+  active="notes"
+  narrow
+>
+  <section class="hero hero--compact">
+    <p class="kicker">Changelog</p>
+    <h1>What&apos;s new</h1>
+    <p>
+      From <code>CHANGELOG.md</code>. Versioning is <a href="/docs/versioning.html">Epoch SemVer</a
+      >.
+    </p>
+  </section>
+  <div class="prose">
+    {
+      sections.map((section) => (
+        <section class="release">
+          <p class="kicker">{section.heading === 'Unreleased' ? 'In development' : 'Release'}</p>
+          <h2>{section.heading}</h2>
+          {section.date && <p class="release-date">{section.date}</p>}
+          <ol class="notes">
+            {section.notes.length === 0 ? (
+              <li>No notes.</li>
+            ) : (
+              section.notes.map((item) => (
+                <li>
+                  <span class="note-tag">{typeLabel(item.type)}</span>
+                  <span class="note-text">{item.text}</span>
+                  <span class="note-platforms">
+                    {item.platforms.map((platform) => (
+                      <span class="note-platform">{platform}</span>
+                    ))}
+                  </span>
+                </li>
+              ))
+            )}
+          </ol>
+        </section>
+      ))
+    }
+  </div>
+</SiteLayout>

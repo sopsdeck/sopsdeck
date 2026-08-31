@@ -1,0 +1,16 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { docHtml } from '../lib/content.mjs';
+
+const { title, kicker, heading, lede, source } = Astro.props;
+const html = docHtml(source);
+---
+
+<SiteLayout title={title} description={lede} active="docs" narrow>
+  <section class="hero hero--compact">
+    <p class="kicker">{kicker}</p>
+    <h1>{heading}</h1>
+    <p set:html={lede} />
+  </section>
+  <div class="prose" set:html={html} />
+</SiteLayout>

@@ -1,0 +1,37 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+  title="Sopsdeck — docs"
+  description="Living Sopsdeck documentation generated from tests, product assets, and CHANGELOG.md."
+  active="docs"
+  narrow
+>
+  <section class="hero hero--compact">
+    <p class="kicker">Documentation</p>
+    <h1>What the product is, proved</h1>
+    <p>Living pages generated from tests, the asset catalog, and CHANGELOG.md.</p>
+  </section>
+  <div class="prose">
+    <ul class="doc-index">
+      <li>
+        <a href="/docs/features.html">Living features</a> — generated from test names. If a behavior is
+        not named here, it is not specified by a test yet.
+      </li>
+      <li>
+        <a href="/docs/seams.html">Public seams</a> — where tests must live, and which delivery phases
+        still have none.
+      </li>
+      <li>
+        <a href="/docs/assets.html">Product assets</a> — stills, clips, walkthrough, and CLI casts from
+        <code>./scripts/demo</code>.
+      </li>
+      <li>
+        <a href="/docs/versioning.html">Versioning</a> — Epoch SemVer; CHANGELOG.md is canonical.
+      </li>
+      <li><a href="/docs/glossary.html">Domain language</a> — words from CONTEXT.md.</li>
+      <li><a href="/changelog.html">Notes</a> — generated from CHANGELOG.md.</li>
+    </ul>
+  </div>
+</SiteLayout>

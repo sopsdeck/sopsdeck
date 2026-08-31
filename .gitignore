@@ -4,6 +4,9 @@
 /bin/*
 !/bin/sopsdeck.mjs
 !/bin/sopsdeck.test.mjs
+site/.astro/
+site/.wrangler/
+site/dist/
 *.exe
 .DS_Store
 node_modules
@@ -16,3 +19,4 @@ mutants.out/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+.wrangler/state/v3

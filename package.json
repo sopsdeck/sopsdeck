@@ -24,13 +24,19 @@
     "check": "./scripts/check",
     "smoke": "./scripts/smoke",
     "demo": "./scripts/demo",
-    "scan": "./scripts/scan"
+    "scan": "./scripts/scan",
+    "site:dev": "astro dev --root site",
+    "site:build": "astro build --root site",
+    "site:preview": "astro preview --root site"
   },
   "devDependencies": {
+    "@astrojs/cloudflare": "^14.2.5",
     "@playwright/test": "^1.62.1",
+    "astro": "^7.2.9",
     "globals": "^16",
     "markdownlint-cli2": "^0.23.2",
     "prettier": "^3.6.2",
+    "prettier-plugin-astro": "^0.14.1",
     "typescript": "~5.9.2",
     "xo": "^1.2.2"
   },

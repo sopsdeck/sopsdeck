@@ -1,0 +1,69 @@
+{
+  "walkthrough": "walkthrough.webm",
+  "items": [
+    {
+      "id": "open",
+      "title": "Open a Managed File",
+      "still": "editor.png",
+      "clip": "open.webm"
+    },
+    {
+      "id": "reveal",
+      "title": "Reveal values",
+      "still": "editor-revealed.png",
+      "clip": "reveal.webm"
+    },
+    {
+      "id": "save",
+      "title": "Encrypt and save",
+      "still": "save.png",
+      "clip": "save.webm"
+    },
+    {
+      "id": "commit",
+      "title": "Commit",
+      "still": "commit.png",
+      "clip": "commit.webm"
+    },
+    {
+      "id": "sync",
+      "title": "Sync",
+      "still": "sync.png",
+      "clip": "sync.webm"
+    },
+    {
+      "id": "grant",
+      "title": "Grant Access",
+      "still": "grant.png",
+      "clip": "grant.webm"
+    },
+    {
+      "id": "publish",
+      "title": "Publish",
+      "still": "publish.png",
+      "clip": "publish.webm"
+    }
+  ],
+  "cli": [
+    {
+      "id": "cli-get",
+      "title": "get a value",
+      "cast": "cli-get.cast"
+    },
+    {
+      "id": "cli-set",
+      "title": "set a value",
+      "cast": "cli-set.cast"
+    },
+    {
+      "id": "cli-commit",
+      "title": "commit a Managed File",
+      "cast": "cli-commit.cast"
+    },
+    {
+      "id": "cli-sync",
+      "title": "Sync",
+      "cast": "cli-sync.cast"
+    }
+  ]
+}
