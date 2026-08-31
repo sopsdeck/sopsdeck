@@ -53,6 +53,43 @@ func List(root string) ([]File, error) {
 	return out, nil
 }
 
+// Candidates returns supported files that can be imported into a Project.
+func Candidates(root string) ([]File, error) {
+	info, err := os.Stat(root)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fs.ErrInvalid
+	}
+	var out []File
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if skipDir(d.Name()) && path != root {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !isDotenvName(d.Name()) && !isStructuredName(d.Name()) {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		out = append(out, File{Name: d.Name(), Path: path, Rel: rel})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Rel < out[j].Rel })
+	return out, nil
+}
+
 func skipDir(name string) bool {
 	switch name {
 	case ".git", "node_modules", "target", "dist", "vendor", ".scratch",
@@ -93,5 +130,7 @@ func looksSOPS(path string) bool {
 		data = data[:16_384]
 	}
 	sample := string(data)
-	return strings.Contains(sample, `"sops"`) || strings.Contains(sample, "sops:")
+	return strings.Contains(sample, "ENC[") ||
+		(strings.Contains(sample, `"sops"`) && strings.Contains(sample, `"sops": {`)) ||
+		strings.Contains(sample, "sops:\n")
 }

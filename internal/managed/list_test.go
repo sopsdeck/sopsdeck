@@ -58,6 +58,21 @@ func TestListExcludesPlainDotenv(t *testing.T) {
 	}
 }
 
+func TestListExcludesPlainStructuredFileContainingSOPSWord(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "config.json")
+	if err := os.WriteFile(path, []byte(`{"sops":"disabled","value":"plain"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := List(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("plain structured files should be skipped: %v", files)
+	}
+}
+
 func TestListSkipsGeneratedBuildDirs(t *testing.T) {
 	root := t.TempDir()
 	for _, dir := range []string{".next", "build", "coverage", "__pycache__", ".turbo"} {

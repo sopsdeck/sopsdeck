@@ -14,6 +14,7 @@ import (
 	"github.com/getsops/sops/v3/aes"
 	sopsage "github.com/getsops/sops/v3/age"
 	"github.com/getsops/sops/v3/cmd/sops/common"
+	"github.com/getsops/sops/v3/cmd/sops/formats"
 	"github.com/getsops/sops/v3/config"
 	"github.com/getsops/sops/v3/decrypt"
 	"github.com/getsops/sops/v3/keyservice"
@@ -169,9 +170,16 @@ func currentEnvPairs(file string) (map[string]string, error) {
 	}
 	plain, err := decrypt.File(file, formatName(format))
 	if err != nil {
-		return nil, err
+		mapping, _, _ := mappingFor(file)
+		if mapping.Path == "" {
+			return nil, err
+		}
+		plain, err = os.ReadFile(file)
+		if err != nil || isEncryptedBytes(plain) {
+			return nil, err
+		}
 	}
-	return plainEnv(plain, format)
+	return plainPairs(plain, format)
 }
 
 func classifyPasteKeys(current, incoming map[string]string) (adds, changes []string) {
@@ -249,9 +257,80 @@ func pasteCreate(file string, pairs map[string]string, stderr io.Writer, getenv 
 	return 0
 }
 
+func encryptPlainFile(file string, plain []byte, getenv func(string) string, keys []string) error {
+	store := common.StoreForFormat(fileFormat(file), config.NewStoresConfig())
+	branches, err := store.LoadPlainFile(plain)
+	if err != nil {
+		return err
+	}
+	pub, err := ageRecipientFromEnv(getenv)
+	if err != nil {
+		return err
+	}
+	mk, err := sopsage.MasterKeyFromRecipient(pub)
+	if err != nil {
+		return err
+	}
+	tree := sops.Tree{
+		FilePath: file,
+		Metadata: sops.Metadata{
+			Version:           version.Version,
+			UnencryptedSuffix: sops.DefaultUnencryptedSuffix,
+			KeyGroups:         []sops.KeyGroup{{mk}},
+		},
+		Branches: branches,
+	}
+	tree.Metadata.EncryptedRegex = encryptedKeyRegex(keys)
+	if tree.Metadata.EncryptedRegex != "" {
+		tree.Metadata.UnencryptedSuffix = ""
+	}
+	dataKey, errs := tree.GenerateDataKeyWithKeyServices([]keyservice.KeyServiceClient{keyservice.NewLocalClient()})
+	if len(errs) > 0 {
+		return fmt.Errorf("%v", errs)
+	}
+	if err := common.EncryptTree(common.EncryptTreeOpts{DataKey: dataKey, Tree: &tree, Cipher: aes.NewCipher()}); err != nil {
+		return err
+	}
+	out, err := store.EmitEncryptedFile(tree)
+	if err != nil {
+		return err
+	}
+	return writeAtomic(file, out)
+}
+
 func pasteApplyExisting(file string, pairs map[string]string, stderr io.Writer) int {
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
+	if raw, readErr := os.ReadFile(file); readErr == nil && !isEncryptedBytes(raw) {
+		mapping, _, _ := mappingFor(file)
+		if mapping.Path == "" {
+			fmt.Fprintln(stderr, "set: not a SOPS-encrypted file")
+			return 1
+		}
+		branches, err := store.LoadPlainFile(raw)
+		if err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		for k := range pairs {
+			path, err := treePath(k, format != formats.Dotenv)
+			if err != nil {
+				fmt.Fprintf(stderr, "set: %v\n", err)
+				return 1
+			}
+			branches[0], _ = branches[0].Set(path, pairs[k])
+		}
+		out, err := store.EmitPlainFile(branches)
+		if err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		if err := writeAtomic(file, out); err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		return 0
+	}
 	tree, err := common.LoadEncryptedFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
@@ -268,7 +347,12 @@ func pasteApplyExisting(file string, pairs map[string]string, stderr io.Writer) 
 		return 1
 	}
 	for _, k := range sortedKeys(pairs) {
-		tree.Branches[0], _ = tree.Branches[0].Set([]interface{}{k}, pairs[k])
+		path, err := treePath(k, format != formats.Dotenv)
+		if err != nil {
+			fmt.Fprintf(stderr, "set: %v\n", err)
+			return 1
+		}
+		tree.Branches[0], _ = tree.Branches[0].Set(path, pairs[k])
 	}
 	if err := common.EncryptTree(common.EncryptTreeOpts{DataKey: dataKey, Tree: tree, Cipher: cipher}); err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
