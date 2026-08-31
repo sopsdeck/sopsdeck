@@ -14,14 +14,35 @@ fi
 export SOPSDECK_BIN="$bin"
 
 if [ "${1:-}" = "--team" ]; then
-  team_root="$(mktemp -d "${TMPDIR:-/tmp}/sopsdeck-team.XXXXXX")"
-  pids=""
+  team_root="${SOPSDECK_TEAM_ROOT:-$root/test-results/team}"
+  if [ "${2:-}" = "--reset" ]; then
+    rm -rf "$team_root"
+  fi
 
+  "$bin" team init "$team_root"
+  printf '\n'
+  printf '%s\n' "Shared Project checkout is cloned into both homes:"
+  printf '  alice  %s\n' "$team_root/alice-home/checkout"
+  printf '  bob    %s\n' "$team_root/bob-home/checkout"
+  printf '%s\n' "Alice initializes, grants Bob (key is filled), then Sync."
+  printf '%s\n' "Bob Syncs after. Do not open the same folder in both windows."
+  printf '\n'
+  printf '%s\n' "In a terminal:"
+  printf '  cd %s\n' "$team_root/alice-home/checkout"
+  printf '  set -a && . %s && set +a\n' "$team_root/alice.env"
+  printf '  %s run -f .env.production -- printenv STRIPE_SECRET\n' "$bin"
+  printf '\n'
+  printf '%s\n' "Another shared Project (cloned into both homes):"
+  printf '  %s team project %s myapp\n' "$bin" "$team_root"
+  printf '\n'
+  printf '%s\n' "Studio stays at $team_root until you pass --reset."
+  printf '\n'
+
+  pids=""
   cleanup() {
     for pid in $pids; do
       kill "$pid" 2>/dev/null || true
     done
-    rm -rf "$team_root"
   }
   trap cleanup EXIT INT TERM
 
@@ -30,17 +51,16 @@ if [ "${1:-}" = "--team" ]; then
       alice) port=4174 ;;
       bob) port=4175 ;;
     esac
-    instance_root="$team_root/$instance"
-    mkdir -p "$instance_root/home" "$instance_root/state" "$instance_root/cache"
+    mkdir -p "$team_root/browser/$instance" "$team_root/logs"
     (
-      export HOME="$instance_root/home"
-      export XDG_CONFIG_HOME="$instance_root/home/config"
-      export XDG_DATA_HOME="$instance_root/home/data"
-      export XDG_CACHE_HOME="$instance_root/cache"
-      export SOPSDECK_STATE_DIR="$instance_root/state"
+      set -a
+      # shellcheck disable=SC1090
+      . "$team_root/$instance.env"
+      set +a
       export SOPSDECK_DEMO_USER="$instance"
+      export SOPSDECK_TEAM_ROOT="$team_root"
       "$bin" drive --demo --listen "127.0.0.1:$port" --ui "$root/desktop/src"
-    ) >"$instance_root/drive.log" 2>&1 &
+    ) >"$team_root/logs/$instance.log" 2>&1 &
     pids="$pids $!"
     printf '%s instance: http://127.0.0.1:%s\n' "$instance" "$port"
   done
@@ -52,7 +72,7 @@ if [ "${1:-}" = "--team" ]; then
         bob) port=4175 ;;
       esac
       open -na "Google Chrome" --args \
-        "--user-data-dir=$team_root/$instance/browser" \
+        "--user-data-dir=$team_root/browser/$instance" \
         "http://127.0.0.1:$port"
     done
   else

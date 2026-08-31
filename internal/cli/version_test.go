@@ -23,6 +23,62 @@ func TestVersionPrintsAppVersion(t *testing.T) {
 	}
 }
 
+func TestNoArgsPrintsUsage(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := Main(nil, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stderr.String(), "usage: sopsdeck") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+}
+
+func TestHelpPrintsUsage(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"--help"}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "usage: sopsdeck") {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}
+
+func TestHelpColorAlwaysRendersCommands(t *testing.T) {
+	t.Setenv("SOPSDECK_COLOR", "always")
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"-h"}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Commands") {
+		t.Fatalf("stdout=%q", stdout.String())
+	}
+}
+
+func TestUnknownCommandPrintsUsageHint(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"not-a-command"}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stderr.String(), `unknown command "not-a-command"`) {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+}
+
+func TestConfigureIntegrationRequiresSevenArgs(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"configure_integration", "file"}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stderr.String(), "usage: sopsdeck configure_integration") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+}
+
 func TestVersionMatchesPackage(t *testing.T) {
 	root := repoRoot(t)
 	want := appver.Version

@@ -38,6 +38,8 @@ const cliCommands = new Set([
   'rename',
   'scan',
   'mcp',
+  'drive',
+  'team',
 ]);
 
 function usage() {

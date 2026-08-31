@@ -38,75 +38,103 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck <get|set|del|lock|unlock|status|copy|run|identity|account|robot|commit|sync|review|history|restore|recipient|publish|files|project|references|unused|rename|drive|scan|mcp> ...")
+		printUsage(stderr)
 		return 1
 	}
 	switch args[0] {
+	case "--help", "-h":
+		printUsage(stdout)
+		return 0
 	case "--version", "-V", "version":
 		fmt.Fprintln(stdout, appver.Version)
 		return 0
+	}
+	if code, ok := runLocal(args, stdin, stdout, stderr, getenv); ok {
+		return code
+	}
+	if code, ok := runShared(args, stdin, stdout, stderr, getenv); ok {
+		return code
+	}
+	fmt.Fprintf(stderr, "unknown command %q\n", args[0])
+	return 1
+}
+
+func runLocal(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) (int, bool) {
+	switch args[0] {
 	case "get":
-		return cmdGet(args[1:], stdout, stderr)
+		return cmdGet(args[1:], stdout, stderr), true
 	case "lock":
-		return cmdLock(args[1:], stdout, stderr, getenv)
+		return cmdLock(args[1:], stdout, stderr, getenv), true
 	case "unlock":
-		return cmdUnlock(args[1:], stdout, stderr)
+		return cmdUnlock(args[1:], stdout, stderr), true
 	case "status":
-		return cmdFileStatus(args[1:], stdout, stderr)
+		return cmdFileStatus(args[1:], stdout, stderr), true
 	case "copy":
-		return cmdCopy(args[1:], stdin, stderr)
+		return cmdCopy(args[1:], stdin, stderr), true
 	case "set":
-		return cmdSet(args[1:], stdin, stdout, stderr, getenv)
+		return cmdSet(args[1:], stdin, stdout, stderr, getenv), true
 	case "del":
-		return cmdDel(args[1:], stdout, stderr)
+		return cmdDel(args[1:], stdout, stderr), true
 	case "run":
-		return cmdRun(args[1:], stdin, stdout, stderr)
+		return cmdRun(args[1:], stdin, stdout, stderr), true
 	case "identity":
-		return cmdIdentity(args[1:], stdout, stderr, getenv)
+		return cmdIdentity(args[1:], stdout, stderr, getenv), true
 	case "account":
-		return cmdAccount(args[1:], stdout, stderr, getenv)
+		return cmdAccount(args[1:], stdout, stderr, getenv), true
 	case "robot":
-		return cmdRobot(args[1:], stdout, stderr)
+		return cmdRobot(args[1:], stdout, stderr), true
 	case "configure_integration":
-		if len(args) != 8 {
-			fmt.Fprintln(stderr, "usage: sopsdeck configure_integration FILE SCOPE REPO ORG ENVIRONMENT PREFIX VISIBILITY")
-			return 1
-		}
-		if err := configureIntegration(args[1], args[2], args[3], args[4], args[5], args[6], args[7]); err != nil {
-			fmt.Fprintf(stderr, "configure integration: %v\n", err)
-			return 1
-		}
-		return 0
-	case "commit":
-		return cmdCommit(args[1:], stdout, stderr)
-	case "sync":
-		return cmdSync(args[1:], stdout, stderr)
-	case "review":
-		return cmdReview(args[1:], stdout, stderr)
-	case "history":
-		return cmdHistory(args[1:], stdout, stderr)
-	case "restore":
-		return cmdRestore(args[1:], stdout, stderr)
-	case "recipient":
-		return cmdRecipient(args[1:], stdout, stderr, getenv)
-	case "publish":
-		return cmdPublish(args[1:], stdout, stderr, getenv)
-	case "files":
-		return cmdFiles(args[1:], stdout, stderr)
-	case "drive":
-		return cmdDrive(args[1:], stdout, stderr, getenv)
-	case "scan":
-		return cmdScan(args[1:], stdout, stderr)
-	case "project":
-		return cmdProject(args[1:], stdout, stderr, getenv)
-	case "mcp":
-		return cmdMCP(args[1:], stdin, stdout, stderr, getenv)
-	case "references", "unused", "rename":
-		return runReferenceCommands(args[0], args[1:], stdout, stderr)
+		return cmdConfigureIntegration(args[1:], stderr), true
 	default:
-		fmt.Fprintf(stderr, "unknown command %q\n", args[0])
+		return 0, false
+	}
+}
+
+func runShared(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) (int, bool) {
+	switch args[0] {
+	case "commit":
+		return cmdCommit(args[1:], stdout, stderr), true
+	case "sync":
+		return cmdSync(args[1:], stdout, stderr), true
+	case "review":
+		return cmdReview(args[1:], stdout, stderr), true
+	case "history":
+		return cmdHistory(args[1:], stdout, stderr), true
+	case "restore":
+		return cmdRestore(args[1:], stdout, stderr), true
+	case "recipient":
+		return cmdRecipient(args[1:], stdout, stderr, getenv), true
+	case "publish":
+		return cmdPublish(args[1:], stdout, stderr, getenv), true
+	case "files":
+		return cmdFiles(args[1:], stdout, stderr), true
+	case "drive":
+		return cmdDrive(args[1:], stdout, stderr, getenv), true
+	case "team":
+		return cmdTeam(args[1:], stdout, stderr), true
+	case "scan":
+		return cmdScan(args[1:], stdout, stderr), true
+	case "project":
+		return cmdProject(args[1:], stdout, stderr, getenv), true
+	case "mcp":
+		return cmdMCP(args[1:], stdin, stdout, stderr, getenv), true
+	case "references", "unused", "rename":
+		return runReferenceCommands(args[0], args[1:], stdout, stderr), true
+	default:
+		return 0, false
+	}
+}
+
+func cmdConfigureIntegration(args []string, stderr io.Writer) int {
+	if len(args) != 7 {
+		fmt.Fprintln(stderr, "usage: sopsdeck configure_integration FILE SCOPE REPO ORG ENVIRONMENT PREFIX VISIBILITY")
 		return 1
 	}
+	if err := configureIntegration(args[0], args[1], args[2], args[3], args[4], args[5], args[6]); err != nil {
+		fmt.Fprintf(stderr, "configure integration: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func runReferenceCommands(cmd string, args []string, stdout, stderr io.Writer) int {
@@ -297,28 +325,36 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 		return 1
 	}
 	if raw, readErr := os.ReadFile(file); readErr == nil && !isEncryptedBytes(raw) {
-		mapping, _, _ := mappingFor(file)
-		if mapping.Path == "" {
-			fmt.Fprintln(stderr, "set: not a SOPS-encrypted file")
-			return 1
-		}
-		branches, err := store.LoadPlainFile(raw)
-		if err != nil {
-			fmt.Fprintf(stderr, "set: %v\n", err)
-			return 1
-		}
-		branches[0], _ = branches[0].Set(path, value)
-		out, err := store.EmitPlainFile(branches)
-		if err != nil {
-			fmt.Fprintf(stderr, "set: %v\n", err)
-			return 1
-		}
-		if err := writeAtomic(file, out); err != nil {
-			fmt.Fprintf(stderr, "set: %v\n", err)
-			return 1
-		}
-		return 0
+		return setUnlocked(file, store, path, value, raw, stderr)
 	}
+	return setEncrypted(file, store, path, value, stderr)
+}
+
+func setUnlocked(file string, store sops.Store, path []interface{}, value string, raw []byte, stderr io.Writer) int {
+	mapping, _, _ := mappingFor(file)
+	if mapping.Path == "" {
+		fmt.Fprintln(stderr, "set: not a SOPS-encrypted file")
+		return 1
+	}
+	branches, err := store.LoadPlainFile(raw)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	branches[0], _ = branches[0].Set(path, value)
+	out, err := store.EmitPlainFile(branches)
+	if err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	if err := writeAtomic(file, out); err != nil {
+		fmt.Fprintf(stderr, "set: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func setEncrypted(file string, store sops.Store, path []interface{}, value string, stderr io.Writer) int {
 	tree, err := common.LoadEncryptedFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
@@ -417,33 +453,41 @@ func cmdDel(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	if raw, readErr := os.ReadFile(file); readErr == nil && !isEncryptedBytes(raw) {
-		mapping, _, _ := mappingFor(file)
-		if mapping.Path == "" {
-			fmt.Fprintln(stderr, "del: not a SOPS-encrypted file")
-			return 1
-		}
-		branches, err := store.LoadPlainFile(raw)
-		if err != nil {
-			fmt.Fprintf(stderr, "del: %v\n", err)
-			return 1
-		}
-		branch, err := branches[0].Unset(path)
-		if err != nil {
-			fmt.Fprintf(stderr, "del: %v\n", err)
-			return 1
-		}
-		branches[0] = branch
-		out, err := store.EmitPlainFile(branches)
-		if err != nil {
-			fmt.Fprintf(stderr, "del: %v\n", err)
-			return 1
-		}
-		if err := writeAtomic(file, out); err != nil {
-			fmt.Fprintf(stderr, "del: %v\n", err)
-			return 1
-		}
-		return 0
+		return delUnlocked(file, store, path, raw, stderr)
 	}
+	return delEncrypted(file, store, path, stderr)
+}
+
+func delUnlocked(file string, store sops.Store, path []interface{}, raw []byte, stderr io.Writer) int {
+	mapping, _, _ := mappingFor(file)
+	if mapping.Path == "" {
+		fmt.Fprintln(stderr, "del: not a SOPS-encrypted file")
+		return 1
+	}
+	branches, err := store.LoadPlainFile(raw)
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	branch, err := branches[0].Unset(path)
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	branches[0] = branch
+	out, err := store.EmitPlainFile(branches)
+	if err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	if err := writeAtomic(file, out); err != nil {
+		fmt.Fprintf(stderr, "del: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func delEncrypted(file string, store sops.Store, path []interface{}, stderr io.Writer) int {
 	tree, err := common.LoadEncryptedFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "del: %v\n", err)
