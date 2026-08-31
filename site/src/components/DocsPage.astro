@@ -1,16 +1,40 @@
 ---
-import SiteLayout from '../layouts/SiteLayout.astro';
-import { docHtml } from '../lib/content.mjs';
+import DocsLayout from '../layouts/DocsLayout.astro';
+import { cliHeadings, docHtml, guideHeadings } from '../lib/content.mjs';
 
-const { title, kicker, heading, lede, source } = Astro.props;
+const { title, kicker, heading, lede, source, current = 'guide' } = Astro.props;
 const html = docHtml(source);
+const guide = guideHeadings();
+const cli = cliHeadings();
 ---
 
-<SiteLayout title={title} description={lede} active="docs" narrow>
-  <section class="hero hero--compact">
+<DocsLayout title={title} description={lede} current={current}>
+  <Fragment slot="sidebar">
+    <a href="/docs/" aria-current={current === 'guide' ? 'page' : undefined}>Guide</a>
+    <ul>
+      {
+        guide.map((item) => (
+          <li>
+            <a href={`/docs/#${item.id}`}>{item.title}</a>
+          </li>
+        ))
+      }
+    </ul>
+    <a href="/docs/cli.html" aria-current={current === 'cli' ? 'page' : undefined}>CLI</a>
+    <ul>
+      {
+        cli.map((item) => (
+          <li>
+            <a href={`/docs/cli.html#${item.id}`}>{item.title}</a>
+          </li>
+        ))
+      }
+    </ul>
+  </Fragment>
+  <header class="docs-title">
     <p class="kicker">{kicker}</p>
     <h1>{heading}</h1>
-    <p set:html={lede} />
-  </section>
-  <div class="prose" set:html={html} />
-</SiteLayout>
+    <p class="docs-lede">{lede}</p>
+  </header>
+  <div class="prose docs-prose" set:html={html} />
+</DocsLayout>

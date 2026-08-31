@@ -9,8 +9,8 @@ This folder is the readable layer over the spec, glossary, and tests. Agents sho
 3. **What to implement next** — [build.md](../.scratch/sopsdeck-product/build.md). Phase status plus ready tickets.
 4. **Public seams** — [seams.md](seams.md) (generated). Where tests must live, and which delivery phases still have none.
 5. **Living features** — [features.md](features.md) (generated from test names). If a behavior is not named here, it is not specified by a test yet.
-6. **User guide** — [guide.md](guide.md). Public docs for people using Sopsdeck. The site serves this as `/docs/guide.html`.
-7. **Product stills and clips** — [assets.md](assets.md) (generated catalog). Created by `./scripts/demo`; `./scripts/docs --check` fails when files are missing or unlinked. `./scripts/demo --check` also fails sub-second clips. The public site serves the same pages from [site/src/pages/docs](../site/src/pages/docs/).
+6. **User guide** — [guide.md](guide.md) and [cli.md](cli.md). Public docs for people using Sopsdeck. The site serves these as `/docs/` with a sidebar.
+7. **Product stills and clips** — [assets.md](assets.md) (generated catalog). Created by `./scripts/demo`; `./scripts/docs --check` fails when files are missing or unlinked. `./scripts/demo --check` also fails sub-second clips.
 8. **Versioning** — [versioning.md](versioning.md). Epoch SemVer; `CHANGELOG.md` is canonical.
 
 CLI casts (get, set, commit, Sync) live next to the desktop clips in [assets.md](assets.md).

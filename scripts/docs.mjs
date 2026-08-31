@@ -258,7 +258,7 @@ function unlinkedAssets(catalog) {
     'docs/assets.md',
     'site/src/pages/index.astro',
     'site/src/pages/docs/index.astro',
-    'site/src/pages/docs/assets.html.astro',
+    'docs/guide.md',
   ];
   const combined = roots
     .map((rel) => {

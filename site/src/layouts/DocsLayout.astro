@@ -1,0 +1,77 @@
+---
+import '../styles/site.css';
+
+const { title, description, active = 'docs', current = '' } = Astro.props;
+const canonical = `https://sopsdeck.com${Astro.url.pathname}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/safari-mask.svg" color="#101828" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content="https://sopsdeck.com/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content="https://sopsdeck.com/og.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrap docs-wrap">
+      <header>
+        <a class="logo" href="/">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M54 10H21L10 21v15h32v9H10v9h33l11-11V27H22v-8h32Z" fill="currentColor"></path>
+          </svg>
+          <span>sops<span class="brand-deck">deck</span></span>
+        </a>
+        <nav aria-label="Primary">
+          <a href="/" aria-current={active === 'product' ? 'page' : undefined}>Product</a>
+          <a href="/docs/" aria-current={active === 'docs' ? 'page' : undefined}>Docs</a>
+          <a href="/changelog.html" aria-current={active === 'notes' ? 'page' : undefined}
+            >Changelog</a
+          >
+        </nav>
+      </header>
+      <div class="docs-shell">
+        <aside class="docs-sidebar" aria-label="Documentation">
+          <p class="kicker">Docs</p>
+          <nav class="docs-nav">
+            <slot name="sidebar" />
+          </nav>
+        </aside>
+        <article class="docs-main" data-page={current}>
+          <slot />
+        </article>
+      </div>
+      <footer class="site-footer">
+        <a class="footer-brand" href="/" aria-label="Sopsdeck home">
+          <svg class="footer-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M54 10H21L10 21v15h32v9H10v9h33l11-11V27H22v-8h32Z" fill="currentColor"></path>
+          </svg>
+          <span class="footer-wordmark">sops<span>deck</span></span>
+        </a>
+        <div class="footer-bar">
+          <div>Apache-2.0 · no hosted backend · Age + SOPS</div>
+          <div>sopsdeck.com</div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

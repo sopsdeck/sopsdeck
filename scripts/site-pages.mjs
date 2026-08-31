@@ -14,6 +14,17 @@ export function headingId(text) {
     .replaceAll(/^-+|-+$/g, '');
 }
 
+export function mdHeadings(md, level = 2) {
+  const prefix = `${'#'.repeat(level)} `;
+  return String(md)
+    .split('\n')
+    .filter((line) => line.startsWith(prefix) && !line.startsWith(`${prefix}#`))
+    .map((line) => {
+      const title = line.slice(prefix.length).trim();
+      return { title, id: headingId(title) };
+    });
+}
+
 export function rewriteDocHrefs(href) {
   const trimmed = href.trim();
   const hash = trimmed.indexOf('#');
@@ -25,7 +36,7 @@ export function rewriteDocHrefs(href) {
 
   const base = path.split('/').pop() ?? path;
   if (base === 'CONTEXT.md') {
-    return `glossary.html${suffix}`;
+    return `/docs/${suffix}`;
   }
 
   if (base.endsWith('.md') && !path.includes('.scratch')) {

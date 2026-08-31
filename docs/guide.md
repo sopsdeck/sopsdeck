@@ -41,7 +41,7 @@ Every Encrypt & save can commit. File history lists those commits. Open a secret
 
 ## Field encryption
 
-JSON and YAML files do not have to encrypt every field. When you initialize a Project, pick the leaves to encrypt — for example `EXPO_TOKEN` in `eas.json` or a token in `package.json`. Unselected keys stay plaintext so CLIs can still read them.
+JSON and YAML files do not have to encrypt every field. Open a structured file to see its tree. Lock only the leaves you choose — for example `EXPO_TOKEN` in `eas.json`. Unselected keys stay plaintext so CLIs can still read them. The File inspector lists encrypted paths so you can add or remove them later.
 
 ## Encrypted in place
 
@@ -70,7 +70,7 @@ Each Managed File lists Age public keys (Recipients). Adding a teammate’s key 
 
 When you initialize a Project, your Git identity is recorded in `.sopsdeck.toml` with your Age public key so teammates can see who you are. When you add someone, enter their name or git identity (`Bob <bob@example.com>`) with their Age public key. That label is stored in the same file.
 
-To join a file you cannot open, use **Request access**. That copies a message with your name and Age public key to send to a Project owner.
+To join a file you cannot open, open **Account**. Copy your Age public key, or copy a request message that includes it, and send that to a Project owner.
 
 ## Project owners
 

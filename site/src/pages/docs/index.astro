@@ -1,52 +1,12 @@
 ---
-import SiteLayout from '../../layouts/SiteLayout.astro';
+import DocsPage from '../../components/DocsPage.astro';
 ---
 
-<SiteLayout
+<DocsPage
   title="Sopsdeck — docs"
-  description="How to use Sopsdeck: install, edit secrets, grant Access, and keep encrypted files in Git."
-  active="docs"
-  narrow
->
-  <section class="hero hero--compact">
-    <p class="kicker">Documentation</p>
-    <h1>Using Sopsdeck</h1>
-    <p>
-      Sopsdeck is under development. Expect issues, and
-      <a href="https://github.com/sopsdeck/sopsdeck/issues/new">submit a GitHub issue</a> when you hit
-      one.
-    </p>
-  </section>
-  <div class="prose">
-    <ul class="doc-index">
-      <li>
-        <a href="/docs/guide.html">Guide</a> — install, edit secrets, lock files, Access, and field encryption.
-      </li>
-      <li>
-        <a href="/docs/guide.html#get-started">Get started</a> — <code>npx sopsdeck .</code> and your
-        Age identity.
-      </li>
-      <li>
-        <a href="/docs/guide.html#access">Access</a> — grant keys, request Access, and Project owners.
-      </li>
-      <li>
-        <a href="/changelog.html">Changelog</a> — generated from <code>CHANGELOG.md</code>.
-      </li>
-      <li>
-        <a href="/docs/glossary.html">Domain language</a> — Project, Managed File, Recipient, Access.
-      </li>
-      <li>
-        <a href="/docs/versioning.html">Versioning</a> — Epoch SemVer; CHANGELOG.md is canonical.
-      </li>
-      <li>
-        <a href="/docs/assets.html">Product assets</a> — stills, clips, walkthrough, and CLI casts.
-      </li>
-      <li>
-        <a href="/docs/features.html">What tests prove</a> — living names generated from test titles.
-      </li>
-      <li>
-        <a href="/docs/seams.html">Public seams</a> — where tests must live for contributors.
-      </li>
-    </ul>
-  </div>
-</SiteLayout>
+  kicker="Guide"
+  heading="Using Sopsdeck"
+  lede="Install, edit secrets, grant Access, and keep encrypted files in Git."
+  source="docs/guide.md"
+  current="guide"
+/>
