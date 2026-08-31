@@ -16,6 +16,7 @@
     .traffic { display:flex; gap:7px; padding-left:15px; }
     .traffic i { width:11px; height:11px; border-radius:50%; background:#C8D0DC; }
     .app-name { justify-self:center; display:flex; align-items:center; gap:8px; font-weight:700; letter-spacing:-.02em; }
+    .brand-deck { color:var(--blue); }
     .app-mark { width:17px; height:17px; color:var(--blue); }
     .shortcut { justify-self:end; margin-right:13px; padding:4px 8px; color:var(--slate); border:1px solid #D1D8E2; border-radius:6px; font:500 10px "IBM Plex Mono", monospace; background:rgba(255,255,255,.6); }
     .shell { display:grid; grid-template-columns:280px minmax(520px,1fr) 272px; min-height:0; }
@@ -96,7 +97,7 @@
     <symbol id="dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
   </svg>
   <main class="app">
-    <header class="titlebar"><div class="traffic"><i></i><i></i><i></i></div><div class="app-name"><svg class="app-mark" viewBox="0 0 64 64"><path d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"/><path d="M25 32h15" stroke="currentColor" stroke-width="5"/></svg>sopsdeck</div><span class="shortcut">⌘ K</span></header>
+    <header class="titlebar"><div class="traffic"><i></i><i></i><i></i></div><div class="app-name"><svg class="app-mark" viewBox="0 0 64 64"><path d="M54 10H21L10 21v15h32v9H10v9h33l11-11V27H22v-8h32Z" fill="currentColor"/></svg><span>sops<span class="brand-deck">deck</span></span></div><span class="shortcut">⌘ K</span></header>
     <div class="shell">
       <aside class="sidebar">
         <div class="side-head"><div class="side-head-row"><span class="kicker">Projects</span><button class="icon-button" aria-label="Add project"><svg><use href="#plus"/></svg></button></div><label class="search"><svg><use href="#search"/></svg><input aria-label="Find project or configuration file" placeholder="Find project or config"></label></div>

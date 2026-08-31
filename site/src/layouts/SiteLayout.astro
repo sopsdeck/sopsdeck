@@ -37,16 +37,9 @@ const canonical = `https://sopsdeck.com${Astro.url.pathname}`;
       <header>
         <a class="logo" href="/">
           <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
-            <path
-              d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="6"
-              stroke-linejoin="round"></path>
-            <path d="M25 32h15" stroke="currentColor" stroke-width="6" stroke-linecap="round"
-            ></path>
+            <path d="M54 10H21L10 21v15h32v9H10v9h33l11-11V27H22v-8h32Z" fill="currentColor"></path>
           </svg>
-          sopsdeck
+          <span>sops<span class="brand-deck">deck</span></span>
         </a>
         <nav aria-label="Primary">
           <a href="/" aria-current={active === 'product' ? 'page' : undefined}>Product</a>

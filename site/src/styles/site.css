@@ -83,6 +83,10 @@ header {
   text-decoration: none;
 }
 
+.brand-deck {
+  color: var(--blue);
+}
+
 .mark {
   width: 28px;
   height: 28px;

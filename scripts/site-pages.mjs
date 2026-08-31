@@ -166,14 +166,7 @@ export function mdToHtml(md) {
 }
 
 const logo = `<svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
-            <path
-              d="M11 13h36l6 7-13 12 13 12-6 7H11l13-19L11 13Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="6"
-              stroke-linejoin="round"
-            />
-            <path d="M25 32h15" stroke="currentColor" stroke-width="6" stroke-linecap="round" />
+            <path d="M54 10H21L10 21v15h32v9H10v9h33l11-11V27H22v-8h32Z" fill="currentColor" />
           </svg>`;
 
 export function sitePage({ title, kicker, heading, lede, body, base, active }) {
@@ -370,7 +363,7 @@ export function sitePage({ title, kicker, heading, lede, body, base, active }) {
       <header>
         <a class="logo" href="${productHref}">
           ${logo}
-          sopsdeck
+          <span>sops<span class="brand-deck">deck</span></span>
         </a>
         <nav>
           <a href="${productHref}"${active === 'product' ? ' aria-current="page"' : ''}>Product</a>
