@@ -12,6 +12,57 @@ if [ "${1:-}" = "--build-only" ]; then
 fi
 
 export SOPSDECK_BIN="$bin"
+
+if [ "${1:-}" = "--team" ]; then
+  team_root="$(mktemp -d "${TMPDIR:-/tmp}/sopsdeck-team.XXXXXX")"
+  pids=""
+
+  cleanup() {
+    for pid in $pids; do
+      kill "$pid" 2>/dev/null || true
+    done
+    rm -rf "$team_root"
+  }
+  trap cleanup EXIT INT TERM
+
+  for instance in alice bob; do
+    case "$instance" in
+      alice) port=4174 ;;
+      bob) port=4175 ;;
+    esac
+    instance_root="$team_root/$instance"
+    mkdir -p "$instance_root/home" "$instance_root/state" "$instance_root/cache"
+    (
+      export HOME="$instance_root/home"
+      export XDG_CONFIG_HOME="$instance_root/home/config"
+      export XDG_DATA_HOME="$instance_root/home/data"
+      export XDG_CACHE_HOME="$instance_root/cache"
+      export SOPSDECK_STATE_DIR="$instance_root/state"
+      export SOPSDECK_DEMO_USER="$instance"
+      "$bin" drive --demo --listen "127.0.0.1:$port" --ui "$root/desktop/src"
+    ) >"$instance_root/drive.log" 2>&1 &
+    pids="$pids $!"
+    printf '%s instance: http://127.0.0.1:%s\n' "$instance" "$port"
+  done
+
+  if [ -d "/Applications/Google Chrome.app" ]; then
+    for instance in alice bob; do
+      case "$instance" in
+        alice) port=4174 ;;
+        bob) port=4175 ;;
+      esac
+      open -na "Google Chrome" --args \
+        "--user-data-dir=$team_root/$instance/browser" \
+        "http://127.0.0.1:$port"
+    done
+  else
+    printf '%s\n' 'Google Chrome was not found; open the two URLs above manually.'
+  fi
+
+  wait
+  exit 0
+fi
+
 cd desktop
 if [ ! -d node_modules ]; then
   bun install

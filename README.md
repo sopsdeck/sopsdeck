@@ -92,6 +92,8 @@ The app shells out to the `sopsdeck` binary. One command builds a fresh CLI and 
 
 `./scripts/dev --build-only` stops after `go build`. Optional: `SOPSDECK_DEV_PROJECT` auto-opens a folder. `testdata/age.txt` is a throwaway test key, not a personal identity.
 
+`./scripts/dev --team` opens isolated Alice and Bob demo instances on ports 4174 and 4175. Each uses a separate demo identity, temporary Git and Sopsdeck state, and its own Chrome profile, so it cannot change the host Git identity.
+
 ## Landing page
 
 Windows and Linux CLI downloads are GitHub Release assets (`sopsdeck-windows-amd64.exe`, `sopsdeck-linux-amd64`, `sopsdeck-linux-arm64`). macOS is a local `./scripts/dev` build until Developer ID signing. Tag `vX.Y.Z` publishes notes plus those binaries.
