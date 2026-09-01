@@ -214,7 +214,7 @@ export function appendSetupKeyTree(list, nodes, state) {
       const keyInput = document.createElement('input');
       keyInput.type = 'checkbox';
       keyInput.value = node.path;
-      keyInput.checked = state.checked;
+      keyInput.checked = state.selectedKeys ? state.selectedKeys.has(node.path) : state.checked;
       keyInput.dataset.testid = 'setup-project-key-toggle';
       const keyName = document.createElement('code');
       keyName.textContent = node.name;
@@ -230,6 +230,10 @@ export function appendSetupKeyTree(list, nodes, state) {
     folder.style.setProperty('--tree-depth', String(state.depth));
     folder.textContent = node.name;
     list.append(folder);
-    appendSetupKeyTree(list, node.children, { ...state, depth: state.depth + 1 });
+    appendSetupKeyTree(list, node.children, {
+      ...state,
+      depth: state.depth + 1,
+      selectedKeys: state.selectedKeys,
+    });
   }
 }

@@ -19,3 +19,16 @@ test('selectedProjectFiles excludes unchecked keyless candidates', () => {
     { path: 'README.md', keys: [] },
   ]);
 });
+
+test('selectedProjectFiles preserves lazy field selections', () => {
+  expect(
+    selectedProjectFiles([
+      {
+        input: { value: 'eas.json', checked: true },
+        keyInputs: [],
+        allKeys: ['EXPO_PUBLIC_API_URL', 'cli.appVersionSource'],
+        selectedKeys: new Set(['EXPO_PUBLIC_API_URL']),
+      },
+    ]),
+  ).toEqual([{ path: 'eas.json', keys: ['EXPO_PUBLIC_API_URL'] }]);
+});

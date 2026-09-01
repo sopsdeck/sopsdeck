@@ -1050,46 +1050,21 @@ h1 {
 .file-fields {
   margin-top: 12px;
 }
-.encrypted-paths {
+.encrypted-path-summary {
   margin: 0 0 8px;
-  padding: 0;
-  list-style: none;
 }
-.encrypted-path {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
+.file-fields > .tool {
+  justify-content: flex-start;
+  width: 100%;
 }
-.encrypted-path code {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 10px;
-}
-.file-field-add {
-  display: flex;
-  gap: 6px;
-}
-.file-field-add input {
-  flex: 1;
-  min-width: 0;
-  height: 31px;
-  padding: 0 9px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--input-bg);
-  font:
-    400 10px 'IBM Plex Mono',
-    ui-monospace,
-    monospace;
-}
-.account-request {
+.account-request,
+.account-backup {
   display: grid;
   gap: 8px;
   margin-top: 10px;
 }
-.account-request textarea {
+.account-request textarea,
+.account-backup textarea {
   width: 100%;
   min-height: 120px;
   resize: vertical;
@@ -1276,6 +1251,13 @@ h1 {
 }
 .compact-actions {
   margin-top: 13px;
+}
+.project-file-actions {
+  margin-top: 10px;
+}
+.project-file-actions .tool {
+  width: 100%;
+  justify-content: flex-start;
 }
 .access-empty-actions {
   display: grid;

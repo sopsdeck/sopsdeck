@@ -355,6 +355,112 @@ test('demo seed shows several Projects with extras collapsed', async ({ page }) 
   await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toBeVisible();
 });
 
+test('structured editor hides plaintext fields and edits encrypted paths in a modal', async ({
+  page,
+}) => {
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request?.cmd === 'get_managed_file' && request.path?.endsWith('/eas.json')) {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          result: [
+            { key: 'EXPO_PUBLIC_API_URL', value: 'https://example.test', encrypted: true },
+            { key: 'cli.appVersionSource', value: 'remote', encrypted: false },
+          ],
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('managed-file').filter({ hasText: 'eas.json' }).click();
+
+  const tree = page.getByTestId('json-tree');
+  await expect(tree).toContainText('EXPO_PUBLIC_API_URL');
+  await expect(tree).not.toContainText('appVersionSource');
+
+  await page.getByTestId('edit-encrypted-paths').click();
+  const dialog = page.getByTestId('setup-project-dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId('setup-project-file-disclosure').click();
+  const field = dialog.locator(
+    '[data-testid="setup-project-key-toggle"][value="cli.appVersionSource"]',
+  );
+  await expect(field).not.toBeChecked();
+  await field.check();
+  await dialog.getByTestId('setup-project-init').click();
+  await expect(dialog).toBeHidden();
+  await expect(tree).toContainText('appVersionSource');
+});
+
+test('project file selector adds and removes managed files', async ({ page }) => {
+  let projectPath = '';
+  let updated = false;
+  await page.route('**/invoke', async (route) => {
+    const data = route.request().postDataJSON();
+    const file = (rel, managed = false, keys = []) => ({
+      name: rel.split('/').at(-1),
+      path: projectPath + '/' + rel,
+      rel,
+      managed,
+      keys,
+    });
+    if (data?.cmd === 'inspect_project') {
+      projectPath = data.path;
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            initialized: true,
+            managed: updated ? [file('eas.json', true)] : [file('.env.production', true)],
+            candidates: updated
+              ? [file('.env.production')]
+              : [file('eas.json', false, ['build.env.EXPO_TOKEN'])],
+          },
+        }),
+      });
+      return;
+    }
+    if (data?.cmd === 'remove_project_file' || data?.cmd === 'add_project_file') {
+      updated = true;
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ result: 'managed file updated' }),
+      });
+      return;
+    }
+    if (data?.cmd === 'get_managed_file') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ result: [] }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('edit-project-files').click();
+  const dialog = page.getByTestId('setup-project-dialog');
+  await expect(dialog.locator('.kicker')).toHaveText('Managed files');
+  await expect(dialog.locator('input[value=".env.production"]')).toBeChecked();
+  await expect(dialog.locator('input[value="eas.json"]')).not.toBeChecked();
+  await dialog.locator('input[value=".env.production"]').uncheck();
+  await dialog.locator('input[value="eas.json"]').check();
+  await dialog.getByTestId('setup-project-init').click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toBeVisible();
+  await expect(
+    page.getByTestId('managed-file').filter({ hasText: '.env.production' }),
+  ).toBeHidden();
+});
+
 test('Publish inspector opens GitHub configuration', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
@@ -529,6 +635,14 @@ test('missing Access shows a recovery panel instead of a raw error', async ({ pa
   await expect(page.getByTestId('editor-error')).toBeHidden();
   await page.getByRole('button', { name: 'Open account' }).click();
   await expect(page.getByTestId('account-dialog')).toBeVisible();
+});
+
+test('Account reveals a private-key backup on demand', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('account').click();
+  await page.getByRole('button', { name: 'Back up private key' }).click();
+  await expect(page.getByTestId('account-backup')).toBeVisible();
+  await expect(page.getByTestId('account-private-key')).toHaveValue(/AGE-SECRET-KEY-/);
 });
 
 test('JSON files render a tree with encrypt toggles', async ({ page }) => {

@@ -195,6 +195,7 @@ function applyPastePairs(pairs) {
     const existing = rows.find((r) => !r.deleted && r.key === key);
     if (existing) {
       existing.value = value;
+      if (selected && isStructuredFormat(formatOf(selected.path))) existing.encrypted = true;
       continue;
     }
 
@@ -206,6 +207,8 @@ function applyPastePairs(pairs) {
       added: true,
       deleted: false,
       revealed: true,
+      encrypted: true,
+      origEncrypted: false,
     });
   }
 }
@@ -356,7 +359,8 @@ function refreshUnusedBadge(kind, row) {
 }
 
 function visibleRows() {
-  return rows.filter((row) => !row.deleted);
+  const structured = selected && isStructuredFormat(formatOf(selected.path));
+  return rows.filter((row) => !row.deleted && (!structured || row.encrypted));
 }
 
 function clearErrors() {
@@ -930,7 +934,7 @@ async function openFile(project, file) {
     document.getElementById('meta-enc').textContent = status.locked
       ? 'age + SOPS (locked)'
       : 'plaintext (unlocked)';
-    sublineEl().textContent = `${rows.length} secrets · never uploaded`;
+    sublineEl().textContent = `${visibleRows().length} managed fields · never uploaded`;
     setFileNote(file.name === 'eas.json' ? 'eas.json: EAS CLI will not read SOPS ciphertext' : '');
     renderKeys();
     loadUnusedKeys(file.path, request);
@@ -1161,13 +1165,19 @@ function renderKeys() {
     return;
   }
 
+  const structured = isStructuredFormat(formatOf(selected.path));
   const visible = visibleRows();
-  showEmpty(visible.length === 0 ? 'No keys in this file.' : '');
+  showEmpty(
+    visible.length === 0
+      ? structured
+        ? 'No encrypted paths selected.'
+        : 'No keys in this file.'
+      : '',
+  );
   const box = keysEl();
   box.hidden = false;
   box.replaceChildren();
   renderPasteChrome(box);
-  const structured = isStructuredFormat(formatOf(selected.path));
   renderKeyRows(box, visible, structured, {
     revealed,
     toggleReveal,
@@ -1336,8 +1346,10 @@ function renderAccountKey() {
 
   const keyField = document.getElementById('account-key-field');
   const keyInput = document.getElementById('account-public-key');
+  const identityActions = document.getElementById('account-identity-actions');
   if (keyField) keyField.hidden = !account.hasIdentity || !account.publicKey;
   if (keyInput) keyInput.value = account.publicKey || '';
+  if (identityActions) identityActions.hidden = !account.hasIdentity;
   renderAccountRequest();
 }
 
@@ -1348,6 +1360,43 @@ function renderAccountRequest() {
   const ready = Boolean(account.hasIdentity && account.publicKey);
   wrap.hidden = !ready;
   if (ready) template.value = accessRequestMessage();
+}
+
+function clearAccountBackup() {
+  const backup = document.getElementById('account-backup');
+  const key = document.getElementById('account-private-key');
+  if (backup) backup.hidden = true;
+  if (key) key.value = '';
+}
+
+async function showAccountBackup() {
+  const key = document.getElementById('account-private-key');
+  const backup = document.getElementById('account-backup');
+  const identity = await invoke('get_user_identity_backup');
+  if (!key || !backup) return;
+  key.value = String(identity || '');
+  backup.hidden = false;
+}
+
+async function removeAccountIdentity() {
+  // eslint-disable-next-line no-alert -- removing a local identity is destructive.
+  const confirmed = window.confirm(
+    'Remove this machine’s Age identity? It will not revoke file access, and you will need a backup to decrypt again.',
+  );
+  if (!confirmed) return;
+  try {
+    await invoke('remove_user_identity');
+    account = accountFrom(
+      await invoke('get_account', { path: selected?.project.path || projects[0]?.path || '' }),
+    );
+    clearAccountBackup();
+    renderAccount();
+    setStatus('account', 'Local identity removed');
+  } catch (err) {
+    const error = document.getElementById('account-error');
+    error.hidden = false;
+    error.textContent = messageOf(err);
+  }
 }
 
 function accountComplete() {
@@ -1372,6 +1421,7 @@ async function openAccountDialog(required = false, path = '') {
   emailInput.readOnly = Boolean(account.email);
   error.hidden = true;
   document.getElementById('account-status').hidden = true;
+  clearAccountBackup();
   document.getElementById('account-later').hidden = !required;
   const saveAccount = document.getElementById('account-save');
   saveAccount.hidden = Boolean(account.name && account.email);
@@ -1380,11 +1430,18 @@ async function openAccountDialog(required = false, path = '') {
   renderAccount();
   dialog.showModal();
   return withDialog(dialog, ({ signal, finish }) => {
-    dialog.addEventListener('cancel', () => finish(false), { signal });
-    document.getElementById('account-cancel').addEventListener('click', () => finish(false), {
-      signal,
-    });
-    document.getElementById('account-later').addEventListener('click', () => finish(false), {
+    const finishAccount = (value) => {
+      clearAccountBackup();
+      finish(value);
+    };
+
+    dialog.addEventListener('cancel', () => finishAccount(false), { signal });
+    document
+      .getElementById('account-cancel')
+      .addEventListener('click', () => finishAccount(false), {
+        signal,
+      });
+    document.getElementById('account-later').addEventListener('click', () => finishAccount(false), {
       signal,
     });
     document.getElementById('account-save').addEventListener(
@@ -1409,7 +1466,7 @@ async function openAccountDialog(required = false, path = '') {
             return;
           }
 
-          finish(true);
+          finishAccount(true);
         } catch (err) {
           error.hidden = false;
           error.textContent = messageOf(err);
@@ -1422,10 +1479,13 @@ async function openAccountDialog(required = false, path = '') {
       'click',
       async () => {
         // eslint-disable-next-line no-alert -- identity backup confirmation is a destructive step.
-        if (!window.confirm('Save the backup in your password manager before continuing?')) return;
+        if (!window.confirm('A private key will appear next. Save it in your password manager.'))
+          return;
         try {
           account = accountFrom(await invoke('create_user_identity', { path: currentPath }));
           renderAccount();
+          await showAccountBackup();
+          setStatus('account', 'Private key ready to back up');
         } catch (err) {
           error.hidden = false;
           error.textContent = messageOf(err);
@@ -1453,11 +1513,18 @@ function chosenKeys(keyInputs) {
 
 export function selectedProjectFiles(rows) {
   return rows
-    .map(({ input, keyInputs, allKeys }) => ({
+    .map(({ input, keyInputs, allKeys, selectedKeys }) => ({
       path: input.value,
       hasPaths: allKeys.length > 0,
       selected: input.checked,
-      keys: keyInputs.length > 0 ? chosenKeys(keyInputs) : input.checked ? allKeys : [],
+      keys:
+        keyInputs.length > 0
+          ? chosenKeys(keyInputs)
+          : selectedKeys
+            ? [...selectedKeys]
+            : input.checked
+              ? allKeys
+              : [],
     }))
     .filter(({ selected, hasPaths, keys }) => selected && (!hasPaths || keys.length > 0))
     .map(({ path, keys }) => ({ path, keys }));
@@ -1522,12 +1589,16 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     let pathCount = 0;
     for (const row of rows) {
       const { input, label, state, keyInputs } = row;
+      const selectedKeyInputs = keyInputs.filter((keyInput) => keyInput.checked);
       const selectedKeys =
         keyInputs.length > 0
-          ? keyInputs.filter((keyInput) => keyInput.checked)
-          : input.checked
-            ? row.allKeys
-            : [];
+          ? selectedKeyInputs.map((keyInput) => keyInput.value)
+          : [...row.selectedKeys];
+      if (keyInputs.length > 0) {
+        row.selectedKeys.clear();
+        for (const key of selectedKeys) row.selectedKeys.add(key);
+      }
+
       const managed = keyInputs.length > 0 ? selectedKeys.length > 0 : input.checked;
       if (managed) fileCount += 1;
       pathCount += selectedKeys.length;
@@ -1571,9 +1642,11 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     const label = document.createElement('label');
     label.className = 'setup-project-file';
     const input = document.createElement('input');
+    const keys = Array.isArray(file.keys) ? file.keys : [];
+    const selectedKeys = new Set(file.selectedKeys || (file.managed || opts.manageAll ? keys : []));
     input.type = 'checkbox';
     input.value = rel;
-    input.checked = opts.manageAll === true;
+    input.checked = file.managed === true || opts.manageAll === true || selectedKeys.size > 0;
     input.dataset.testid = 'setup-project-file-toggle';
     const copy = document.createElement('span');
     copy.className = 'setup-project-file-copy';
@@ -1581,7 +1654,6 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     name.textContent = file.name;
     name.title = rel;
     const meta = document.createElement('small');
-    const keys = Array.isArray(file.keys) ? file.keys : [];
     meta.textContent =
       keys.length > 0
         ? `${labelFor(file.type)} · ${keys.length} selectable path${keys.length === 1 ? '' : 's'}`
@@ -1600,17 +1672,23 @@ function chooseProjectFiles(path, candidates, opts = {}) {
         keyInputs,
         depth: 0,
         checked: input.checked,
+        selectedKeys,
       });
       for (const keyInput of keyInputs) keyInput.addEventListener('change', updateSelection);
     };
 
-    input.addEventListener('change', () => {
+    const setFileSelection = (checked) => {
+      input.checked = checked;
+      selectedKeys.clear();
+      if (checked) for (const key of keys) selectedKeys.add(key);
       for (const keyInput of keyInputs) {
-        keyInput.checked = input.checked;
+        keyInput.checked = checked;
       }
 
       updateSelection();
-    });
+    };
+
+    input.addEventListener('change', () => setFileSelection(input.checked));
     if (keys.length > 0) {
       const disclosure = document.createElement('button');
       disclosure.type = 'button';
@@ -1621,6 +1699,7 @@ function chooseProjectFiles(path, candidates, opts = {}) {
       disclosure.append(icon('chevron'));
       disclosure.addEventListener('click', () => {
         renderKeys();
+        updateSelection();
         keyList.hidden = !keyList.hidden;
         disclosure.setAttribute('aria-expanded', keyList.hidden ? 'false' : 'true');
         disclosure.classList.toggle('is-open', !keyList.hidden);
@@ -1642,6 +1721,7 @@ function chooseProjectFiles(path, candidates, opts = {}) {
       state,
       keyInputs,
       allKeys: keys,
+      selectedKeys,
       entry,
       fileType: file.type,
       searchText: rel.toLowerCase(),
@@ -1694,6 +1774,8 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     folderInput.addEventListener('change', () => {
       for (const row of folder.rows) {
         row.input.checked = folderInput.checked;
+        row.selectedKeys.clear();
+        if (folderInput.checked) for (const key of row.allKeys) row.selectedKeys.add(key);
         for (const keyInput of row.keyInputs) keyInput.checked = folderInput.checked;
       }
 
@@ -1755,6 +1837,10 @@ function chooseProjectFiles(path, candidates, opts = {}) {
 
   dialog.querySelector('h2').textContent =
     opts.heading || `Initialize ${path.split('/').findLast(Boolean) || path}?`;
+  dialog.querySelector('.kicker').textContent = opts.kicker || 'New Project';
+  dialog.querySelector('.setup-project-copy').textContent =
+    opts.copy ||
+    'Choose the files and fields Sopsdeck should manage. Unchecked paths stay untouched.';
   document.getElementById('setup-project-skip').textContent =
     opts.skipLabel || 'Open without initializing';
   document.getElementById('setup-project-init').textContent = opts.action || 'Initialize Project';
@@ -1767,8 +1853,11 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     selectAll.addEventListener(
       'click',
       () => {
-        for (const { input, keyInputs } of rows) {
+        for (const row of rows) {
+          const { input, keyInputs } = row;
           input.checked = true;
+          row.selectedKeys.clear();
+          for (const key of row.allKeys) row.selectedKeys.add(key);
           for (const keyInput of keyInputs) {
             keyInput.checked = true;
           }
@@ -1781,8 +1870,10 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     ignoreAll.addEventListener(
       'click',
       () => {
-        for (const { input, keyInputs } of rows) {
+        for (const row of rows) {
+          const { input, keyInputs } = row;
           input.checked = false;
+          row.selectedKeys.clear();
           for (const keyInput of keyInputs) {
             keyInput.checked = false;
           }
@@ -1796,7 +1887,13 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     document.getElementById('setup-project-init').addEventListener(
       'click',
       () => {
-        finish(selectedProjectFiles(rows));
+        const selected = selectedProjectFiles(rows);
+        if (opts.allowEmptySelection && rows.length === 1) {
+          finish([{ path: rows[0].input.value, keys: selected[0]?.keys || [] }]);
+          return;
+        }
+
+        finish(selected);
       },
       { signal },
     );
@@ -2012,6 +2109,7 @@ async function addManagedFile() {
     let keys = [];
     if (existing) {
       const selected = await chooseProjectFiles(project.path, [existing], {
+        kicker: 'Managed file',
         action: 'Add file',
         heading: `Manage ${rel}?`,
         manageAll: false,
@@ -2033,6 +2131,68 @@ async function addManagedFile() {
     }
 
     document.getElementById('add-file-name').value = '';
+  } catch (err) {
+    showError(messageOf(err));
+  }
+}
+
+async function editProjectFiles() {
+  const project = currentProject();
+  if (!project) return;
+  const projectPath = project.path;
+  const selectedRel =
+    selected?.project.path === projectPath ? safeRel(selected.rel, selected.name) : '';
+  showError('');
+  try {
+    const state = await invoke('inspect_project', { path: projectPath });
+    const managed = state.managed || [];
+    const candidates = [
+      ...managed.map((file) => ({
+        ...file,
+        managed: true,
+        keys: [],
+      })),
+      ...(state.candidates || []),
+    ];
+    const choice = await chooseProjectFiles(projectPath, candidates, {
+      kicker: 'Managed files',
+      heading: 'Manage files in ' + project.name,
+      copy: 'Select the files Sopsdeck should manage. Removing a file only removes it from this Project; it does not delete the file.',
+      action: 'Apply changes',
+      skipLabel: 'Cancel',
+    });
+    if (!choice) return;
+
+    const before = new Map(managed.map((file) => [safeRel(file.rel, file.name), file]));
+    const after = new Map(choice.map((file) => [file.path, file]));
+    for (const [rel] of before) {
+      if (!after.has(rel)) await invoke('remove_project_file', { path: projectPath, file: rel });
+    }
+
+    for (const file of choice) {
+      if (!before.has(file.path)) {
+        await invoke('add_project_file', { path: projectPath, file: file.path, keys: file.keys });
+      }
+    }
+
+    const next = await invoke('inspect_project', { path: projectPath });
+    project.files = next.managed || [];
+    const index = projects.findIndex((item) => item.path === projectPath);
+    projects[index] = project;
+    const stillSelected =
+      selectedRel && project.files.some((file) => safeRel(file.rel, file.name) === selectedRel);
+    renderTree();
+    if (selected?.project.path === projectPath && selectedRel && !stillSelected) {
+      if (project.files[0]) await openFile(project, project.files[0]);
+      else {
+        resetEditorChrome();
+        renderWorkspace();
+      }
+    } else {
+      renderProjectPanel();
+    }
+
+    if (selected) setStatus('file', 'Managed files updated');
   } catch (err) {
     showError(messageOf(err));
   }
@@ -2146,14 +2306,18 @@ function renderAccess() {
       details.append(badge);
     }
 
-    const remove = iconButton(
-      'remove-recipient',
-      `Remove access for ${name.textContent}`,
-      'trash',
-      () => removeRecipient(recipient),
-    );
-    remove.classList.add('danger');
-    row.append(avatar, details, remove);
+    row.append(avatar, details);
+    if (canGrant) {
+      const remove = iconButton(
+        'remove-recipient',
+        `Remove access for ${name.textContent}`,
+        'trash',
+        () => removeRecipient(recipient),
+      );
+      remove.classList.add('danger');
+      row.append(remove);
+    }
+
     list.append(row);
   }
 }
@@ -2214,80 +2378,71 @@ function renderProjectPanel() {
   const owners = Array.isArray(projectConfig.owners) ? projectConfig.owners : [];
   if (owners.length === 0) {
     ownersEl.textContent =
-      'No Project owners listed yet. Anyone with Access can add people until owners are recorded in .sopsdeck.toml.';
+      'No Project owners listed yet. Anyone with Access can manage people until owners are recorded in .sopsdeck.toml.';
     return;
   }
 
   const names = owners.map((owner) => owner.name || owner.key).join(', ');
   ownersEl.textContent = canGrant
-    ? `Owners: ${names}. You can grant Access on this Project.`
+    ? `Owners: ${names}. You can manage Access on this Project.`
     : `Owners: ${names}. Ask an owner to add people, or copy a request.`;
 }
 
 function renderEncryptedFields() {
   const wrap = document.getElementById('file-fields');
-  const list = document.getElementById('encrypted-paths');
-  if (!wrap || !list) return;
+  const summary = document.getElementById('encrypted-path-summary');
+  if (!wrap || !summary) return;
   const structured = Boolean(selected) && isStructuredFormat(formatOf(selected.path));
   wrap.hidden = !structured;
   if (!structured) {
-    list.replaceChildren();
+    summary.textContent = '';
     return;
   }
 
-  list.replaceChildren();
-  const encrypted = visibleRows().filter((row) => row.encrypted);
-  if (encrypted.length === 0) {
-    const empty = document.createElement('li');
-    empty.className = 'save-note';
-    empty.textContent = 'No encrypted paths. Values stay plaintext until you lock a path.';
-    list.append(empty);
-    return;
-  }
-
-  for (const row of encrypted) {
-    const item = document.createElement('li');
-    item.className = 'encrypted-path';
-    const code = document.createElement('code');
-    code.textContent = row.key;
-    const remove = iconButton(
-      'remove-encrypted-path',
-      `Stop encrypting ${row.key}`,
-      'trash',
-      () => {
-        row.encrypted = false;
-        renderKeys();
-      },
-    );
-    remove.classList.add('danger');
-    item.append(code, remove);
-    list.append(item);
-  }
+  const count = rows.filter((row) => !row.deleted && row.encrypted).length;
+  summary.textContent = count
+    ? `${count} encrypted path${count === 1 ? '' : 's'} selected`
+    : 'No encrypted paths selected';
 }
 
-function addEncryptedPath() {
-  const input = document.getElementById('add-encrypted-path');
-  const path = input?.value.trim();
-  if (!path || !selected) return;
-  const existing = rows.find((row) => !row.deleted && row.key === path);
-  if (existing) {
-    existing.encrypted = true;
-  } else {
-    rows.push({
-      key: path,
-      value: '',
-      origKey: '',
-      origValue: '',
-      added: true,
-      deleted: false,
-      revealed: true,
-      encrypted: true,
-      origEncrypted: false,
+async function editEncryptedPaths() {
+  if (!selected || !isStructuredFormat(formatOf(selected.path))) return;
+  try {
+    const pairs = await invoke('get_managed_file', { path: selected.path });
+    const deleted = new Set(rows.filter((row) => row.deleted).map((row) => row.key || row.origKey));
+    const allKeys = [
+      ...new Set([
+        ...(pairs || []).map((pair) => pair.key),
+        ...rows.filter((row) => !row.deleted && row.key).map((row) => row.key),
+      ]),
+    ].filter((key) => key && !deleted.has(key));
+    const file = {
+      name: selected.name,
+      rel: safeRel(selected.rel, selected.name),
+      keys: allKeys,
+      selectedKeys: rows
+        .filter((row) => !row.deleted && row.key && row.encrypted)
+        .map((row) => row.key),
+    };
+    const choice = await chooseProjectFiles(selected.project.path, [file], {
+      kicker: 'Encrypted paths',
+      heading: `Edit encrypted paths in ${selected.name}`,
+      copy: 'Choose the fields Sopsdeck should encrypt. Unchecked fields stay plaintext and remain hidden from the editor.',
+      action: 'Apply paths',
+      allowEmptySelection: true,
+      skipLabel: 'Cancel',
     });
-  }
+    if (!choice?.length) return;
+    const nextKeys = new Set(choice[0].keys);
+    for (const row of rows) {
+      if (!row.deleted && row.key) row.encrypted = nextKeys.has(row.key);
+    }
 
-  input.value = '';
-  renderKeys();
+    renderKeys();
+    setStatus('file', 'Encrypted paths updated locally; save to apply');
+  } catch (err) {
+    showError(messageOf(err));
+  }
 }
 
 async function copyPublicKey(statusKind = 'account') {
@@ -2349,12 +2504,18 @@ async function addRecipient() {
 async function removeRecipient(recipient) {
   if (!selected) return;
   // eslint-disable-next-line no-alert -- removing Access is a destructive confirmation.
-  if (!window.confirm(`Remove ${recipient.name || 'this recipient'} from this file?`)) return;
+  const confirmed = window.confirm(
+    `Remove ${recipient.name || 'this recipient'} from this file? It re-encrypts the current file; they may retain old clones and values.`,
+  );
+  if (!confirmed) return;
   try {
-    await invoke('remove_recipient', { path: selected.path, publicKey: recipient.key });
+    const result = await invoke('remove_recipient', {
+      path: selected.path,
+      publicKey: recipient.key,
+    });
     accessFormOpen = false;
     await loadAccess(selected.path);
-    setStatus('access', `Access removed for ${recipient.name || 'recipient'}`);
+    setStatus('access', result || `Access removed for ${recipient.name || 'recipient'}`);
   } catch (err) {
     showError(messageOf(err), 'access');
   }
@@ -2581,9 +2742,25 @@ if (typeof window !== 'undefined')
     });
     document.getElementById('account').addEventListener('click', () => openAccountDialog());
     document.getElementById('project-account').addEventListener('click', () => openAccountDialog());
+    document.getElementById('edit-project-files').addEventListener('click', editProjectFiles);
     document
       .getElementById('account-copy-key')
       .addEventListener('click', () => copyPublicKey('account'));
+    document.getElementById('account-backup-identity').addEventListener('click', async () => {
+      try {
+        await showAccountBackup();
+        setStatus('account', 'Private key ready to back up');
+      } catch (err) {
+        showError(messageOf(err));
+      }
+    });
+    document.getElementById('account-copy-private-key').addEventListener('click', async () => {
+      const key = document.getElementById('account-private-key').value;
+      if (key && (await copyText(key))) setStatus('account', 'Private key copied');
+    });
+    document
+      .getElementById('account-remove-identity')
+      .addEventListener('click', removeAccountIdentity);
     document
       .getElementById('project-copy-key')
       .addEventListener('click', () => copyPublicKey('file'));
@@ -2591,12 +2768,7 @@ if (typeof window !== 'undefined')
     document
       .getElementById('access-gate-account')
       .addEventListener('click', () => openAccountDialog());
-    document.getElementById('add-encrypted-path-btn').addEventListener('click', addEncryptedPath);
-    document.getElementById('add-encrypted-path').addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      addEncryptedPath();
-    });
+    document.getElementById('edit-encrypted-paths').addEventListener('click', editEncryptedPaths);
     document.getElementById('add-project').addEventListener('click', addProject);
     document.getElementById('project-error-dismiss').addEventListener('click', clearProjectError);
     document.getElementById('add-file').addEventListener('click', addManagedFile);

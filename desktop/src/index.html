@@ -196,12 +196,22 @@
                   title="Edit identity"
                 ></button>
               </div>
+              <div class="project-file-actions">
+                <button
+                  id="edit-project-files"
+                  class="tool compact"
+                  type="button"
+                  data-testid="edit-project-files"
+                >
+                  Edit managed files
+                </button>
+              </div>
               <p id="project-owners" class="save-note" data-testid="project-owners">
-                No Project owners listed yet. Anyone with Access can add people until owners are
+                No Project owners listed yet. Anyone with Access can manage people until owners are
                 recorded in <code>.sopsdeck.toml</code>.
               </p>
               <p class="save-note">
-                Owners are the people who may grant Access. Put a CODEOWNERS file on
+                Owners are the people who may manage Access. Put a CODEOWNERS file on
                 <code>.sopsdeck.toml</code> so GitHub requires their review on Access PRs.
               </p>
             </div>
@@ -254,28 +264,19 @@
               </div>
               <p id="file-status" class="control-status" hidden data-testid="file-status"></p>
               <div id="file-fields" class="file-fields" hidden data-testid="file-fields">
-                <p class="save-note">
-                  Encrypted paths stay ciphertext. Everything else stays plaintext.
-                </p>
-                <ul id="encrypted-paths" class="encrypted-paths" data-testid="encrypted-paths"></ul>
-                <div class="file-field-add">
-                  <input
-                    id="add-encrypted-path"
-                    type="text"
-                    placeholder="build.env.TOKEN"
-                    autocomplete="off"
-                    spellcheck="false"
-                    data-testid="add-encrypted-path"
-                  />
-                  <button
-                    id="add-encrypted-path-btn"
-                    class="tool compact"
-                    type="button"
-                    data-testid="add-encrypted-path-btn"
-                  >
-                    Encrypt path
-                  </button>
-                </div>
+                <p
+                  id="encrypted-path-summary"
+                  class="save-note"
+                  data-testid="encrypted-path-summary"
+                ></p>
+                <button
+                  id="edit-encrypted-paths"
+                  class="tool"
+                  type="button"
+                  data-testid="edit-encrypted-paths"
+                >
+                  Edit encrypted paths
+                </button>
               </div>
             </div>
           </section>
@@ -478,6 +479,26 @@
           </button>
         </span>
       </label>
+      <div id="account-identity-actions" class="compact-actions" hidden>
+        <button id="account-backup-identity" class="tool" type="button">Back up private key</button>
+        <button id="account-remove-identity" class="tool danger" type="button">
+          Remove local identity
+        </button>
+      </div>
+      <div id="account-backup" class="account-backup" hidden data-testid="account-backup">
+        <strong>Save this in your password manager before closing.</strong>
+        <textarea
+          id="account-private-key"
+          readonly
+          spellcheck="false"
+          aria-label="Age private key backup"
+          data-testid="account-private-key"
+        ></textarea>
+        <button id="account-copy-private-key" class="tool primary" type="button">
+          Copy private key
+        </button>
+        <p class="save-note">Clear your clipboard after pasting it.</p>
+      </div>
       <div id="account-request" class="account-request" hidden data-testid="account-request">
         <span class="kicker">Request Access</span>
         <p class="save-note">
