@@ -9,6 +9,7 @@ import { icon, iconButton } from './icons.js';
 import { appendSetupKeyTree, renderKeyRows } from './keys-view.js';
 import { isStructuredFormat, nestLeaves } from './tree.js';
 import { showWhatsNew } from './whatsnew.js';
+/* eslint-disable max-lines -- Project orchestration stays in one browser entrypoint. */
 
 const invoke = invokeOverHTTP;
 const THEME_KEY = 'sopsdeck-theme';
@@ -40,6 +41,7 @@ const crumbEl = () => document.getElementById('breadcrumb');
 const headlineEl = () => document.getElementById('headline');
 const sublineEl = () => document.getElementById('subline');
 const errorEl = () => document.getElementById('error');
+const projectErrorStateEl = () => document.getElementById('project-error-state');
 const gitErrorEl = () => document.getElementById('git-error');
 const saveErrorEl = () => document.getElementById('save-error');
 const accessErrorEl = () => document.getElementById('access-error');
@@ -79,6 +81,27 @@ let integration = {
 let composerFocus = false;
 let pendingPaste = null;
 const treeShowAll = new Set();
+let openFileRequest = 0;
+
+function setLoading(kind, loading) {
+  const element = document.getElementById(`${kind}-skeleton`);
+  if (element) element.hidden = !loading;
+  const content = document.getElementById(kind === 'file' ? 'keys' : kind);
+  if (content) content.hidden = loading;
+}
+
+function setProjectLoading(loading, path = '', message) {
+  const dialog = document.getElementById('project-loading-dialog');
+  if (!dialog) return;
+  const name = path.split('/').findLast(Boolean) || 'project';
+  document.getElementById('project-loading-title').textContent = loading
+    ? `Opening ${name}`
+    : 'Opening project';
+  document.getElementById('project-loading-copy').textContent =
+    message || 'Scanning folders and finding configuration files…';
+  if (loading && !dialog.open) dialog.showModal();
+  if (!loading && dialog.open) dialog.close();
+}
 
 function messageOf(err) {
   if (err instanceof Error) return err.message;
@@ -345,6 +368,7 @@ function clearErrors() {
 }
 
 function showError(msg, region = 'editor') {
+  clearProjectError();
   clearErrors();
   if (!msg) return;
   const el =
@@ -356,6 +380,30 @@ function showError(msg, region = 'editor') {
     }[region] ?? errorEl();
   el.hidden = false;
   el.textContent = msg;
+}
+
+function clearProjectError() {
+  const state = projectErrorStateEl();
+  if (!state) return;
+  state.hidden = true;
+  document.getElementById('project-error-details').textContent = '';
+  if (projects.length === 0) showEmpty('No Project yet. Add a folder from disk.');
+}
+
+function showProjectError(err) {
+  clearErrors();
+  clearProjectError();
+  const message = messageOf(err);
+  const parsing = message.includes('invalid dotenv input line');
+  document.getElementById('project-error-title').textContent = parsing
+    ? 'Couldn’t read a dotenv file'
+    : 'Couldn’t initialize this project';
+  document.getElementById('project-error-copy').textContent = parsing
+    ? 'One of the selected environment files has a value Sopsdeck can’t parse. Fix the file and try adding the project again.'
+    : 'Sopsdeck couldn’t finish setting up the project. Fix the issue and try again.';
+  document.getElementById('project-error-details').textContent = message;
+  projectErrorStateEl().hidden = false;
+  showEmpty('');
 }
 
 function setStatus(kind, text) {
@@ -746,7 +794,13 @@ function renderRecents(nav) {
     btn.className = 'recent-project';
     btn.dataset.testid = 'recent-project';
     btn.textContent = item.name;
-    btn.addEventListener('click', () => addProjectFromPath(item.path));
+    btn.addEventListener('click', async () => {
+      try {
+        await addProjectFromPath(item.path);
+      } catch (err) {
+        showProjectError(err);
+      }
+    });
     wrap.append(btn);
   }
 
@@ -791,10 +845,14 @@ function renderTree() {
       const actions = document.createElement('span');
       actions.className = 'project-actions';
       const move = iconButton('move-project', 'Choose a new Project path', 'folder', async () => {
-        const path = pickProjectFolder();
-        if (!path || path === project.path) return;
-        await addProjectFromPath(path);
-        removeProject(project);
+        try {
+          const path = pickProjectFolder();
+          if (!path || path === project.path) return;
+          await addProjectFromPath(path);
+          removeProject(project);
+        } catch (err) {
+          showProjectError(err);
+        }
       });
       const remove = iconButton('remove-project', 'Remove Project', 'trash', () =>
         removeProject(project),
@@ -821,6 +879,8 @@ function renderTree() {
 }
 
 async function openFile(project, file) {
+  const request = ++openFileRequest;
+  setLoading('file', true);
   selected = { project, ...file };
   pendingPaste = null;
   access = [];
@@ -834,6 +894,8 @@ async function openFile(project, file) {
   crumbEl().textContent = displayPath(project, file);
   headlineEl().textContent = titleOf(file.name);
   showError('');
+  showEmpty('');
+  setFileNote('');
   showAccessGate(false);
   setStatus('file', '');
   badgeEl().hidden = true;
@@ -842,6 +904,7 @@ async function openFile(project, file) {
   document.getElementById('meta-enc').textContent = 'age + SOPS';
   try {
     const pairs = await invoke('get_managed_file', { path: file.path });
+    if (request !== openFileRequest) return;
     const structured = isStructuredFormat(formatOf(file.path));
     rows = pairs.map((p) => {
       const encrypted = structured ? Boolean(p.encrypted) : true;
@@ -862,6 +925,7 @@ async function openFile(project, file) {
     copyFileEl().disabled = false;
     fileHistoryEl().disabled = false;
     const status = await invoke('get_managed_file_status', { path: file.path });
+    if (request !== openFileRequest) return;
     setFileLockState(Boolean(status.locked));
     document.getElementById('meta-enc').textContent = status.locked
       ? 'age + SOPS (locked)'
@@ -869,14 +933,16 @@ async function openFile(project, file) {
     sublineEl().textContent = `${rows.length} secrets · never uploaded`;
     setFileNote(file.name === 'eas.json' ? 'eas.json: EAS CLI will not read SOPS ciphertext' : '');
     renderKeys();
+    loadUnusedKeys(file.path, request);
     await Promise.all([
       loadPublishMapping(file.path),
       loadAccess(file.path),
-      loadUnusedKeys(file.path),
       loadProjectConfig(project.path),
     ]);
+    if (request !== openFileRequest) return;
     renderEncryptedFields();
   } catch (err) {
+    if (request !== openFileRequest) return;
     rows = [];
     keysEl().replaceChildren();
     saveEl().disabled = true;
@@ -889,9 +955,13 @@ async function openFile(project, file) {
       } catch {
         // Access list is optional when the file cannot be decrypted.
       }
+
+      if (request !== openFileRequest) return;
     } else {
       showError(messageOf(err));
     }
+  } finally {
+    if (request === openFileRequest) setLoading('file', false);
   }
 }
 
@@ -1156,40 +1226,65 @@ function renderKeys() {
 }
 
 async function addProjectFromPath(path, opts = {}) {
+  clearProjectError();
   const select = opts.select !== false;
-  let state = await invoke('inspect_project', { path });
-  if (select) await ensureAccount(path);
-  if (!state.initialized && select) {
-    const selectedFiles = await chooseProjectFiles(path, state.candidates || []);
-    if (selectedFiles) {
-      await invoke('initialize_project', { path, files: selectedFiles });
-      state = await invoke('inspect_project', { path });
+  setProjectLoading(true, path);
+  setLoading('tree', true);
+  let state;
+  try {
+    state = await invoke('inspect_project', { path });
+    if (select) await ensureAccount(path);
+    if (!state.initialized && select) {
+      setProjectLoading(false);
+      setLoading('tree', false);
+      const selectedFiles = await chooseProjectFiles(path, state.candidates || []);
+      if (selectedFiles) {
+        const count = selectedFiles.length;
+        setProjectLoading(
+          true,
+          path,
+          `Initializing ${count} selected file${count === 1 ? '' : 's'}…`,
+        );
+        setLoading('tree', true);
+        await invoke('initialize_project', { path, files: selectedFiles });
+        const selectedPaths = new Set(selectedFiles.map((file) => file.path));
+        state = {
+          initialized: true,
+          managed: (state.candidates || [])
+            .filter((file) => selectedPaths.has(safeRel(file.rel, file.name)))
+            .map((file) => ({ ...file, managed: true })),
+          candidates: [],
+        };
+      }
     }
-  }
 
-  const files = state.managed || [];
-  const name = path.split('/').findLast(Boolean) || path;
-  const existing = projects.findIndex((p) => p.path === path);
-  const project = { name, path, files };
-  rememberRecent(project);
-  if (existing === -1) {
-    projects.push(project);
-  } else {
-    projects[existing] = project;
-  }
+    const files = state.managed || [];
+    const name = path.split('/').findLast(Boolean) || path;
+    const existing = projects.findIndex((p) => p.path === path);
+    const project = { name, path, files };
+    rememberRecent(project);
+    if (existing === -1) {
+      projects.push(project);
+    } else {
+      projects[existing] = project;
+    }
 
-  renderTree();
-  if (files[0] && select) {
-    await openFile(project, files[0]);
-    return;
-  }
+    renderTree();
+    if (files[0] && select) {
+      await openFile(project, files[0]);
+      return;
+    }
 
-  if (select && !files[0]) {
-    selected = null;
-    renderWorkspace();
-  }
+    if (select && !files[0]) {
+      selected = null;
+      renderWorkspace();
+    }
 
-  if (select) await loadProjectConfig(path);
+    if (select) await loadProjectConfig(path);
+  } finally {
+    setProjectLoading(false);
+    setLoading('tree', false);
+  }
 }
 
 function avatarURL(kind, seed) {
@@ -1356,6 +1451,18 @@ function chosenKeys(keyInputs) {
   return keyInputs.filter((keyInput) => keyInput.checked).map((keyInput) => keyInput.value);
 }
 
+export function selectedProjectFiles(rows) {
+  return rows
+    .map(({ input, keyInputs, allKeys }) => ({
+      path: input.value,
+      hasPaths: allKeys.length > 0,
+      selected: input.checked,
+      keys: keyInputs.length > 0 ? chosenKeys(keyInputs) : input.checked ? allKeys : [],
+    }))
+    .filter(({ selected, hasPaths, keys }) => selected && (!hasPaths || keys.length > 0))
+    .map(({ path, keys }) => ({ path, keys }));
+}
+
 function chooseProjectFiles(path, candidates, opts = {}) {
   const dialog = document.getElementById('setup-project-dialog');
   const list = document.getElementById('setup-project-files');
@@ -1363,23 +1470,64 @@ function chooseProjectFiles(path, candidates, opts = {}) {
   const selection = document.getElementById('setup-project-selection');
   const selectAll = document.getElementById('setup-project-select-all');
   const ignoreAll = document.getElementById('setup-project-ignore-all');
+  const search = document.getElementById('setup-project-search');
+  const typeFilter = document.getElementById('setup-project-type');
   const rows = [];
+  const folders = [];
+  const root = { files: [], folders: new Map() };
   list.replaceChildren();
   error.hidden = true;
+  search.value = '';
+  typeFilter.value = 'all';
 
-  const formatFor = (rel) => {
+  const typeFor = (rel) => {
     const lower = rel.toLowerCase();
-    if (lower === '.env' || lower.includes('.env')) return 'Environment variables';
-    if (lower.endsWith('.json')) return 'JSON';
-    if (lower.endsWith('.yaml') || lower.endsWith('.yml')) return 'YAML';
-    return 'Configuration file';
+    const name = lower.slice(lower.lastIndexOf('/') + 1);
+    if (name === '.env' || name.endsWith('.env') || name.startsWith('.env.')) return 'env';
+    if (lower.endsWith('.json')) return 'json';
+    if (lower.endsWith('.yaml') || lower.endsWith('.yml')) return 'yaml';
+    return 'other';
   };
+
+  const labelFor = (type) =>
+    ({ env: 'Environment variables', json: 'JSON', yaml: 'YAML', other: 'Other configuration' })[
+      type
+    ];
+
+  for (const file of candidates) {
+    const rel = String(file.rel || file.path || '').replaceAll('\\', '/');
+    const parts = rel.split('/').filter(Boolean);
+    const name = parts.pop() || rel;
+    let node = root;
+    let folderPath = '';
+    for (const part of parts) {
+      folderPath = folderPath ? `${folderPath}/${part}` : part;
+      if (!node.folders.has(part)) {
+        node.folders.set(part, {
+          name: part,
+          path: folderPath,
+          files: [],
+          folders: new Map(),
+        });
+      }
+
+      node = node.folders.get(part);
+    }
+
+    node.files.push({ ...file, rel, name, type: typeFor(rel) });
+  }
 
   const updateSelection = () => {
     let fileCount = 0;
     let pathCount = 0;
-    for (const { input, label, state, keyInputs } of rows) {
-      const selectedKeys = keyInputs.filter((keyInput) => keyInput.checked);
+    for (const row of rows) {
+      const { input, label, state, keyInputs } = row;
+      const selectedKeys =
+        keyInputs.length > 0
+          ? keyInputs.filter((keyInput) => keyInput.checked)
+          : input.checked
+            ? row.allKeys
+            : [];
       const managed = keyInputs.length > 0 ? selectedKeys.length > 0 : input.checked;
       if (managed) fileCount += 1;
       pathCount += selectedKeys.length;
@@ -1399,16 +1547,27 @@ function chooseProjectFiles(path, candidates, opts = {}) {
             : 'Ignore';
     }
 
+    for (const folder of folders) {
+      const selectedRows = folder.rows.filter(({ input }) => input.checked);
+      const completeRows = selectedRows.filter(({ input }) => !input.indeterminate);
+      folder.input.checked = folder.rows.length > 0 && completeRows.length === folder.rows.length;
+      folder.input.indeterminate = selectedRows.length > 0 && !folder.input.checked;
+    }
+
     selection.textContent =
       fileCount === 0
         ? 'No paths selected'
         : `${fileCount} file${fileCount === 1 ? '' : 's'} · ${pathCount || 'all'} paths selected`;
   };
 
-  for (const file of candidates) {
+  const appendFile = (parent, file) => {
     const rel = file.rel || file.path;
     const entry = document.createElement('div');
     entry.className = 'setup-project-entry';
+    entry.dataset.fileType = file.type;
+    entry.dataset.fileName = rel.toLowerCase();
+    const fileRow = document.createElement('div');
+    fileRow.className = 'setup-project-file-row';
     const label = document.createElement('label');
     label.className = 'setup-project-file';
     const input = document.createElement('input');
@@ -1419,13 +1578,14 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     const copy = document.createElement('span');
     copy.className = 'setup-project-file-copy';
     const name = document.createElement('strong');
-    name.textContent = rel;
+    name.textContent = file.name;
+    name.title = rel;
     const meta = document.createElement('small');
     const keys = Array.isArray(file.keys) ? file.keys : [];
     meta.textContent =
       keys.length > 0
-        ? `${formatFor(rel)} · ${keys.length} selectable path${keys.length === 1 ? '' : 's'}`
-        : formatFor(rel);
+        ? `${labelFor(file.type)} · ${keys.length} selectable path${keys.length === 1 ? '' : 's'}`
+        : labelFor(file.type);
     copy.append(name, meta);
     const state = document.createElement('span');
     state.className = 'setup-project-file-state';
@@ -1433,14 +1593,16 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     const keyInputs = [];
     const keyList = document.createElement('div');
     keyList.className = 'setup-project-keys';
-    appendSetupKeyTree(keyList, nestLeaves(keys), {
-      keyInputs,
-      depth: 0,
-      checked: opts.manageAll === true,
-    });
-    for (const keyInput of keyInputs) {
-      keyInput.addEventListener('change', updateSelection);
-    }
+    keyList.hidden = true;
+    const renderKeys = () => {
+      if (keyList.childElementCount > 0) return;
+      appendSetupKeyTree(keyList, nestLeaves(keys), {
+        keyInputs,
+        depth: 0,
+        checked: input.checked,
+      });
+      for (const keyInput of keyInputs) keyInput.addEventListener('change', updateSelection);
+    };
 
     input.addEventListener('change', () => {
       for (const keyInput of keyInputs) {
@@ -1449,18 +1611,147 @@ function chooseProjectFiles(path, candidates, opts = {}) {
 
       updateSelection();
     });
-    entry.append(label);
+    if (keys.length > 0) {
+      const disclosure = document.createElement('button');
+      disclosure.type = 'button';
+      disclosure.className = 'setup-project-file-disclosure';
+      disclosure.dataset.testid = 'setup-project-file-disclosure';
+      disclosure.setAttribute('aria-expanded', 'false');
+      disclosure.setAttribute('aria-label', `Show fields in ${rel}`);
+      disclosure.append(icon('chevron'));
+      disclosure.addEventListener('click', () => {
+        renderKeys();
+        keyList.hidden = !keyList.hidden;
+        disclosure.setAttribute('aria-expanded', keyList.hidden ? 'false' : 'true');
+        disclosure.classList.toggle('is-open', !keyList.hidden);
+      });
+      fileRow.append(disclosure);
+    } else {
+      const spacer = document.createElement('span');
+      spacer.className = 'setup-project-file-disclosure-spacer';
+      fileRow.append(spacer);
+    }
+
+    fileRow.append(label);
+    entry.append(fileRow);
     if (keys.length > 0) entry.append(keyList);
-    list.append(entry);
-    rows.push({ input, label, state, keyInputs });
+    parent.append(entry);
+    rows.push({
+      input,
+      label,
+      state,
+      keyInputs,
+      allKeys: keys,
+      entry,
+      fileType: file.type,
+      searchText: rel.toLowerCase(),
+    });
+    return rows.at(-1);
+  };
+
+  const appendFolder = (parent, node) => {
+    const entry = document.createElement('div');
+    entry.className = 'setup-project-folder-entry';
+    const header = document.createElement('div');
+    header.className = 'setup-project-folder-header';
+    const disclosure = document.createElement('button');
+    disclosure.type = 'button';
+    disclosure.className = 'setup-project-folder-disclosure';
+    disclosure.dataset.testid = 'setup-project-folder-disclosure';
+    disclosure.setAttribute('aria-expanded', 'false');
+    disclosure.append(icon('chevron'), node.name);
+    const folderInput = document.createElement('input');
+    folderInput.type = 'checkbox';
+    folderInput.dataset.testid = 'setup-project-folder-toggle';
+    folderInput.setAttribute('aria-label', `Manage all files in ${node.path}`);
+    const folderLabel = document.createElement('label');
+    folderLabel.className = 'setup-project-folder-select';
+    folderLabel.title = `Manage all files in ${node.path}`;
+    folderLabel.append(folderInput);
+    header.append(disclosure, folderLabel);
+    const body = document.createElement('div');
+    body.className = 'setup-project-folder-body';
+    body.hidden = true;
+    entry.append(header, body);
+    parent.append(entry);
+
+    const folder = {
+      node,
+      entry,
+      body,
+      input: folderInput,
+      disclosure,
+      rows: [],
+      collapsed: true,
+    };
+    folders.push(folder);
+    disclosure.addEventListener('click', () => {
+      folder.collapsed = !folder.collapsed;
+      body.hidden = folder.collapsed;
+      disclosure.setAttribute('aria-expanded', folder.collapsed ? 'false' : 'true');
+      disclosure.classList.toggle('is-open', !folder.collapsed);
+    });
+    folderInput.addEventListener('change', () => {
+      for (const row of folder.rows) {
+        row.input.checked = folderInput.checked;
+        for (const keyInput of row.keyInputs) keyInput.checked = folderInput.checked;
+      }
+
+      updateSelection();
+    });
+
+    const childFolders = [];
+    for (const child of [...node.folders.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+      childFolders.push(appendFolder(body, child));
+    }
+
+    const ownRows = [];
+    for (const file of [...node.files].sort((a, b) => a.name.localeCompare(b.name))) {
+      ownRows.push(appendFile(body, file));
+    }
+
+    folder.rows = [...childFolders.flatMap((child) => child.rows), ...ownRows];
+    return folder;
+  };
+
+  for (const folder of [...root.folders.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+    appendFolder(list, folder);
   }
 
-  if (candidates.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'save-note';
-    empty.textContent = 'No supported configuration files found. You can add one later.';
-    list.append(empty);
+  for (const file of [...root.files].sort((a, b) => a.name.localeCompare(b.name))) {
+    appendFile(list, file);
   }
+
+  const empty = document.createElement('p');
+  empty.className = 'save-note setup-project-filter-empty';
+  empty.hidden = candidates.length > 0;
+  empty.textContent =
+    candidates.length === 0
+      ? 'No supported configuration files found. You can add one later.'
+      : 'No files match this filter.';
+  list.append(empty);
+
+  const applyFilter = () => {
+    const query = search.value.trim().toLowerCase();
+    const type = typeFilter.value;
+    let visible = 0;
+    for (const row of rows) {
+      const matches = (type === 'all' || row.fileType === type) && row.searchText.includes(query);
+      row.entry.hidden = !matches;
+      if (matches) visible += 1;
+    }
+
+    for (const folder of folders) {
+      const matches = folder.rows.some((row) => !row.entry.hidden);
+      folder.entry.hidden = !matches;
+      const expanded = !folder.collapsed || Boolean(query);
+      folder.body.hidden = !expanded;
+      folder.disclosure.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      folder.disclosure.classList.toggle('is-open', expanded);
+    }
+
+    empty.hidden = visible > 0;
+  };
 
   dialog.querySelector('h2').textContent =
     opts.heading || `Initialize ${path.split('/').findLast(Boolean) || path}?`;
@@ -1468,8 +1759,11 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     opts.skipLabel || 'Open without initializing';
   document.getElementById('setup-project-init').textContent = opts.action || 'Initialize Project';
   updateSelection();
+  applyFilter();
   dialog.showModal();
   return withDialog(dialog, ({ signal, finish }) => {
+    search.addEventListener('input', applyFilter, { signal });
+    typeFilter.addEventListener('change', applyFilter, { signal });
     selectAll.addEventListener(
       'click',
       () => {
@@ -1502,16 +1796,7 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     document.getElementById('setup-project-init').addEventListener(
       'click',
       () => {
-        finish(
-          rows
-            .map(({ input, keyInputs }) => ({
-              path: input.value,
-              hasPaths: keyInputs.length > 0,
-              keys: chosenKeys(keyInputs),
-            }))
-            .filter(({ hasPaths, keys }) => !hasPaths || keys.length > 0)
-            .map(({ path, keys }) => ({ path, keys })),
-        );
+        finish(selectedProjectFiles(rows));
       },
       { signal },
     );
@@ -1528,7 +1813,7 @@ async function addProject() {
     if (!selectedPath) return;
     await addProjectFromPath(selectedPath);
   } catch (err) {
-    showError(messageOf(err));
+    showProjectError(err);
   }
 }
 
@@ -2082,8 +2367,14 @@ function openTeamMemberForm() {
 }
 
 function openRobotDialog() {
+  document.getElementById('robot-heading').textContent = 'Create a GitHub Actions identity';
+  document.getElementById('robot-copy').textContent =
+    'Creates a named Age identity and adds its public key to this file. You’ll get the private key to copy when it’s ready.';
+  document.getElementById('robot-name-field').hidden = false;
   document.getElementById('robot-name').value = '';
   document.getElementById('robot-create').hidden = false;
+  document.getElementById('robot-success').hidden = true;
+  document.getElementById('robot-private-key').value = '';
   document.getElementById('robot-error').hidden = true;
   document.getElementById('robot-status').hidden = true;
   window.robotAccount = null;
@@ -2181,30 +2472,35 @@ async function createRobotAccount() {
       await loadAccess(selected.path);
     }
 
-    const copied = await copyText(privateKey);
-    document.getElementById('robot-dialog').close();
-    setStatus(
-      'access',
-      copied
-        ? 'Robot added; private key copied to the clipboard'
-        : 'Robot added; copy the private key from your password manager if you still have it',
-    );
+    document.getElementById('robot-heading').textContent = 'Robot identity created';
+    document.getElementById('robot-copy').textContent =
+      'The public key was added. Copy the private key below into your GitHub Actions secret store.';
+    document.getElementById('robot-name-field').hidden = true;
+    document.getElementById('robot-private-key').value = privateKey;
+    document.getElementById('robot-success').hidden = false;
+    document.getElementById('robot-create').hidden = true;
+    document.getElementById('robot-status').hidden = false;
+    document.getElementById('robot-status').textContent = 'Identity added to this file';
+    setStatus('access', `Robot ${name} added`);
   } catch (err) {
     document.getElementById('robot-error').textContent = messageOf(err);
     document.getElementById('robot-error').hidden = false;
   }
 }
 
-async function loadUnusedKeys(path) {
-  unusedKeys = new Set();
+async function loadUnusedKeys(path, request = openFileRequest) {
+  const next = new Set();
   try {
     const list = await invoke('unused', { path });
-    if (Array.isArray(list)) for (const key of list) unusedKeys.add(key);
+    if (Array.isArray(list)) for (const key of list) next.add(key);
   } catch {
     // Unused analysis is advisory; never block the editor.
   }
 
+  if (request !== openFileRequest) return;
+  unusedKeys = next;
   for (const row of rows) row.unused = unusedKeys.has(row.origKey);
+  if (selected?.path === path) renderKeys();
 }
 
 async function loadDemoHints() {
@@ -2227,8 +2523,12 @@ async function loadDemoHints() {
 }
 
 const clipboardActions = {
-  path(folderPath) {
-    return addProjectFromPath(folderPath, { select: true });
+  async path(folderPath) {
+    try {
+      await addProjectFromPath(folderPath, { select: true });
+    } catch (err) {
+      showProjectError(err);
+    }
   },
   recipient(item) {
     const keyInput = document.getElementById('recipient-key');
@@ -2263,109 +2563,126 @@ const clipboardActions = {
   },
 };
 
-window.addEventListener('DOMContentLoaded', async () => {
-  decorateChrome();
-  initInspector();
-  renderAccount();
-  document.addEventListener('paste', onEditorPaste);
-  applyTheme(currentTheme());
-  document.getElementById('whats-new').addEventListener('click', () => {
-    showWhatsNew((err) => showError(messageOf(err)));
-  });
-  document.getElementById('whats-new-close').addEventListener('click', () => {
-    document.getElementById('whats-new-dialog').close();
-  });
-  document.getElementById('theme-toggle').addEventListener('click', () => {
-    applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
-  });
-  document.getElementById('account').addEventListener('click', () => openAccountDialog());
-  document.getElementById('project-account').addEventListener('click', () => openAccountDialog());
-  document
-    .getElementById('account-copy-key')
-    .addEventListener('click', () => copyPublicKey('account'));
-  document
-    .getElementById('project-copy-key')
-    .addEventListener('click', () => copyPublicKey('file'));
-  document.getElementById('account-copy-request').addEventListener('click', requestAccess);
-  document
-    .getElementById('access-gate-account')
-    .addEventListener('click', () => openAccountDialog());
-  document.getElementById('add-encrypted-path-btn').addEventListener('click', addEncryptedPath);
-  document.getElementById('add-encrypted-path').addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    addEncryptedPath();
-  });
-  document.getElementById('add-project').addEventListener('click', addProject);
-  document.getElementById('add-file').addEventListener('click', addManagedFile);
-  document.getElementById('add-file-name').addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    addManagedFile();
-  });
-  saveEl().addEventListener('click', saveFile);
-  fileLockEl().addEventListener('click', toggleFileLock);
-  copyFileEl().addEventListener('click', copyFileContents);
-  fileHistoryEl().addEventListener('click', showFileHistory);
-  document.getElementById('grant-access').addEventListener('click', addRecipient);
-  document.getElementById('create-robot').addEventListener('click', openRobotDialog);
-  document.getElementById('add-team-member').addEventListener('click', openTeamMemberForm);
-  document.getElementById('add-bot-account').addEventListener('click', openRobotDialog);
-  document.getElementById('github-integration').addEventListener('click', openIntegrationDialog);
-  document.getElementById('integration-scope').addEventListener('change', updateIntegrationFields);
-  document
-    .getElementById('integration-cancel')
-    .addEventListener('click', () => document.getElementById('integration-dialog').close());
-  document.getElementById('integration-save').addEventListener('click', async () => {
+if (typeof window !== 'undefined')
+  window.addEventListener('DOMContentLoaded', async () => {
+    decorateChrome();
+    initInspector();
+    renderAccount();
+    document.addEventListener('paste', onEditorPaste);
+    applyTheme(currentTheme());
+    document.getElementById('whats-new').addEventListener('click', () => {
+      showWhatsNew((err) => showError(messageOf(err)));
+    });
+    document.getElementById('whats-new-close').addEventListener('click', () => {
+      document.getElementById('whats-new-dialog').close();
+    });
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    });
+    document.getElementById('account').addEventListener('click', () => openAccountDialog());
+    document.getElementById('project-account').addEventListener('click', () => openAccountDialog());
+    document
+      .getElementById('account-copy-key')
+      .addEventListener('click', () => copyPublicKey('account'));
+    document
+      .getElementById('project-copy-key')
+      .addEventListener('click', () => copyPublicKey('file'));
+    document.getElementById('account-copy-request').addEventListener('click', requestAccess);
+    document
+      .getElementById('access-gate-account')
+      .addEventListener('click', () => openAccountDialog());
+    document.getElementById('add-encrypted-path-btn').addEventListener('click', addEncryptedPath);
+    document.getElementById('add-encrypted-path').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      addEncryptedPath();
+    });
+    document.getElementById('add-project').addEventListener('click', addProject);
+    document.getElementById('project-error-dismiss').addEventListener('click', clearProjectError);
+    document.getElementById('add-file').addEventListener('click', addManagedFile);
+    document.getElementById('add-file-name').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      addManagedFile();
+    });
+    saveEl().addEventListener('click', saveFile);
+    fileLockEl().addEventListener('click', toggleFileLock);
+    copyFileEl().addEventListener('click', copyFileContents);
+    fileHistoryEl().addEventListener('click', showFileHistory);
+    document.getElementById('grant-access').addEventListener('click', addRecipient);
+    document.getElementById('create-robot').addEventListener('click', openRobotDialog);
+    document.getElementById('add-team-member').addEventListener('click', openTeamMemberForm);
+    document.getElementById('add-bot-account').addEventListener('click', openRobotDialog);
+    document.getElementById('github-integration').addEventListener('click', openIntegrationDialog);
+    document
+      .getElementById('integration-scope')
+      .addEventListener('change', updateIntegrationFields);
+    document
+      .getElementById('integration-cancel')
+      .addEventListener('click', () => document.getElementById('integration-dialog').close());
+    document.getElementById('integration-save').addEventListener('click', async () => {
+      try {
+        await saveIntegrationConfig();
+        document.getElementById('integration-dialog-status').hidden = false;
+        document.getElementById('integration-dialog-status').textContent = 'Configuration saved';
+      } catch (err) {
+        const error = document.getElementById('integration-dialog-error');
+        error.hidden = false;
+        error.textContent = messageOf(err);
+      }
+    });
+    document.getElementById('integration-sync').addEventListener('click', syncIntegration);
+    document
+      .getElementById('robot-cancel')
+      .addEventListener('click', () => document.getElementById('robot-dialog').close());
+    document.getElementById('robot-create').addEventListener('click', createRobotAccount);
+    document.getElementById('robot-copy-key').addEventListener('click', async () => {
+      const copied = await copyText(document.getElementById('robot-private-key').value);
+      const status = document.getElementById('robot-status');
+      status.hidden = false;
+      status.textContent = copied
+        ? 'Private key copied to the clipboard'
+        : 'Could not copy the private key';
+    });
+    document
+      .getElementById('file-history-close')
+      .addEventListener('click', () => document.getElementById('file-history-dialog').close());
+    document
+      .getElementById('secret-history-close')
+      .addEventListener('click', () => document.getElementById('secret-history-dialog').close());
+    document.getElementById('clipboard-dismiss').addEventListener('click', () => {
+      const dialog = document.getElementById('clipboard-dialog');
+      dismissClipboard(dialog.dataset.clipboardText || '');
+      dialog.close();
+    });
+    window.addEventListener('focus', () => {
+      setTimeout(() => sniffClipboard(clipboardActions), 200);
+    });
+    window.addEventListener('blur', () => {
+      resetClipboardSeen();
+    });
+    renderWorkspace();
+    if (skipBoot()) return;
+    setProjectLoading(true, '', 'Loading your recent project…');
+    setLoading('tree', true);
     try {
-      await saveIntegrationConfig();
-      document.getElementById('integration-dialog-status').hidden = false;
-      document.getElementById('integration-dialog-status').textContent = 'Configuration saved';
-    } catch (err) {
-      const error = document.getElementById('integration-dialog-error');
-      error.hidden = false;
-      error.textContent = messageOf(err);
-    }
-  });
-  document.getElementById('integration-sync').addEventListener('click', syncIntegration);
-  document
-    .getElementById('robot-cancel')
-    .addEventListener('click', () => document.getElementById('robot-dialog').close());
-  document.getElementById('robot-create').addEventListener('click', createRobotAccount);
-  document
-    .getElementById('file-history-close')
-    .addEventListener('click', () => document.getElementById('file-history-dialog').close());
-  document
-    .getElementById('secret-history-close')
-    .addEventListener('click', () => document.getElementById('secret-history-dialog').close());
-  document.getElementById('clipboard-dismiss').addEventListener('click', () => {
-    const dialog = document.getElementById('clipboard-dialog');
-    dismissClipboard(dialog.dataset.clipboardText || '');
-    dialog.close();
-  });
-  window.addEventListener('focus', () => {
-    setTimeout(() => sniffClipboard(clipboardActions), 200);
-  });
-  window.addEventListener('blur', () => {
-    resetClipboardSeen();
-  });
-  renderWorkspace();
-  if (skipBoot()) return;
-  try {
-    const boot = await invoke('boot_project');
-    let demo = false;
-    try {
-      const response = await fetch('/demo');
-      demo = response.ok;
-    } catch {
-      demo = false;
-    }
+      const boot = await invoke('boot_project');
+      let demo = false;
+      try {
+        const response = await fetch('/demo');
+        demo = response.ok;
+      } catch {
+        demo = false;
+      }
 
-    focusedProject = Boolean(boot) && !demo;
-    document.body.classList.toggle('focused-project', focusedProject);
-    if (boot) await addProjectFromPath(boot);
-    if (!focusedProject) await loadDemoHints();
-  } catch (err) {
-    showError(messageOf(err));
-  }
-});
+      focusedProject = Boolean(boot) && !demo;
+      document.body.classList.toggle('focused-project', focusedProject);
+      if (boot) await addProjectFromPath(boot);
+      if (!focusedProject) await loadDemoHints();
+    } catch (err) {
+      showProjectError(err);
+    } finally {
+      setProjectLoading(false);
+    }
+  });
+/* eslint-enable max-lines */

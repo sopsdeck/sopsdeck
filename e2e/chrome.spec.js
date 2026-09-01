@@ -97,6 +97,52 @@ test('GitHub integration offers Sync now', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
 });
 
+test('robot identity stays open with a copyable private key', async ({ page }) => {
+  const commands = [];
+  await page.route('**/invoke', async (route) => {
+    const data = route.request().postDataJSON();
+    if (data?.cmd === 'create_robot_identity') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            name: 'Deploy bot',
+            public_key: 'age1test',
+            private_key: '# public key: age1test\nAGE-SECRET-KEY-TEST',
+          },
+        }),
+      });
+      return;
+    }
+    if (data?.cmd === 'add_recipient' || data?.cmd === 'list_file_access') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ result: data.cmd === 'list_file_access' ? [] : null }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  page.on('request', (request) => {
+    if (!request.url().endsWith('/invoke')) return;
+    try {
+      commands.push(request.postDataJSON()?.cmd);
+    } catch {
+      // Ignore non-JSON requests.
+    }
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByRole('button', { name: 'Add bot / integration account' }).click();
+  await page.getByTestId('robot-dialog').getByPlaceholder('Deploy bot').fill('Deploy bot');
+  await page.getByRole('button', { name: 'Create identity' }).click();
+  await expect(page.getByTestId('robot-dialog')).toBeVisible();
+  await expect(page.getByTestId('robot-private-key')).toHaveValue(/AGE-SECRET-KEY-/);
+  expect(commands.filter((command) => command === 'copy_text')).toHaveLength(0);
+});
+
 test('save preview lists edited keys before commit', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');

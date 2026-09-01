@@ -40,6 +40,12 @@
           </div>
         </div>
         <nav id="tree" class="tree" aria-label="Local projects" data-testid="tree"></nav>
+        <div id="tree-skeleton" class="skeleton-stack tree-skeleton" hidden aria-hidden="true">
+          <span class="skeleton-line skeleton-line-short"></span>
+          <span class="skeleton-line"></span>
+          <span class="skeleton-line skeleton-line-medium"></span>
+          <span class="skeleton-line"></span>
+        </div>
         <div class="side-foot">
           <div class="add-file">
             <input
@@ -102,6 +108,26 @@
           </div>
         </header>
         <p id="error" class="error" hidden data-testid="editor-error"></p>
+        <section
+          id="project-error-state"
+          class="project-error-state"
+          hidden
+          role="alert"
+          aria-labelledby="project-error-title"
+          data-testid="project-error-state"
+        >
+          <div class="project-error-icon" aria-hidden="true">!</div>
+          <div>
+            <p class="kicker">Project setup stopped</p>
+            <h2 id="project-error-title">Couldn’t initialize this project</h2>
+            <p id="project-error-copy" class="project-error-copy"></p>
+            <details class="project-error-details">
+              <summary>Show technical details</summary>
+              <pre id="project-error-details"></pre>
+            </details>
+            <button id="project-error-dismiss" class="tool" type="button">Dismiss</button>
+          </div>
+        </section>
         <div id="access-gate" class="access-gate" hidden data-testid="access-gate">
           <p class="kicker">Access</p>
           <h2>You don’t have Access to this file</h2>
@@ -113,6 +139,13 @@
         </div>
         <p id="empty-state" class="empty-state" hidden data-testid="empty-state"></p>
         <p id="file-note" class="file-note" hidden data-testid="file-note"></p>
+        <div id="file-skeleton" class="skeleton-stack file-skeleton" hidden aria-hidden="true">
+          <span class="skeleton-line skeleton-line-short"></span>
+          <span class="skeleton-line"></span>
+          <span class="skeleton-line skeleton-line-medium"></span>
+          <span class="skeleton-line"></span>
+          <span class="skeleton-line skeleton-line-short"></span>
+        </div>
         <div id="keys" class="keys" data-testid="keys"></div>
       </section>
       <aside class="inspector">
@@ -548,19 +581,32 @@
     </dialog>
     <dialog id="robot-dialog" class="product-dialog" data-testid="robot-dialog">
       <p class="kicker">Robot account</p>
-      <h2>Create a GitHub Actions identity</h2>
-      <p class="dialog-copy">
-        Creates a named Age identity, copies the private key once, and adds the public key to this
-        file.
+      <h2 id="robot-heading">Create a GitHub Actions identity</h2>
+      <p id="robot-copy" class="dialog-copy">
+        Creates a named Age identity and adds its public key to this file. You’ll get the private
+        key to copy when it’s ready.
       </p>
-      <label class="commit-label"
+      <label id="robot-name-field" class="commit-label"
         >Name<input id="robot-name" type="text" placeholder="Deploy bot"
       /></label>
+      <div id="robot-success" class="robot-success" hidden>
+        <strong>Save this private key somewhere secure.</strong>
+        <textarea
+          id="robot-private-key"
+          readonly
+          spellcheck="false"
+          aria-label="Private Age key"
+          data-testid="robot-private-key"
+        ></textarea>
+        <button id="robot-copy-key" class="tool primary" type="button" data-testid="robot-copy-key">
+          Copy private key
+        </button>
+      </div>
       <div class="dialog-actions">
         <button id="robot-cancel" class="tool" type="button">Close</button>
         <button id="robot-create" class="tool primary" type="button">Create identity</button>
       </div>
-      <p id="robot-status" class="control-status" hidden></p>
+      <p id="robot-status" class="control-status" role="status" aria-live="polite" hidden></p>
       <p id="robot-error" class="control-error" hidden></p>
     </dialog>
     <dialog id="whats-new-dialog" class="whats-new-dialog" data-testid="whats-new-dialog">
@@ -576,6 +622,24 @@
       >
         Close
       </button>
+    </dialog>
+    <dialog
+      id="project-loading-dialog"
+      class="project-loading-dialog"
+      data-testid="project-loading-dialog"
+      aria-labelledby="project-loading-title"
+    >
+      <div class="project-loading-icon" aria-hidden="true"><span></span></div>
+      <p class="kicker">Project</p>
+      <h2 id="project-loading-title">Opening project</h2>
+      <p id="project-loading-copy" class="dialog-copy" role="status" aria-live="polite">
+        Scanning folders and finding configuration files…
+      </p>
+      <div class="project-loading-preview" aria-hidden="true">
+        <span class="skeleton-line skeleton-line-wide"></span>
+        <span class="skeleton-line"></span>
+        <span class="skeleton-line skeleton-line-medium"></span>
+      </div>
     </dialog>
     <dialog
       id="setup-project-dialog"
@@ -597,6 +661,23 @@
             Ignore all
           </button>
         </span>
+      </div>
+      <div class="setup-project-filters">
+        <input
+          id="setup-project-search"
+          type="search"
+          placeholder="Filter files…"
+          autocomplete="off"
+          spellcheck="false"
+          data-testid="setup-project-search"
+        />
+        <select id="setup-project-type" data-testid="setup-project-type">
+          <option value="all">All file types</option>
+          <option value="env">Environment variables</option>
+          <option value="json">JSON</option>
+          <option value="yaml">YAML</option>
+          <option value="other">Other configuration</option>
+        </select>
       </div>
       <div
         id="setup-project-files"
