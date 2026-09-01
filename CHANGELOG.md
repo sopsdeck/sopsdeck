@@ -4,6 +4,22 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+## 0.2.0 - 2026-09-01
+
+### Added
+
+- Project setup now has loading and recovery states, file filtering, and per-field JSON/YAML selection. Managed files can be added or removed from a Project without deleting the underlying file, and encrypted paths can be edited after setup.
+- Account shows a copyable Age private-key backup and can remove the local identity. The CLI adds `identity remove --yes`, and identity creation/import no longer require `SOPSDECK_STATE_DIR`.
+
+### Fixed
+
+- Multiline dotenv values now retain their embedded newlines.
+
+### Changed
+
+- Project owners now control both adding and removing Recipients. Recipient removal re-encrypts the current file while clearly preserving the limits of revocation.
+- The landing page development banner and product layout now share one consistent treatment.
+
 ## 0.1.2 - 2026-09-01
 
 ### Fixed

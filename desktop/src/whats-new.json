@@ -1,16 +1,31 @@
 {
-  "version": "0.1.2",
-  "heading": "0.1.2",
+  "version": "0.2.0",
+  "heading": "0.2.0",
   "date": "2026-09-01",
   "notes": [
     {
-      "text": "Opening `sd` in a project with a lockfile (e.g. `package-lock.json`) crashed the setup tree on the empty-string root key under `packages`. Lockfiles are now excluded from candidates and the key-path tree tolerates empty segments.",
+      "text": "Project setup now has loading and recovery states, file filtering, and per-field JSON/YAML selection. Managed files can be added or removed from a Project without deleting the underlying file, and encrypted paths can be edited after setup.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Account shows a copyable Age private-key backup and can remove the local identity. The CLI adds `identity remove --yes`, and identity creation/import no longer require `SOPSDECK_STATE_DIR`.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Multiline dotenv values now retain their embedded newlines.",
       "type": "bugfix",
       "platforms": []
     },
     {
-      "text": "A freshly-created identity could encrypt a file but not decrypt it: the desktop stores the Age key in the OS keychain, but SOPS only reads `SOPS_AGE_KEY*` from the environment. The drive now bridges the keychain identity into `SOPS_AGE_KEY` so owners can open their own files.",
-      "type": "bugfix",
+      "text": "Project owners now control both adding and removing Recipients. Recipient removal re-encrypts the current file while clearly preserving the limits of revocation.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "The landing page development banner and product layout now share one consistent treatment.",
+      "type": "changed",
       "platforms": []
     }
   ]
