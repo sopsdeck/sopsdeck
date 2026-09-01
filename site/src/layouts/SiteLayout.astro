@@ -1,7 +1,7 @@
 ---
 import '../styles/site.css';
 
-const { title, description, active = '', narrow = false } = Astro.props;
+const { title, description, active = '', narrow = false, showDevBanner = false } = Astro.props;
 const canonical = `https://sopsdeck.com${Astro.url.pathname}`;
 ---
 
@@ -33,6 +33,14 @@ const canonical = `https://sopsdeck.com${Astro.url.pathname}`;
     />
   </head>
   <body>
+    {
+      showDevBanner && (
+        <p class="dev-banner" data-testid="site-dev-banner">
+          Sopsdeck is under development. Expect rough edges.
+          <a href="https://github.com/sopsdeck/sopsdeck/issues/new">Submit a GitHub issue</a>
+        </p>
+      )
+    }
     <div class:list={['wrap', { narrow }]}>
       <header>
         <a class="logo" href="/">

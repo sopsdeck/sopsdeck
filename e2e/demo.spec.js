@@ -30,6 +30,7 @@ async function hold(page, ms) {
 async function boot(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
+  await page.getByTestId('dev-banner').evaluate((banner) => banner.remove());
   await expect(page.getByTestId('headline')).toHaveText('Production');
   await assertReadablePaths(page);
 }
