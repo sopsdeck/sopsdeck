@@ -78,6 +78,19 @@ func TestIdentityCreateStoresKeySoDecryptWorksWithoutAgeFile(t *testing.T) {
 	}
 }
 
+func TestIdentityCreateDoesNotRequireStateDir(t *testing.T) {
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", t.TempDir())
+	t.Setenv("SOPSDECK_STATE_DIR", "")
+
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("create exit %d stderr=%q", code, stderr.String())
+	}
+	if !bytes.HasPrefix(stdout.Bytes(), []byte("age1")) {
+		t.Fatalf("stdout=%q, want public key", stdout.String())
+	}
+}
+
 func TestIdentityImportWithBackupConfirmRestoresAccess(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", state)
@@ -127,6 +140,24 @@ func TestIdentityKeyPrintsStoredIdentity(t *testing.T) {
 	}
 	if bytes.Contains(stderr.Bytes(), []byte("AGE-SECRET-KEY-")) {
 		t.Fatalf("stderr leaked private key: %q", stderr.String())
+	}
+}
+
+func TestIdentityRemoveDeletesStoredIdentity(t *testing.T) {
+	state := t.TempDir()
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", state)
+
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"identity", "create", "--confirmed-backup"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("create exit %d stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"identity", "remove", "--yes"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("remove exit %d stderr=%q", code, stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(state, "identity")); !os.IsNotExist(err) {
+		t.Fatalf("identity remains after remove: %v", err)
 	}
 }
 

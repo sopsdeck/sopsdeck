@@ -385,6 +385,9 @@ func invokeRead(req invokeReq, getenv func(string) string) (any, error, bool) {
 		return out, err, true
 	case "get_account":
 		return accountForPath(req.Path, getenv), nil, true
+	case "get_user_identity_backup":
+		out, err := invokeIdentityBackup(getenv)
+		return out, err, true
 	case "list_file_access":
 		out, err := invokeRecipientList(req.Path, getenv)
 		return out, err, true
@@ -416,6 +419,9 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 	case "add_project_file":
 		out, err := invokeAddProjectFile(req, getenv)
 		return out, err, true
+	case "remove_project_file":
+		out, err := invokeProject([]string{"remove", req.Path, "--file", req.File}, getenv)
+		return out, err, true
 	case "set_encrypted_keys":
 		return nil, setFileEncryptedKeys(req.Path, req.Keys, getenv), true
 	case "configure_account":
@@ -424,6 +430,8 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 	case "create_user_identity":
 		out, err := invokeCreateUserIdentity(req.Path, getenv)
 		return out, err, true
+	case "remove_user_identity":
+		return nil, invokeIdentityRemove(getenv), true
 	case "create_robot_identity":
 		out, err := invokeRobot(req.Name)
 		return out, err, true
@@ -504,7 +512,7 @@ func invokeProject(args []string, getenv func(string) string) (any, error) {
 	if err := cliErr(cmdProject(args, &stdout, &stderr, getenv), &stderr); err != nil {
 		return nil, err
 	}
-	if args[0] == "init" || args[0] == "add" {
+	if args[0] == "init" || args[0] == "add" || args[0] == "remove" {
 		return strings.TrimSpace(stdout.String()), nil
 	}
 	var state projectState

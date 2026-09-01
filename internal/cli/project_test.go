@@ -133,6 +133,30 @@ func TestProjectAddPreservesSelectedPathsWhenInitializing(t *testing.T) {
 	}
 }
 
+func TestProjectRemoveStopsManagingFileWithoutDeletingIt(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, ".env.production")
+	mustWriteFile(t, file, "API_URL=https://example.test\n")
+
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", ".env.production"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	stdout.Reset()
+	stderr.Reset()
+	mustCLI(t, cmdProject([]string{"remove", root, "--file", ".env.production"}, &stdout, &stderr, os.Getenv), &stderr, "remove")
+
+	state, err := inspectProject(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Managed) != 0 || len(state.Candidates) != 1 {
+		t.Fatalf("state=%+v", state)
+	}
+	if _, err := os.Stat(file); err != nil {
+		t.Fatalf("removed file: %v", err)
+	}
+}
+
 func TestProjectInitEncryptsOnlySelectedJSONLeaf(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
 	root := t.TempDir()

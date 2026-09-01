@@ -259,6 +259,26 @@ func TestDriveInvokeAddsRecipient(t *testing.T) {
 	}
 }
 
+func TestDriveInvokeBacksUpAndRemovesIdentity(t *testing.T) {
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", t.TempDir())
+	srv := httptest.NewServer(&drive{getenv: os.Getenv})
+	t.Cleanup(srv.Close)
+
+	created := postInvoke(t, srv.URL, invokeReq{Cmd: "create_user_identity"})
+	if !bytes.Contains(created, []byte("age1")) {
+		t.Fatalf("create=%s", created)
+	}
+	backup := postInvoke(t, srv.URL, invokeReq{Cmd: "get_user_identity_backup"})
+	if !bytes.Contains(backup, []byte("AGE-SECRET-KEY-")) {
+		t.Fatalf("backup did not contain private key")
+	}
+	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "remove_user_identity"})
+	account := postInvoke(t, srv.URL, invokeReq{Cmd: "get_account"})
+	if !bytes.Contains(account, []byte(`"has_identity":false`)) {
+		t.Fatalf("account=%s", account)
+	}
+}
+
 func postInvoke(t *testing.T, base string, req invokeReq) []byte {
 	t.Helper()
 	body, err := json.Marshal(req)

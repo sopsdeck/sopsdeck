@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -32,4 +33,18 @@ func getIdentity(getenv func(string) string) (string, error) {
 		return string(data), nil
 	}
 	return keyring.Get(keychainService, keychainAccount)
+}
+
+func deleteIdentity(getenv func(string) string) error {
+	if dir := getenv("SOPSDECK_KEYCHAIN_DIR"); dir != "" {
+		err := os.Remove(filepath.Join(dir, keychainFileName))
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if err := keyring.Delete(keychainService, keychainAccount); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+		return err
+	}
+	return nil
 }

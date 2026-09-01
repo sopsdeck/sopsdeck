@@ -150,3 +150,26 @@ func invokeCreateUserIdentity(path string, getenv func(string) string) (any, err
 	}
 	return accountForPath(path, getenv), nil
 }
+
+func invokeIdentityBackup(getenv func(string) string) (string, error) {
+	var stdout, stderr strings.Builder
+	if code := identityPrintKey(&stdout, &stderr, getenv); code == 0 {
+		return strings.TrimSpace(stdout.String()), nil
+	}
+	if path := getenv("SOPS_AGE_KEY_FILE"); path != "" {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(body)), nil
+	}
+	return "", fmt.Errorf("%s", strings.TrimSpace(stderr.String()))
+}
+
+func invokeIdentityRemove(getenv func(string) string) error {
+	var stderr strings.Builder
+	if code := identityRemove([]string{"--yes"}, &stderr, getenv); code != 0 {
+		return fmt.Errorf("%s", strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}

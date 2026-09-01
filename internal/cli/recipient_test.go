@@ -397,6 +397,15 @@ func TestRecipientAddRefusesWhenNotOwner(t *testing.T) {
 	if code := Main([]string{"set", "HELLO", "world", "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
 		t.Fatalf("set exit %d stderr=%q", code, stderr.String())
 	}
+	extra, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "add", extra.Recipient().String(), "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("recipient add exit %d stderr=%q", code, stderr.String())
+	}
 	outsider, err := age.GenerateX25519Identity()
 	if err != nil {
 		t.Fatal(err)
@@ -405,14 +414,18 @@ func TestRecipientAddRefusesWhenNotOwner(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".sopsdeck.toml"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	extra, err := age.GenerateX25519Identity()
-	if err != nil {
-		t.Fatal(err)
-	}
 	stdout.Reset()
 	stderr.Reset()
 	if code := Main([]string{"recipient", "add", extra.Recipient().String(), "-f", file, "--name", "Bob"}, os.Stdin, &stdout, &stderr, aliceEnv); code == 0 {
 		t.Fatal("non-owner recipient add succeeded")
+	}
+	if !strings.Contains(stderr.String(), "only a Project owner") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"recipient", "remove", extra.Recipient().String(), "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code == 0 {
+		t.Fatal("non-owner recipient remove succeeded")
 	}
 	if !strings.Contains(stderr.String(), "only a Project owner") {
 		t.Fatalf("stderr=%q", stderr.String())

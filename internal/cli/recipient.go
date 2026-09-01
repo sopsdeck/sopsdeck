@@ -124,6 +124,10 @@ func recipientRemove(args []string, stderr io.Writer, getenv func(string) string
 		fmt.Fprintln(stderr, errMsg)
 		return 1
 	}
+	if err := denyUnlessOwner(file, getenv); err != nil {
+		fmt.Fprintf(stderr, "recipient remove: %v\n", err)
+		return 1
+	}
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
 	tree, err := common.LoadEncryptedFile(store, file)

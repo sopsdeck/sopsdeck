@@ -754,7 +754,7 @@ func dotenvValue(plain []byte, key string) (string, bool, error) {
 
 func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import|key [--confirmed-backup]")
+		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import|key|remove [--confirmed-backup]")
 		return 1
 	}
 	switch args[0] {
@@ -764,27 +764,17 @@ func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) st
 		return identityImport(args[1:], stdout, stderr, getenv)
 	case "key":
 		return identityPrintKey(stdout, stderr, getenv)
+	case "remove":
+		return identityRemove(args[1:], stderr, getenv)
 	default:
-		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import|key [--confirmed-backup]")
+		fmt.Fprintln(stderr, "usage: sopsdeck identity create|import|key|remove [--confirmed-backup]")
 		return 1
 	}
-}
-
-func identityStateDir(getenv func(string) string, stderr io.Writer) (string, bool) {
-	dir := getenv("SOPSDECK_STATE_DIR")
-	if dir == "" {
-		fmt.Fprintln(stderr, "identity: SOPSDECK_STATE_DIR is required")
-		return "", false
-	}
-	return dir, true
 }
 
 func identityCreate(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	if !identityConfirmed(args) {
 		fmt.Fprintln(stderr, "identity create: save the private key in your password manager, then rerun with --confirmed-backup")
-		return 1
-	}
-	if _, ok := identityStateDir(getenv, stderr); !ok {
 		return 1
 	}
 	id, err := age.GenerateX25519Identity()
@@ -827,9 +817,6 @@ func identityImport(args []string, stdout, stderr io.Writer, getenv func(string)
 		fmt.Fprintln(stderr, "identity import: confirm the private key is in your password manager with --confirmed-backup")
 		return 1
 	}
-	if _, ok := identityStateDir(getenv, stderr); !ok {
-		return 1
-	}
 	data, err := os.ReadFile(file)
 	if err != nil {
 		fmt.Fprintf(stderr, "identity import: %v\n", err)
@@ -856,6 +843,19 @@ func identityPrintKey(stdout, stderr io.Writer, getenv func(string) string) int 
 		body += "\n"
 	}
 	fmt.Fprint(stdout, body)
+	return 0
+}
+
+func identityRemove(args []string, stderr io.Writer, getenv func(string) string) int {
+	if len(args) != 1 || args[0] != "--yes" {
+		fmt.Fprintln(stderr, "usage: sopsdeck identity remove --yes")
+		return 1
+	}
+	if err := deleteIdentity(getenv); err != nil {
+		fmt.Fprintf(stderr, "identity remove: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stderr, "identity remove: removed this machine's keychain identity; encrypted files and Recipient access are unchanged")
 	return 0
 }
 

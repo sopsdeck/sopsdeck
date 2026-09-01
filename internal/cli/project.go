@@ -38,7 +38,7 @@ type projectSelection struct {
 	Keys []string `json:"keys"`
 }
 
-const projectUsage = "usage: sopsdeck project files FOLDER | init FOLDER [--file PATH]... | add FOLDER --file PATH | encrypt FILE --keys PATH,..."
+const projectUsage = "usage: sopsdeck project files FOLDER | init FOLDER [--file PATH]... | add FOLDER --file PATH | remove FOLDER --file PATH | encrypt FILE --keys PATH,..."
 
 const neverMatchRegex = `[^\s\S]`
 
@@ -67,6 +67,8 @@ func cmdProject(args []string, stdout, stderr io.Writer, getenv func(string) str
 		return initProject(args[1:], stdout, stderr, getenv)
 	case "add":
 		return addProjectFile(args[1:], stdout, stderr, getenv)
+	case "remove":
+		return removeProjectFile(args[1:], stdout, stderr)
 	case "encrypt":
 		return encryptProjectKeys(args[1:], stdout, stderr, getenv)
 	default:
@@ -141,6 +143,44 @@ func addProjectFile(args []string, stdout, stderr io.Writer, getenv func(string)
 		return 1
 	}
 	fmt.Fprintln(stdout, "managed file added")
+	return 0
+}
+
+func removeProjectFile(args []string, stdout, stderr io.Writer) int {
+	if len(args) != 3 || args[1] != "--file" {
+		fmt.Fprintln(stderr, "usage: sopsdeck project remove FOLDER --file PATH")
+		return 1
+	}
+	_, rel, err := projectPath(args[0], args[2])
+	if err != nil {
+		fmt.Fprintf(stderr, "project remove: %v\n", err)
+		return 1
+	}
+	manifestPath := filepath.Join(args[0], ".sopsdeck.toml")
+	m, err := loadManifest(manifestPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "project remove: %v\n", err)
+		return 1
+	}
+	managed := m.ManagedFile[:0]
+	found := false
+	for _, entry := range m.ManagedFile {
+		if filepath.ToSlash(entry.Path) == filepath.ToSlash(rel) {
+			found = true
+			continue
+		}
+		managed = append(managed, entry)
+	}
+	if !found {
+		fmt.Fprintf(stderr, "project remove: %s is not managed\n", rel)
+		return 1
+	}
+	m.ManagedFile = managed
+	if err := writeManifest(manifestPath, m); err != nil {
+		fmt.Fprintf(stderr, "project remove: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "managed file removed")
 	return 0
 }
 
