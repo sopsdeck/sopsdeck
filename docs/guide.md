@@ -13,7 +13,7 @@ npm install -D @sopsdeck/sopsdeck
 npx sopsdeck .
 ```
 
-SOPS is bundled. You need Node.js and Git. On first launch, create an Age identity and confirm you stored the backup in a password manager. The private key stays in the OS keychain; teammates never see it.
+SOPS is bundled. You need Node.js and Git. On first launch, create an Age identity, then copy its private-key backup into a password manager. The private key stays in the OS keychain; teammates never see it.
 
 `npx sopsdeck .` opens that one Project. The sidebar is that folder’s Managed Files, not a list of recent Projects.
 
@@ -66,7 +66,7 @@ SOPS encrypts values in place. Keys, comments, and structure stay readable. A lo
 
 ## Access
 
-Each Managed File lists Age public keys (Recipients). Adding a teammate’s key lets them decrypt. Removing a key rotates the data key; Git history can still decrypt.
+Each Managed File lists Age public keys (Recipients). Adding a teammate’s key lets them decrypt. Removing a key re-encrypts the current file with a fresh SOPS data key; the removed key cannot decrypt the new version, but Git history and copies they already have can still decrypt.
 
 When you initialize a Project, your Git identity is recorded in `.sopsdeck.toml` with your Age public key so teammates can see who you are. When you add someone, enter their name or git identity (`Bob <bob@example.com>`) with their Age public key. That label is stored in the same file.
 
@@ -74,10 +74,33 @@ To join a file you cannot open, open **Account**. Copy your Age public key, or c
 
 ## Project owners
 
-Anyone who can decrypt a file can technically re-encrypt it with extra keys. Sopsdeck records **owners** in `.sopsdeck.toml` when you initialize a Project. Only those owners can add Recipients in Sopsdeck. If no owners are listed, the previous behavior remains: anyone with Access can add people.
+Anyone who can decrypt a file can technically re-encrypt it with extra keys. Sopsdeck records **owners** in `.sopsdeck.toml` when you initialize a Project. Only those owners can add or remove Recipients in Sopsdeck. If no owners are listed, the previous behavior remains: anyone with Access can change the list.
 
 Put a GitHub `CODEOWNERS` file on `.sopsdeck.toml` (and the Managed Files) so Access PRs need owner review. `sopsdeck recipient request` opens a metadata-only PR; `sopsdeck recipient grant` re-encrypts and opens the Access PR.
 
 ## Copy your key
 
 Your Age public key is in **Account** and on the **Project** panel. Copy it and send it to an owner, or include it in a Request access message. The private key never leaves the keychain.
+
+## Back up and recover your identity
+
+Open **Account**, choose **Back up private key**, and save the complete Age identity block in a password manager. It is the only way to recover access if this machine is lost or its OS keychain is cleared. Clear your clipboard after pasting it.
+
+The CLI equivalent is `sopsdeck identity key`; it prints the private key, so never paste its output into an issue, chat, or Project file. Restore it on a replacement machine with `sopsdeck identity import -f FILE --confirmed-backup`.
+
+## What Sopsdeck stores
+
+- Encrypted Managed Files and `.sopsdeck.toml` live in the Project and can be committed to Git. `.sopsdeck.toml` contains public recipient keys and labels, never private keys.
+- Your private Age identity is in the operating system keychain. On macOS, the keychain item uses service `sopsdeck` and account `age`; it is not a folder in the Project or home directory.
+- The browser keeps only UI preferences, recent Project paths, folder/inspector state, and clipboard-dismissal fingerprints in browser local storage for its `127.0.0.1` origin. It does not store secret values or the Age private key.
+- CLI diagnostics are optional: if you set `SOPSDECK_STATE_DIR`, it contains only the redacted `$SOPSDECK_STATE_DIR/errors.json` error log.
+
+To forget browser UI state, clear site data for Sopsdeck’s local `127.0.0.1` address in your browser; Projects, keys, and encrypted files remain untouched. To remove the identity from this machine, use **Account → Remove local identity** or `sopsdeck identity remove --yes`. That does not revoke its public key from any Managed File and makes local decryption impossible until you import a backup. Delete the optional `errors.json` file if you want to clear CLI diagnostics.
+
+## Remove someone and rotate secrets
+
+Remove a person under **Access** for every Managed File they could read, then commit and Sync the changes. This is an owner action when a Project has owners. Sopsdeck rotates the SOPS data key for each removed file automatically.
+
+That protects future file revisions, not secrets the person already read, copied, or has in Git history. Rotate the actual provider credentials afterward (for example, create a new Stripe key, update the Managed File, commit, and revoke the old Stripe key). If the person’s device or Age key might be compromised, treat that provider rotation as required.
+
+To replace your own Age identity, first create and back up the replacement identity on another machine, add its public key to every Managed File from an existing authorized machine, and confirm it can decrypt. Only then remove the old public key from every file. Never remove the last usable identity before the replacement has Access.

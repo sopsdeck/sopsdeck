@@ -46,12 +46,13 @@ go build -o sopsdeck ./cmd/sopsdeck
 First-run identity (Age key is not saved until you confirm a password-manager backup):
 
 ```bash
-export SOPSDECK_STATE_DIR="$HOME/.sopsdeck"
 ./sopsdeck identity create --confirmed-backup
 export SOPS_AGE_KEY_CMD="sopsdeck identity key"
 ```
 
-The private key is stored in the OS keychain. `identity key` prints it for SOPS. Existing `SOPS_AGE_KEY_FILE` Age files still work. Restore: `identity import -f FILE --confirmed-backup`. Failed commands append to `$SOPSDECK_STATE_DIR/errors.json`; the same message increments a count. Messages never include private keys or ciphertext.
+In the browser, **Account → Back up private key** shows the same Age identity block to copy into a password manager. The private key is stored in the OS keychain, not the Project. `identity key` prints it for SOPS; `identity import -f FILE --confirmed-backup` restores it; and `identity remove --yes` removes it from this machine only. Existing `SOPS_AGE_KEY_FILE` Age files still work.
+
+`SOPSDECK_STATE_DIR` is optional CLI diagnostics storage. When set, failed commands append redacted messages to `$SOPSDECK_STATE_DIR/errors.json`; the same message increments a count. Messages never include private keys or ciphertext.
 
 ```bash
 ./sopsdeck get KEY -f path/to/.env.production

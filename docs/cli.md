@@ -24,6 +24,8 @@ sopsdeck recipient grant AGE1... --name NAME -f FILE
 
 `request` opens a metadata-only PR. `grant` re-encrypts and opens the Access PR. Only Project owners can grant once owners are recorded in `.sopsdeck.toml`.
 
+`recipient remove` re-encrypts the current file with a fresh SOPS data key. Run it for every Managed File a departing person could read, then rotate the actual provider credentials they previously knew. It cannot revoke old Git clones, history, or values they already copied.
+
 ## Git
 
 ```bash
@@ -41,6 +43,7 @@ sopsdeck sync
 ```bash
 sopsdeck project init FOLDER --file eas.json --keys build.env.EXPO_TOKEN
 sopsdeck project add FOLDER --file compose.yaml --keys services.db.environment.POSTGRES_PASSWORD
+sopsdeck project remove FOLDER --file compose.yaml
 sopsdeck project encrypt FILE --keys build.env.EXPO_TOKEN,build.env.SECRET
 sopsdeck files FOLDER
 ```
@@ -51,6 +54,9 @@ JSON and YAML encrypt only the paths you pass to `--keys`. Dotenv files encrypt 
 
 ```bash
 sopsdeck identity create --confirmed-backup
+sopsdeck identity key
+sopsdeck identity import -f age-identity.txt --confirmed-backup
+sopsdeck identity remove --yes
 sopsdeck run -f FILE -- your-command
 sopsdeck rename OLD NEW -f FILE
 sopsdeck unused -f FILE
@@ -59,4 +65,4 @@ sopsdeck scan
 sopsdeck mcp
 ```
 
-`identity key` prints the Age private key for SOPS. Failed commands append to `$SOPSDECK_STATE_DIR/errors.json`.
+`identity key` prints the Age private key for SOPS; save the entire output in a password manager and never commit it. `identity remove --yes` clears only this machine’s OS-keychain identity; it does not remove the public key from files. `SOPSDECK_STATE_DIR` is optional: when set, failed commands append redacted messages to `$SOPSDECK_STATE_DIR/errors.json`.
