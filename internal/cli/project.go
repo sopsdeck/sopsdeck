@@ -185,7 +185,7 @@ func projectKeys(file managed.File) []string {
 	if err != nil || isEncryptedBytes(data) {
 		return nil
 	}
-	branches, err := common.StoreForFormat(fileFormat(file.Path), config.NewStoresConfig()).LoadPlainFile(data)
+	branches, err := loadPlainBranches(fileFormat(file.Path), data)
 	if err != nil {
 		return nil
 	}

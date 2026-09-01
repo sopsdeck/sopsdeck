@@ -45,6 +45,48 @@ func TestProjectInitEncryptsSelectedFilesAndWritesManifest(t *testing.T) {
 	}
 }
 
+func TestProjectInitAcceptsQuotedMultilineDotenv(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, "apps", "admin", ".env")
+	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	mustWriteFile(t, file, `FIREBASE_DOT_JSON='{
+"hosting": {
+"site": "loyalty-platform-admin-dev",
+"source": ".",
+"ignore": [
+"firebase.json",
+"**/.*",
+"**/node_modules/**",
+"**/*.stories.*"
+],
+"frameworksBackend": {
+"region": "australia-southeast1",
+"maxInstances": 10
+}
+}
+}'
+`)
+
+	state, err := inspectProject(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Candidates) != 1 || strings.Join(state.Candidates[0].Keys, ",") != "FIREBASE_DOT_JSON" {
+		t.Fatalf("candidates=%+v", state.Candidates)
+	}
+
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "apps/admin/.env"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	var getOut, getErr bytes.Buffer
+	mustCLI(t, cmdGet([]string{"FIREBASE_DOT_JSON", "-f", file}, &getOut, &getErr), &getErr, "get")
+	if !strings.Contains(getOut.String(), `"hosting"`) {
+		t.Fatalf("multiline dotenv value=%q", getOut.String())
+	}
+}
+
 func TestInspectProjectListsEncryptablePaths(t *testing.T) {
 	root := t.TempDir()
 	file := filepath.Join(root, "eas.json")

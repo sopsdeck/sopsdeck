@@ -354,7 +354,7 @@ func setUnlocked(file string, store sops.Store, path []interface{}, value string
 		fmt.Fprintln(stderr, "set: not a SOPS-encrypted file")
 		return 1
 	}
-	branches, err := store.LoadPlainFile(raw)
+	branches, err := loadPlainBranches(fileFormat(file), raw)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
@@ -482,7 +482,7 @@ func delUnlocked(file string, store sops.Store, path []interface{}, raw []byte, 
 		fmt.Fprintln(stderr, "del: not a SOPS-encrypted file")
 		return 1
 	}
-	branches, err := store.LoadPlainFile(raw)
+	branches, err := loadPlainBranches(fileFormat(file), raw)
 	if err != nil {
 		fmt.Fprintf(stderr, "del: %v\n", err)
 		return 1
@@ -611,7 +611,7 @@ func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func plainEnv(plain []byte, format formats.Format) (map[string]string, error) {
 	if format == formats.Dotenv {
-		return dotenvMap(plain), nil
+		return parseDotenvMap(plain)
 	}
 	var doc map[string]any
 	var err error
@@ -639,7 +639,7 @@ func plainEnv(plain []byte, format formats.Format) (map[string]string, error) {
 
 func plainPairs(plain []byte, format formats.Format) (map[string]string, error) {
 	if format == formats.Dotenv {
-		return dotenvMap(plain), nil
+		return parseDotenvMap(plain)
 	}
 	var doc any
 	var err error
@@ -680,17 +680,6 @@ func flattenPairs(out map[string]string, prefix string, value any) {
 	}
 }
 
-func dotenvMap(plain []byte) map[string]string {
-	out := map[string]string{}
-	for line := range strings.SplitSeq(string(plain), "\n") {
-		k, v, ok := strings.Cut(line, "=")
-		if ok && k != "" {
-			out[k] = strings.ReplaceAll(v, `\n`, "\n")
-		}
-	}
-	return out
-}
-
 func warnEASCLI(file string, stderr io.Writer) {
 	if filepath.Base(file) != "eas.json" {
 		return
@@ -729,8 +718,7 @@ func formatName(format formats.Format) string {
 
 func lookupValue(plain []byte, format formats.Format, key string) (string, bool, error) {
 	if format == formats.Dotenv {
-		v, ok := dotenvValue(plain, key)
-		return v, ok, nil
+		return dotenvValue(plain, key)
 	}
 	var doc map[string]any
 	var err error
@@ -755,9 +743,13 @@ func lookupValue(plain []byte, format formats.Format, key string) (string, bool,
 	return fmt.Sprint(raw), true, nil
 }
 
-func dotenvValue(plain []byte, key string) (string, bool) {
-	v, ok := dotenvMap(plain)[key]
-	return v, ok
+func dotenvValue(plain []byte, key string) (string, bool, error) {
+	values, err := parseDotenvMap(plain)
+	if err != nil {
+		return "", false, err
+	}
+	v, ok := values[key]
+	return v, ok, nil
 }
 
 func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) string) int {

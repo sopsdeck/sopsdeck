@@ -65,6 +65,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - MCP Get Value With Approval Returns Plaintext (`TestMCPGetValueWithApprovalReturnsPlaintext`)
 - MCP Run Returns Outcome Not Child Output (`TestMCPRunReturnsOutcomeNotChildOutput`)
 - Project Init Encrypts Selected Files And Writes Manifest (`TestProjectInitEncryptsSelectedFilesAndWritesManifest`)
+- Project Init Accepts Quoted Multiline Dotenv (`TestProjectInitAcceptsQuotedMultilineDotenv`)
 - Inspect Project Lists Encryptable Paths (`TestInspectProjectListsEncryptablePaths`)
 - Project Add Preserves Selected Paths When Initializing (`TestProjectAddPreservesSelectedPathsWhenInitializing`)
 - Project Init Encrypts Only Selected JSON Leaf (`TestProjectInitEncryptsOnlySelectedJSONLeaf`)

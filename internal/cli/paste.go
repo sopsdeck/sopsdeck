@@ -259,7 +259,7 @@ func pasteCreate(file string, pairs map[string]string, stderr io.Writer, getenv 
 
 func encryptPlainFile(file string, plain []byte, getenv func(string) string, keys []string) error {
 	store := common.StoreForFormat(fileFormat(file), config.NewStoresConfig())
-	branches, err := store.LoadPlainFile(plain)
+	branches, err := loadPlainBranches(fileFormat(file), plain)
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func pasteApplyExisting(file string, pairs map[string]string, stderr io.Writer) 
 			fmt.Fprintln(stderr, "set: not a SOPS-encrypted file")
 			return 1
 		}
-		branches, err := store.LoadPlainFile(raw)
+		branches, err := loadPlainBranches(format, raw)
 		if err != nil {
 			fmt.Fprintf(stderr, "set: %v\n", err)
 			return 1
