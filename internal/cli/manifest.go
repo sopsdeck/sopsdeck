@@ -12,15 +12,15 @@ import (
 type projectManifest struct {
 	ManagedFile []manifestFile      `toml:"managed_file"`
 	Recipient   []manifestRecipient `toml:"recipient,omitempty"`
-	Owner       []manifestRecipient `toml:"owner,omitempty"`
+	LegacyOwner []manifestRecipient `toml:"owner,omitempty"`
 	Scan        scanPolicy          `toml:"scan"`
 }
 
 type manifestRecipient struct {
-	Key   string `toml:"key"`
-	Name  string `toml:"name"`
-	Email string `toml:"email,omitempty"`
-	Kind  string `toml:"kind,omitempty"`
+	Key   string `toml:"key" json:"key"`
+	Name  string `toml:"name" json:"name"`
+	Email string `toml:"email,omitempty" json:"email,omitempty"`
+	Kind  string `toml:"kind,omitempty" json:"kind,omitempty"`
 }
 
 type scanPolicy struct {
@@ -30,7 +30,10 @@ type scanPolicy struct {
 
 type manifestFile struct {
 	Path          string   `toml:"path"`
+	Format        string   `toml:"format,omitempty"`
 	EncryptedKeys []string `toml:"encrypted_keys,omitempty"`
+	PublicKeys    []string `toml:"public_keys,omitempty"`
+	Recipients    []string `toml:"recipients,omitempty"`
 	Repo          string   `toml:"repo,omitempty"`
 	Org           string   `toml:"org,omitempty"`
 	Scope         string   `toml:"scope,omitempty"`
@@ -38,10 +41,17 @@ type manifestFile struct {
 	Visibility    string   `toml:"visibility,omitempty"`
 	Prefix        string   `toml:"prefix,omitempty"`
 	Keys          []string `toml:"keys,omitempty"`
-	Published     []string `toml:"published,omitempty"`
+	Synced        []string `toml:"synced,omitempty"`
 }
 
 func findManifest(start string) (root, path string) {
+	start, err := filepath.Abs(start)
+	if err != nil {
+		return "", ""
+	}
+	if canonical, err := filepath.EvalSymlinks(start); err == nil {
+		start = canonical
+	}
 	dir := start
 	if info, err := os.Stat(start); err == nil && !info.IsDir() {
 		dir = filepath.Dir(start)
@@ -50,6 +60,9 @@ func findManifest(start string) (root, path string) {
 		cand := filepath.Join(dir, ".sopsdeck.toml")
 		if _, err := os.Stat(cand); err == nil {
 			return dir, cand
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return "", ""
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -68,10 +81,32 @@ func loadManifest(path string) (projectManifest, error) {
 	if err := toml.Unmarshal(raw, &m); err != nil {
 		return projectManifest{}, err
 	}
+	// Keep names from older manifests as recipient labels, without owner roles.
+	labels := identityLabels(m)
+	for _, owner := range m.LegacyOwner {
+		found := false
+		for _, recipient := range m.Recipient {
+			if strings.EqualFold(owner.Key, recipient.Key) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			m.Recipient = append(m.Recipient, owner)
+		}
+	}
+	for i, recipient := range m.Recipient {
+		m.Recipient[i] = labels[strings.ToLower(recipient.Key)]
+	}
+	m.LegacyOwner = nil
 	return m, nil
 }
 
 func mappingFor(file string) (manifestFile, string, string) {
+	file, _ = filepath.Abs(file)
+	if canonical, err := filepath.EvalSymlinks(file); err == nil {
+		file = canonical
+	}
 	root, path := findManifest(file)
 	if path == "" {
 		return manifestFile{}, "", ""
@@ -98,7 +133,16 @@ func writeManifest(path string, m projectManifest) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, raw, 0o600)
+	return writeAtomic(path, raw)
+}
+
+func checkFileManifest(file string) error {
+	_, path := findManifest(file)
+	if path == "" {
+		return nil
+	}
+	_, err := loadManifest(path)
+	return err
 }
 
 func setRecipientLabel(file, key, name, kind, email string) error {
@@ -127,7 +171,7 @@ func setRecipientLabel(file, key, name, kind, email string) error {
 	return writeManifest(manifestPath, m)
 }
 
-func configureIntegration(file, scope, repo, org, environment, prefix, visibility string) error {
+func configureSyncTarget(file, scope, repo, org, environment, prefix, visibility string) error {
 	root, manifestPath := findManifest(file)
 	if manifestPath == "" {
 		return fmt.Errorf("project is not initialized")
@@ -156,7 +200,7 @@ func configureIntegration(file, scope, repo, org, environment, prefix, visibilit
 	return fmt.Errorf("file is not managed")
 }
 
-func ownersFromEnv(root string, getenv func(string) string) []manifestRecipient {
+func recipientsFromEnv(root string, getenv func(string) string) []manifestRecipient {
 	if getenv == nil {
 		getenv = os.Getenv
 	}
@@ -168,75 +212,7 @@ func ownersFromEnv(root string, getenv func(string) string) []manifestRecipient 
 	return []manifestRecipient{{Key: key, Name: name, Email: email, Kind: "person"}}
 }
 
-func canGrantAccess(owners []manifestRecipient, self string) bool {
-	if len(owners) == 0 {
-		return true
-	}
-	self = strings.TrimSpace(self)
-	if self == "" {
-		return false
-	}
-	for _, owner := range owners {
-		if strings.EqualFold(owner.Key, self) {
-			return true
-		}
-	}
-	return false
-}
-
-func denyUnlessOwner(file string, getenv func(string) string) error {
-	_, manifestPath := findManifest(file)
-	if manifestPath == "" {
-		return nil
-	}
-	m, err := loadManifest(manifestPath)
-	if err != nil {
-		return err
-	}
-	if len(m.Owner) == 0 {
-		return nil
-	}
-	self := ""
-	if getenv != nil {
-		self, _ = ageRecipientFromEnv(getenv)
-	}
-	if canGrantAccess(m.Owner, self) {
-		return nil
-	}
-	return fmt.Errorf("only a Project owner can add Access; ask an owner or use recipient request")
-}
-
-type projectConfig struct {
-	Path     string              `json:"path"`
-	Name     string              `json:"name"`
-	Owners   []manifestRecipient `json:"owners"`
-	CanGrant bool                `json:"can_grant"`
-}
-
-func projectConfigFor(path string, getenv func(string) string) projectConfig {
-	root, manifestPath := findManifest(path)
-	if root == "" {
-		root = path
-	}
-	var owners []manifestRecipient
-	if manifestPath != "" {
-		if m, err := loadManifest(manifestPath); err == nil {
-			owners = m.Owner
-		}
-	}
-	self := ""
-	if getenv != nil {
-		self, _ = ageRecipientFromEnv(getenv)
-	}
-	return projectConfig{
-		Path:     root,
-		Name:     filepath.Base(root),
-		Owners:   owners,
-		CanGrant: canGrantAccess(owners, self),
-	}
-}
-
-func setPublished(path, rel string, names []string) error {
+func setSynced(path, rel string, names []string) error {
 	m, err := loadManifest(path)
 	if err != nil {
 		return err
@@ -244,7 +220,7 @@ func setPublished(path, rel string, names []string) error {
 	rel = filepath.ToSlash(rel)
 	for i := range m.ManagedFile {
 		if filepath.ToSlash(m.ManagedFile[i].Path) == rel {
-			m.ManagedFile[i].Published = names
+			m.ManagedFile[i].Synced = names
 			return writeManifest(path, m)
 		}
 	}

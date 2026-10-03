@@ -10,7 +10,7 @@ import (
 	"golang.org/x/term"
 )
 
-const usageLine = "usage: sopsdeck <get|set|del|lock|unlock|status|copy|run|identity|account|robot|commit|sync|review|history|restore|recipient|publish|files|project|references|unused|rename|drive|team|scan|mcp> ..."
+const usageLine = "usage: sopsdeck <get|set|del|lock|unlock|status|copy|run|identity|account|robot|review|history|restore|recipient|sync|files|project|references|unused|rename|drive|team|scan> ...\n       sopsdeck <SOPS command or flags> ... (uses installed sops)\n       sopsdeck sops [ARGS] (includes upstream --help)"
 
 var (
 	brandStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{
@@ -43,10 +43,11 @@ func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "  %s %s\n\n", commandStyle.Render("sopsdeck"), commandStyle.Render("<command> [args]"))
 	fmt.Fprintln(w, headingStyle.Render("Commands"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("get set del lock unlock status copy run"), mutedStyle.Render("read, write, lock, or inject secrets"))
-	fmt.Fprintln(w, "  "+commandStyle.Render("commit sync review history restore"), mutedStyle.Render("move through Secret History"))
+	fmt.Fprintln(w, "  "+commandStyle.Render("review history restore"), mutedStyle.Render("move through Secret History"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("identity account robot recipient"), mutedStyle.Render("manage Users and Access"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("files project references unused rename"), mutedStyle.Render("organize a Project"))
-	fmt.Fprintln(w, "  "+commandStyle.Render("publish scan drive team mcp"), mutedStyle.Render("connect, protect, and automate"))
+	fmt.Fprintln(w, "  "+commandStyle.Render("sync scan drive team"), mutedStyle.Render("sync targets, protect, and automate"))
+	fmt.Fprintln(w, "  "+commandStyle.Render("encrypt decrypt edit rotate updatekeys unset exec-env exec-file ..."), mutedStyle.Render("pass through to the installed SOPS CLI"))
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, mutedStyle.Render("Run 'sopsdeck <command>' for command-specific usage."))
 }

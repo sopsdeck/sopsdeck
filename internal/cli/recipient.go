@@ -49,7 +49,7 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		return 1
 	}
 	name, email = displayIdentity(name, email)
-	if err := denyUnlessOwner(file, getenv); err != nil {
+	if err := checkFileManifest(file); err != nil {
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
@@ -60,13 +60,6 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
 	}
-	if hasRecipient(*tree, pub) {
-		if err := setRecipientLabel(file, pub, name, kind, email); err != nil {
-			fmt.Fprintf(stderr, "recipient add: %v\n", err)
-			return 1
-		}
-		return 0
-	}
 	svcs := []keyservice.KeyServiceClient{keyservice.NewLocalClient()}
 	dataKey, err := common.DecryptTree(common.DecryptTreeOpts{
 		Tree:        tree,
@@ -76,6 +69,13 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 	if err != nil {
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
+	}
+	if hasRecipient(*tree, pub) {
+		if err := setRecipientLabel(file, pub, name, kind, email); err != nil {
+			fmt.Fprintf(stderr, "recipient add: %v\n", err)
+			return 1
+		}
+		return 0
 	}
 	mk, err := sopsage.MasterKeyFromRecipient(pub)
 	if err != nil {
@@ -124,7 +124,7 @@ func recipientRemove(args []string, stderr io.Writer, getenv func(string) string
 		fmt.Fprintln(stderr, errMsg)
 		return 1
 	}
-	if err := denyUnlessOwner(file, getenv); err != nil {
+	if err := checkFileManifest(file); err != nil {
 		fmt.Fprintf(stderr, "recipient remove: %v\n", err)
 		return 1
 	}
@@ -311,8 +311,8 @@ func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) 
 }
 
 func identityLabels(m projectManifest) map[string]manifestRecipient {
-	labels := make(map[string]manifestRecipient, len(m.Owner)+len(m.Recipient))
-	for _, item := range m.Owner {
+	labels := make(map[string]manifestRecipient, len(m.LegacyOwner)+len(m.Recipient))
+	for _, item := range m.LegacyOwner {
 		labels[strings.ToLower(item.Key)] = item
 	}
 	for _, item := range m.Recipient {

@@ -25,9 +25,7 @@ func TestReviewShowsPlaintextSemanticDiffOfUncommittedManagedFile(t *testing.T) 
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	if code := Main([]string{"commit", "-m", "seed", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "seed")
 
 	stdout.Reset()
 	stderr.Reset()
@@ -65,9 +63,7 @@ func TestReviewShowsThreeWayWhenManagedFileConflicts(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	if code := Main([]string{"commit", "-m", "seed", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("seed commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "seed")
 
 	runGit(t, dir, "checkout", "-b", "theirs")
 	stdout.Reset()
@@ -77,9 +73,7 @@ func TestReviewShowsThreeWayWhenManagedFileConflicts(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"commit", "-m", "theirs", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("theirs commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "theirs")
 
 	runGit(t, dir, "checkout", "main")
 	stdout.Reset()
@@ -89,9 +83,7 @@ func TestReviewShowsThreeWayWhenManagedFileConflicts(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"commit", "-m", "ours", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("ours commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "ours")
 
 	merge := exec.Command("git", "merge", "--no-edit", "theirs")
 	merge.Dir = dir

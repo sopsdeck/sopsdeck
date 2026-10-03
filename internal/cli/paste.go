@@ -50,7 +50,7 @@ func applyPaste(args []string, payload []byte, stdout, stderr io.Writer, getenv 
 		return 1
 	}
 
-	current, err := currentEnvPairs(flags.file)
+	current, err := currentEnvPairs(flags.file, getenv)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
@@ -163,7 +163,7 @@ func stringifyPasteMap(doc map[string]any) map[string]string {
 	return out
 }
 
-func currentEnvPairs(file string) (map[string]string, error) {
+func currentEnvPairs(file string, getenv func(string) string) (map[string]string, error) {
 	format := fileFormat(file)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return map[string]string{}, nil
@@ -179,7 +179,7 @@ func currentEnvPairs(file string) (map[string]string, error) {
 			return nil, err
 		}
 	}
-	return plainPairs(plain, format)
+	return plainPairs(plain, format, getenv)
 }
 
 func classifyPasteKeys(current, incoming map[string]string) (adds, changes []string) {
@@ -279,6 +279,30 @@ func encryptPlainFile(file string, plain []byte, getenv func(string) string, key
 			KeyGroups:         []sops.KeyGroup{{mk}},
 		},
 		Branches: branches,
+	}
+	// Re-encryption changes the policy, not who can decrypt the file.
+	if raw, err := os.ReadFile(file); err == nil && isEncryptedBytes(raw) {
+		previous, err := common.LoadEncryptedFile(store, file)
+		if err != nil {
+			return err
+		}
+		tree.Metadata.KeyGroups = previous.Metadata.KeyGroups
+		tree.Metadata.ShamirThreshold = previous.Metadata.ShamirThreshold
+	} else {
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		mapping, _, _ := mappingFor(file)
+		for _, recipient := range mapping.Recipients {
+			if recipient == pub {
+				continue
+			}
+			key, err := sopsage.MasterKeyFromRecipient(recipient)
+			if err != nil {
+				return err
+			}
+			tree.Metadata.KeyGroups[0] = append(tree.Metadata.KeyGroups[0], key)
+		}
 	}
 	regex := encryptedKeyRegex(keys)
 	if regex == "" && fileFormat(file) != formats.Dotenv {

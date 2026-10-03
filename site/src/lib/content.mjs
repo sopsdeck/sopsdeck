@@ -1,4 +1,3 @@
-import { parseChangelog } from '../../../scripts/changelog-notes.mjs';
 import { mdHeadings, mdToHtml } from '../../../scripts/site-pages.mjs';
 
 import changelog from '../../../CHANGELOG.md?raw';
@@ -17,9 +16,7 @@ export function docHtml(relativePath) {
   return mdToHtml(repoFile(relativePath).replace(/^# .+\n+/, ''));
 }
 
-export function changelogSections() {
-  return parseChangelog(changelog);
-}
+export { changelog };
 
 export function guideHeadings() {
   return mdHeadings(guide);

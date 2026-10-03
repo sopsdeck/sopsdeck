@@ -4,6 +4,58 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+### Added
+
+- Standard SOPS commands, flags, and file arguments pass through to the installed `sops` CLI on PATH. Encryption, decryption, editing, key updates, and command execution preserve arguments, stdin, output, and exit codes. `sopsdeck sops ...` exposes upstream help and version commands; Sopsdeck's own commands and browser editor continue using embedded SOPS.
+- Dotenv values support `$VAR` and `${VAR}` references. Values resolve in file order, using file keys before the process environment; missing references become empty strings. Escaped dollar signs and single-quoted values stay literal.
+- Dotenv values support `$(command)` substitution through POSIX `sh`, with earlier file keys available to the command. Each command has a 30-second limit; failures stop resolution. Windows requires a compatible `sh.exe` on `PATH`. Resolving values can execute stored commands when reading a key, opening the editor, running a command, or syncing secrets. Escape the dollar sign or single-quote the value to keep it literal.
+- `sopsdeck run` injects dotenv values into the child environment. For locked structured Managed Files such as `eas.json` and Compose YAML, it temporarily writes plaintext at the file's real path and restores the original encrypted bytes and permissions after the child exits or after SIGINT/SIGTERM. Sopsdeck writes and another run of the same file are refused while active. If the child changes the file, run exits unsuccessfully and leaves the change for inspection and recovery. SIGKILL and system crashes cannot run cleanup.
+- Child stdout and stderr from `sopsdeck run` mask nonempty protected values as `[sopsdeck:KEY]`, including short values. A Managed File's `public_keys` list opts values out of output redaction; `--no-redact` disables masking and also allows running without a Managed File.
+- `scan` blocks staged Age identities and plaintext protected values from Managed Files. Its hook installer resolves Git's active hooks path, preserves existing hooks, and supports removing an unchanged Sopsdeck hook with `scan --uninstall`.
+- Project file lists refresh automatically while the browser tab is visible. Refresh files checks immediately, and the Project panel reports unmanaged files created outside Sopsdeck.
+- JSON/YAML path pickers support dragging across fields and selecting nested object groups, with partial-selection indicators. The same picker is used during Project setup and when editing encryption paths.
+- The npm launcher streams native runner downloads to disk, shows size and progress, stops downloads that receive no data for 30 seconds, and removes incomplete downloads.
+- `bun run site:screenshots` regenerates the landing page's editor, rename, and unused-secret screenshots from a fresh fictional demo.
+- GitHub links are available on the website and in the local workspace.
+- The repository includes the Apache License 2.0.
+
+### Changed
+
+- `sopsdeck sync -f FILE` replaces Sopsdeck's former `publish` workflow and writes selected values to configured GitHub Actions targets immediately. The dry-run step and `--yes` flag are gone; `--mapping` prints target configuration without sending secrets. `sopsdeck publish` now selects the upstream SOPS command.
+- Secret Sync tracks previously synced names in the manifest's `synced` field instead of `published`. Rename existing `published` lists to `synced` to retain pruning history.
+- Managed File selection accepts regular files inside the Project regardless of filename, including `.en` and `eas.json`. Sopsdeck detects the content format when possible and records it in the manifest. Unlock `eas.json` before running EAS directly, or use `sopsdeck run`.
+- The structured editor shows encrypted fields only. Choose encryption paths in the picker beside the Path heading; file actions use compact header icons, and per-row padlocks and Add folder path are removed.
+- The landing page highlights key renaming and unused secrets with focused product screenshots, compares Sopsdeck's workflows with SOPS, and explains encryption's protections and limits with primary sources. The layout adapts to small screens and respects reduced-motion settings.
+- The public changelog shows published releases only. Work in progress remains under Unreleased in this file.
+- CLI, Access, and Secret Sync documentation reflects the current commands and recipient labels. Product recordings match the current browser workflow.
+
+### Fixed
+
+- Missing or unsafe manifest entries show recoverable warnings without blocking valid files. Stale entries can be removed without deleting files, and Projects with only missing files remain open for recovery. Manifest saves are atomic; malformed manifests can be fixed on disk and retried without reinitializing the Project or replacing its identity.
+- Encrypt & save refreshes the lock and saved state immediately, clears unsaved changes, and relocks plaintext files.
+- Changing encryption paths preserves existing SOPS recipients and key groups. Unlocking records Age recipients for relocking and refuses operations that cannot preserve non-Age, grouped, or unmanaged multi-recipient Access.
+- Account details and private-key backups respect explicit `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` identities before falling back to the OS keychain. Account also loads without an open Project or when a missing file prevents the Project from opening.
+- Project folders resolve to canonical paths. Initialized monorepo subfolders reopen their Project; discovery, reference scans, and renames keep nested repositories and independent Projects isolated. Files outside the Project and symlinked files cannot be imported.
+- Git history and restore resolve nested Managed Files relative to the repository root. Folders outside Git remain editable, with history controls disabled.
+- Nested JSON/YAML path selections include all descendant fields and keep parent checkbox states in sync. The Path header renders its encryption control correctly.
+- Dialogs dismiss on outside clicks and Escape and scroll within their rounded edges. Dismissing a save preview cancels the pending save; closing Account clears its private-key backup, including delayed responses.
+- Copy and other button actions confirm inside the clicked button with a brief check animation and report failed copies there.
+- Site text preserves spaces around links split across source lines. Documentation keeps inline code and link URLs literal instead of treating underscores or Markdown characters inside them as formatting.
+- The npm launcher lists supported CLI commands, accepts `version`, reports unknown commands or missing Project folders clearly, and rejects occupied browser ports before starting the runner. Upstream SOPS stderr is passed through without saving it to Sopsdeck's error log.
+- Team startup refuses occupied ports before seeding or resetting identities, waits for both instances, and stops its servers on exit. `./scripts/dev --team --reset` refuses workspace roots, home directories, symlinks, and unrecognized studios.
+- The local browser API rejects mismatched Host and Origin headers, non-JSON commands, and browser preflights. Same-origin UI requests and local clients without an Origin header remain supported.
+- Dotenv references resolve in file order, so forward and self references no longer see unresolved values. A command's generated `$(...)` text is not executed as a second expansion, and failed or timed-out substitutions now stop reads instead of returning the original expression.
+- Playwright test output is isolated from the persistent Alice/Bob studio, so browser tests no longer remove its keys and checkouts.
+- Changed and unused labels have a space between them.
+
+### Removed
+
+- Project owner roles and owner-only Access restrictions. Anyone who can decrypt a Managed File can manage its Recipients; names from older owner entries remain as recipient labels.
+- Automatic clipboard reads and prompts when the browser regains focus. Explicit paste and copy still work.
+- The MCP server and AI tools, including `sopsdeck mcp` and the `sopsdeck-mcp` skill.
+- Sopsdeck's Git commit, pull, and push actions, including `sopsdeck commit` and the old Git `sopsdeck sync`. Saving encrypts locally; use Git directly to share changes. `review`, `history`, and `restore` remain available.
+- Obsolete npm command routing and recordings of the removed CLI Git actions.
+
 ## 0.2.0 - 2026-09-01
 
 ### Added

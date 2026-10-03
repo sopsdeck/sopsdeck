@@ -9,6 +9,8 @@ const driveCmd = driveBin
 
 export default defineConfig({
   testDir: './e2e',
+  // Keep Playwright cleanup away from the persistent Alice/Bob studio.
+  outputDir: './test-results/playwright',
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

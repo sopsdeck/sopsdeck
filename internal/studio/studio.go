@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"filippo.io/age"
 	"sopsdeck/internal/githubfake"
@@ -74,6 +75,12 @@ const DefaultProject = "checkout"
 // Prepare creates Alice and Bob with isolated Git identities and a shared
 // checkout clone in each home. It does not write the host Git identity.
 func Prepare(root string) (*Studio, *User, *User, error) {
+	unlock, err := lockPrepare(root)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer unlock()
+
 	s, err := Open(root)
 	if err != nil {
 		return nil, nil, nil, err
@@ -100,6 +107,34 @@ func Prepare(root string) (*Studio, *User, *User, error) {
 		return nil, nil, nil, err
 	}
 	return s, alice, bob, nil
+}
+
+func lockPrepare(root string) (func(), error) {
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		return nil, err
+	}
+	lock := filepath.Join(root, ".sopsdeck-prepare.lock")
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if err := os.Mkdir(lock, 0o700); err == nil {
+			return func() { _ = os.Remove(lock) }, nil
+		} else if !os.IsExist(err) {
+			return nil, err
+		}
+
+		info, statErr := os.Stat(lock)
+		if statErr == nil && time.Since(info.ModTime()) > 30*time.Second {
+			// ponytail: stale startup lock after 30s; manual --reset removes a
+			// lock held by a genuinely slow initializer.
+			if os.Remove(lock) == nil {
+				continue
+			}
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("studio: timed out waiting for %s", root)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func (s *Studio) Close() {

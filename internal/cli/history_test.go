@@ -15,7 +15,10 @@ func TestHistoryListsCommitsOnAManagedFile(t *testing.T) {
 	runGit(t, dir, "config", "user.email", "test@sopsdeck.example")
 	runGit(t, dir, "config", "user.name", "Sopsdeck Test")
 
-	env := filepath.Join(dir, "hello.env")
+	env := filepath.Join(dir, "apps", "web", "hello.env")
+	if err := os.MkdirAll(filepath.Dir(env), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	src, err := os.ReadFile(testdata(t, "hello.env"))
 	if err != nil {
 		t.Fatal(err)
@@ -23,10 +26,8 @@ func TestHistoryListsCommitsOnAManagedFile(t *testing.T) {
 	if err := os.WriteFile(env, src, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	runGitCommit(t, dir, "seed production")
 	var stdout, stderr bytes.Buffer
-	if code := Main([]string{"commit", "-m", "seed production", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("first commit exit %d stderr=%q", code, stderr.String())
-	}
 	stdout.Reset()
 	stderr.Reset()
 	if code := Main([]string{"set", "HELLO", "universe", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
@@ -34,9 +35,7 @@ func TestHistoryListsCommitsOnAManagedFile(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"commit", "-m", "rotate hello", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("second commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "rotate hello")
 
 	stdout.Reset()
 	stderr.Reset()
@@ -67,10 +66,8 @@ func TestGetAtRevisionPrintsHistoricalValue(t *testing.T) {
 	if err := os.WriteFile(env, src, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	runGitCommit(t, dir, "seed production")
 	var stdout, stderr bytes.Buffer
-	if code := Main([]string{"commit", "-m", "seed production", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("first commit exit %d stderr=%q", code, stderr.String())
-	}
 	stdout.Reset()
 	stderr.Reset()
 	if code := Main([]string{"set", "HELLO", "universe", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
@@ -78,9 +75,7 @@ func TestGetAtRevisionPrintsHistoricalValue(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"commit", "-m", "rotate hello", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("second commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "rotate hello")
 
 	stdout.Reset()
 	stderr.Reset()

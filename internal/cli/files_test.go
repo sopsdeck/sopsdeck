@@ -30,7 +30,7 @@ func TestFilesListsComposeYAMLAndMultilineDotenv(t *testing.T) {
 		t.Fatalf("exit %d stderr=%q", code, stderr.String())
 	}
 	out := stdout.String()
-	for _, name := range []string{"compose.yaml", "hello.multiline.env", "eas.json"} {
+	for _, name := range []string{"compose.yaml", "hello.multiline.env", "config.json"} {
 		if !strings.Contains(out, `"name":"`+name+`"`) {
 			t.Fatalf("stdout=%q, want %s", out, name)
 		}

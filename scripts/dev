@@ -4,6 +4,11 @@ cd "$(dirname "$0")/.."
 root="$(pwd)"
 bin="$root/sopsdeck"
 
+if [ "${1:-}" = "--team" ]; then
+  # Check before --reset can replace keys used by a running instance.
+  node --input-type=module -e 'import { assertPortAvailable } from "./bin/sopsdeck.mjs"; try { await assertPortAvailable(4174); await assertPortAvailable(4175); } catch (error) { console.error(error.message); process.exitCode = 1; }'
+fi
+
 go build -o "$bin" ./cmd/sopsdeck
 
 if [ "${1:-}" = "--build-only" ]; then
@@ -15,7 +20,16 @@ export SOPSDECK_BIN="$bin"
 
 if [ "${1:-}" = "--team" ]; then
   team_root="${SOPSDECK_TEAM_ROOT:-$root/test-results/team}"
+  team_root="$(node -e 'console.log(require("node:path").resolve(process.argv[1]))' "$team_root")"
   if [ "${2:-}" = "--reset" ]; then
+    if [ "$team_root" = "/" ] || [ "$team_root" = "$root" ] || [ "$team_root" = "${HOME:-}" ]; then
+      printf 'Refusing to reset a workspace or home directory: %s\n' "$team_root" >&2
+      exit 1
+    fi
+    if [ -L "$team_root" ] || { [ -e "$team_root" ] && { [ ! -f "$team_root/origin.git/HEAD" ] || [ ! -f "$team_root/alice.env" ] || [ ! -f "$team_root/bob.env" ]; }; }; then
+      printf 'Refusing to reset an unrecognized studio: %s\n' "$team_root" >&2
+      exit 1
+    fi
     rm -rf "$team_root"
   fi
 
@@ -24,8 +38,9 @@ if [ "${1:-}" = "--team" ]; then
   printf '%s\n' "Shared Project checkout is cloned into both homes:"
   printf '  alice  %s\n' "$team_root/alice-home/checkout"
   printf '  bob    %s\n' "$team_root/bob-home/checkout"
-  printf '%s\n' "Alice initializes, grants Bob (key is filled), then Sync."
-  printf '%s\n' "Bob Syncs after. Do not open the same folder in both windows."
+  printf '%s\n' "Alice initializes and grants Bob, then commits and pushes with Git."
+  printf '%s\n' "Bob pulls with Git. Secret Sync sends values to integrations, not teammates."
+  printf '%s\n' "Do not open the same folder in both windows."
   printf '\n'
   printf '%s\n' "In a terminal:"
   printf '  cd %s\n' "$team_root/alice-home/checkout"
@@ -59,10 +74,27 @@ if [ "${1:-}" = "--team" ]; then
       set +a
       export SOPSDECK_DEMO_USER="$instance"
       export SOPSDECK_TEAM_ROOT="$team_root"
-      "$bin" drive --demo --listen "127.0.0.1:$port" --ui "$root/desktop/src"
+      exec "$bin" drive --demo --listen "127.0.0.1:$port" --ui "$root/desktop/src"
     ) >"$team_root/logs/$instance.log" 2>&1 &
     pids="$pids $!"
     printf '%s instance: http://127.0.0.1:%s\n' "$instance" "$port"
+  done
+
+  for instance in alice bob; do
+    case "$instance" in
+      alice) port=4174 ;;
+      bob) port=4175 ;;
+    esac
+    attempts=0
+    until curl --fail --silent "http://127.0.0.1:$port/health" >/dev/null; do
+      attempts=$((attempts + 1))
+      if [ "$attempts" -ge 100 ]; then
+        printf '%s failed to start; see %s/logs/%s.log\n' "$instance" "$team_root" "$instance" >&2
+        tail -n 20 "$team_root/logs/$instance.log" >&2
+        exit 1
+      fi
+      sleep 0.1
+    done
   done
 
   if [ -d "/Applications/Google Chrome.app" ]; then

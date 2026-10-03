@@ -13,7 +13,7 @@ This folder is the readable layer over the spec, glossary, and tests. Agents sho
 7. **Product stills and clips** — [assets.md](assets.md) (generated catalog). Created by `./scripts/demo`; `./scripts/docs --check` fails when files are missing or unlinked. `./scripts/demo --check` also fails sub-second clips.
 8. **Versioning** — [versioning.md](versioning.md). Epoch SemVer; `CHANGELOG.md` is canonical.
 
-CLI casts (get, set, commit, Sync) live next to the desktop clips in [assets.md](assets.md).
+CLI casts (get, set) live next to the desktop clips in [assets.md](assets.md).
 
 Regenerate the living files with `./scripts/docs`. `./scripts/check` fails when they are stale.
 

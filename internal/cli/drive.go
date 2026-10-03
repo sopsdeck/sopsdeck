@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"sopsdeck/internal/managed"
 	"sopsdeck/internal/studio"
@@ -50,10 +53,14 @@ type demoInfo struct {
 }
 
 type drive struct {
-	uiRoot string
-	getenv func(string) string
-	demo   *demoInfo
+	uiRoot      string
+	allowedHost string
+	getenv      func(string) string
+	demo        *demoInfo
 }
+
+// ponytail: SOPS reads process env; serialize invokes until it accepts per-request keys.
+var invokeEnvMu sync.Mutex
 
 func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	listen := "127.0.0.1:4174"
@@ -92,7 +99,13 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 	if abs, err := filepath.Abs(uiRoot); err == nil {
 		uiRoot = abs
 	}
-	handler := &drive{uiRoot: uiRoot, getenv: getenv}
+	ln, err := net.Listen("tcp", listen)
+	if err != nil {
+		fmt.Fprintf(stderr, "drive: %v\n", err)
+		return 1
+	}
+	defer func() { _ = ln.Close() }()
+	handler := &drive{uiRoot: uiRoot, allowedHost: ln.Addr().String(), getenv: getenv}
 	if demo {
 		disableGitCommitSigning()
 		demoUser := getenv("SOPSDECK_DEMO_USER")
@@ -110,11 +123,6 @@ func cmdDrive(args []string, stdout, stderr io.Writer, getenv func(string) strin
 		handler.getenv = getenvDemo
 	}
 	handler.getenv = withKeychainAgeKey(handler.getenv)
-	ln, err := net.Listen("tcp", listen)
-	if err != nil {
-		fmt.Fprintf(stderr, "drive: %v\n", err)
-		return 1
-	}
 	fmt.Fprintf(stdout, "listening on http://%s\n", ln.Addr())
 	if err := http.Serve(ln, handler); err != nil {
 		fmt.Fprintf(stderr, "drive: %v\n", err)
@@ -167,7 +175,7 @@ func seedDemoForEnv(demoUser string, getenv func(string) string) (*demoInfo, fun
 	if err := seedFile(alice, filepath.Join(alice.Home, ".env.production"), "STRIPE_SECRET", "sk_test_demo", "seed production"); err != nil {
 		return nil, nil, err
 	}
-	if err := seedFile(alice, filepath.Join(alice.Home, "eas.json"), "EXPO_PUBLIC_API_URL", "https://api.acme.test", "seed eas.json"); err != nil {
+	if err := seedFile(alice, filepath.Join(alice.Home, "app.config.json"), "EXPO_PUBLIC_API_URL", "https://api.acme.test", "seed app.config.json"); err != nil {
 		return nil, nil, err
 	}
 	if err := seedFile(alice, filepath.Join(alice.Home, "compose.yaml"), "POSTGRES_PASSWORD", "acme_pg_demo_password", "seed compose.yaml"); err != nil {
@@ -185,7 +193,7 @@ repo = "studio/demo"
 prefix = "SD_"
 
 [[managed_file]]
-path = "eas.json"
+path = "app.config.json"
 encrypted_keys = ["EXPO_PUBLIC_API_URL"]
 
 [[managed_file]]
@@ -197,7 +205,7 @@ path = "apps/web/.env"
 	if err := os.WriteFile(filepath.Join(alice.Home, ".sopsdeck.toml"), manifest, 0o600); err != nil {
 		return nil, nil, err
 	}
-	atlas, err := seedSiblingProject(alice, "atlas-web", "eas.json", "EXPO_PUBLIC_API_URL", "https://api.atlas.test", "seed atlas eas.json")
+	atlas, err := seedSiblingProject(alice, "atlas-web", "app.config.json", "EXPO_PUBLIC_API_URL", "https://api.atlas.test", "seed atlas config")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -250,7 +258,18 @@ func seedFile(alice *studio.User, path, key, value, msg string) error {
 	if err := aliceCLI(alice, "set", key, value, "-f", path); err != nil {
 		return err
 	}
-	return aliceCLI(alice, "commit", "-m", msg, "-f", path)
+	dir := filepath.Dir(path)
+	cmd := exec.Command("git", "-c", "commit.gpgsign=false", "add", "-A")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git add: %s", strings.TrimSpace(string(out)))
+	}
+	cmd = exec.Command("git", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", msg)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git commit: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func seedSiblingProject(alice *studio.User, name, rel, key, value, msg string) (string, error) {
@@ -303,6 +322,10 @@ func aliceCLI(alice *studio.User, args ...string) error {
 }
 
 func (d *drive) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !d.validHost(r.Host) {
+		http.Error(w, "invalid host", http.StatusForbidden)
+		return
+	}
 	switch r.URL.Path {
 	case "/invoke":
 		d.handleInvoke(w, r)
@@ -323,10 +346,37 @@ func (d *drive) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir(d.uiRoot)).ServeHTTP(w, r)
 }
 
+func (d *drive) validHost(host string) bool {
+	if d.allowedHost != "" {
+		return strings.EqualFold(host, d.allowedHost)
+	}
+	name, _, err := net.SplitHostPort(host)
+	if err != nil {
+		return false
+	}
+	if strings.EqualFold(name, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(name)
+	return ip != nil && ip.IsLoopback()
+}
+
 func (d *drive) handleInvoke(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
+	}
+	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || !strings.EqualFold(contentType, "application/json") {
+		http.Error(w, "content type must be application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+	if origin := r.Header.Get("Origin"); origin != "" {
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.Scheme != "http" || !strings.EqualFold(parsed.Host, r.Host) || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			http.Error(w, "origin must match the local Sopsdeck address", http.StatusForbidden)
+			return
+		}
 	}
 	var req invokeReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -349,6 +399,8 @@ func writeInvokeErr(w http.ResponseWriter, msg string) {
 }
 
 func (d *drive) invoke(req invokeReq) (any, error) {
+	invokeEnvMu.Lock()
+	defer invokeEnvMu.Unlock()
 	getenv := d.getenv
 	if getenv == nil {
 		getenv = os.Getenv
@@ -397,8 +449,8 @@ func invokeRead(req invokeReq, getenv func(string) string) (any, error, bool) {
 	case "history_managed_file":
 		out, err := invokeHistory(req)
 		return out, err, true
-	case "get_publish_mapping":
-		out, err := invokePublishMapping(req, getenv)
+	case "get_sync_mapping":
+		out, err := invokeSyncMapping(req, getenv)
 		return out, err, true
 	case "references", "unused", "rename_key":
 		out, err := invokeReferenceCommands(req)
@@ -435,8 +487,8 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 	case "create_robot_identity":
 		out, err := invokeRobot(req.Name)
 		return out, err, true
-	case "configure_integration":
-		return nil, configureIntegration(req.Path, req.Scope, req.Repo, req.Org, req.Environment, req.Prefix, req.Visibility), true
+	case "configure_sync_target":
+		return nil, configureSyncTarget(req.Path, req.Scope, req.Repo, req.Org, req.Environment, req.Prefix, req.Visibility), true
 	case "unlock_managed_file":
 		return nil, invokeFileLock("unlock", req.Path, getenv), true
 	case "lock_managed_file":
@@ -447,8 +499,6 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 		return nil, invokeDel(req), true
 	case "create_managed_file":
 		return nil, invokeCreate(req, getenv), true
-	case "commit_managed_file":
-		return nil, invokeCommit(req), true
 	case "restore_managed_file":
 		return nil, invokeRestore(req), true
 	case "add_recipient":
@@ -456,8 +506,8 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 	case "remove_recipient":
 		out, err := invokeRecipientRemove(req, getenv)
 		return out, err, true
-	case "publish_managed_file":
-		out, err := invokePublish(req, getenv)
+	case "sync_managed_file":
+		out, err := invokeSyncSecrets(req, getenv)
 		return out, err, true
 	default:
 		return nil, nil, false
@@ -466,8 +516,6 @@ func invokeWrite(req invokeReq, getenv func(string) string) (any, error, bool) {
 
 func invokeShare(d *drive, req invokeReq) (any, error) {
 	switch req.Cmd {
-	case "sync_project":
-		return nil, d.invokeSync(req.Path)
 	default:
 		return nil, fmt.Errorf("unknown command %q", req.Cmd)
 	}
@@ -537,7 +585,7 @@ func invokeGet(path, at string) (any, error) {
 		args = append(args, "--at", at)
 	}
 	var stdout, stderr strings.Builder
-	if err := cliErr(cmdGet(args, &stdout, &stderr), &stderr); err != nil {
+	if err := cliErr(cmdGet(args, &stdout, &stderr, os.Getenv), &stderr); err != nil {
 		return nil, err
 	}
 	var pairs map[string]string
@@ -558,7 +606,7 @@ func invokeGet(path, at string) (any, error) {
 
 func invokeContents(path string) (any, error) {
 	var stdout, stderr strings.Builder
-	if err := cliErr(cmdGet([]string{"-f", path}, &stdout, &stderr), &stderr); err != nil {
+	if err := cliErr(cmdGet([]string{"-f", path}, &stdout, &stderr, os.Getenv), &stderr); err != nil {
 		return nil, err
 	}
 	return stdout.String(), nil
@@ -623,11 +671,6 @@ func invokeCreate(req invokeReq, getenv func(string) string) error {
 	return cliErr(cmdSet([]string{"-f", req.Path}, strings.NewReader(""), io.Discard, &stderr, getenv), &stderr)
 }
 
-func invokeCommit(req invokeReq) error {
-	var stderr strings.Builder
-	return cliErr(cmdCommit([]string{"-m", req.Message, "-f", req.Path}, io.Discard, &stderr), &stderr)
-}
-
 func invokeReview(req invokeReq) (any, error) {
 	var stdout, stderr strings.Builder
 	if err := cliErr(cmdReview([]string{"-f", req.Path}, &stdout, &stderr), &stderr); err != nil {
@@ -647,14 +690,6 @@ func invokeHistory(req invokeReq) (any, error) {
 func invokeRestore(req invokeReq) error {
 	var stderr strings.Builder
 	return cliErr(cmdRestore([]string{"-f", req.Path, "--at", req.At}, io.Discard, &stderr), &stderr)
-}
-
-func (d *drive) invokeSync(path string) error {
-	top, err := gitTopLevel(path)
-	if err != nil {
-		return err
-	}
-	return syncAt(top)
 }
 
 func invokeRecipientAdd(req invokeReq, getenv func(string) string) error {
@@ -680,7 +715,7 @@ func invokeRecipientRemove(req invokeReq, getenv func(string) string) (any, erro
 	return strings.TrimSpace(stderr.String()), nil
 }
 
-func invokePublish(req invokeReq, getenv func(string) string) (any, error) {
+func invokeSyncSecrets(req invokeReq, getenv func(string) string) (any, error) {
 	args := []string{"-f", req.Path}
 	for _, option := range [][2]string{{"--scope", req.Scope}, {"--repo", req.Repo}, {"--org", req.Org}, {"--environment", req.Environment}, {"--visibility", req.Visibility}} {
 		if option[1] != "" {
@@ -690,22 +725,19 @@ func invokePublish(req invokeReq, getenv func(string) string) (any, error) {
 	if req.Prefix != "" {
 		args = append(args, "--prefix", req.Prefix)
 	}
-	if req.Yes {
-		args = append(args, "--yes")
-	}
 	if req.Prune {
 		args = append(args, "--prune")
 	}
 	var stdout, stderr strings.Builder
-	if err := cliErr(cmdPublish(args, &stdout, &stderr, getenv), &stderr); err != nil {
+	if err := cliErr(cmdSyncSecrets(args, &stdout, &stderr, getenv), &stderr); err != nil {
 		return nil, err
 	}
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func invokePublishMapping(req invokeReq, getenv func(string) string) (any, error) {
+func invokeSyncMapping(req invokeReq, getenv func(string) string) (any, error) {
 	var stdout, stderr strings.Builder
-	if err := cliErr(cmdPublish([]string{"-f", req.Path, "--mapping"}, &stdout, &stderr, getenv), &stderr); err != nil {
+	if err := cliErr(cmdSyncSecrets([]string{"-f", req.Path, "--mapping"}, &stdout, &stderr, getenv), &stderr); err != nil {
 		return nil, err
 	}
 	var out map[string]any

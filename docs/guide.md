@@ -17,9 +17,11 @@ SOPS is bundled. You need Node.js and Git. On first launch, create an Age identi
 
 `npx sopsdeck .` opens that one Project. The sidebar is that folder’s Managed Files, not a list of recent Projects.
 
+Projects also work outside Git repositories; Git history is unavailable there. Opening a subfolder of an initialized Project reopens its root. Monorepo files can share one root manifest, or use independent manifests in package folders. Nested Git repositories and nested Projects are excluded from their parent's scans. Project paths resolve symlinks, but managed files must be regular files inside that Project, without symlinks.
+
 ## Edit secrets
 
-Open a Managed File, edit keys and values, then **Encrypt & save**. Values stay hidden until you reveal them. Saving encrypts the file on disk and can create a Git commit.
+Open a Managed File, edit keys and values, then **Encrypt & save**. Values stay hidden until you reveal them. Saving encrypts the file on disk; commit and push with Git when you are ready.
 
 ## Rename keys
 
@@ -37,7 +39,7 @@ Sopsdeck scans the Project for references to each key. Keys with zero references
 
 ## Secret history
 
-Every Encrypt & save can commit. File history lists those commits. Open a secret’s history to see that key at each revision. `get KEY -f FILE --at REV` decrypts one historical value. Restore copies a revision into the worktree and leaves it uncommitted.
+Every save is a local change you commit with Git. File history lists those commits. Open a secret’s history to see that key at each revision. `get KEY -f FILE --at REV` decrypts one historical value. Restore copies a revision into the worktree and leaves it uncommitted.
 
 ## Field encryption
 
@@ -70,17 +72,19 @@ Each Managed File lists Age public keys (Recipients). Adding a teammate’s key 
 
 When you initialize a Project, your Git identity is recorded in `.sopsdeck.toml` with your Age public key so teammates can see who you are. When you add someone, enter their name or git identity (`Bob <bob@example.com>`) with their Age public key. That label is stored in the same file.
 
-To join a file you cannot open, open **Account**. Copy your Age public key, or copy a request message that includes it, and send that to a Project owner.
+To join a file you cannot open, open **Account**. Copy your Age public key, or copy a request message that includes it, and send that to a teammate with Access.
 
-## Project owners
+Initialize a shared Project once, in one teammate's checkout. That teammate grants the other public keys, then commits and pushes both the encrypted file and `.sopsdeck.toml`. Other teammates pull those changes into their own checkouts; they do not initialize it again. **Secret Sync** sends values to integrations, not other checkouts. A name in Access is only a label: replacing an Age identity requires granting its new public key.
 
-Anyone who can decrypt a file can technically re-encrypt it with extra keys. Sopsdeck records **owners** in `.sopsdeck.toml` when you initialize a Project. Only those owners can add or remove Recipients in Sopsdeck. If no owners are listed, the previous behavior remains: anyone with Access can change the list.
+## Managing Access
 
-Put a GitHub `CODEOWNERS` file on `.sopsdeck.toml` (and the Managed Files) so Access PRs need owner review. `sopsdeck recipient request` opens a metadata-only PR; `sopsdeck recipient grant` re-encrypts and opens the Access PR.
+Anyone who can decrypt a file can add or remove its Recipients. Sopsdeck does not assign owner roles. Older `[[owner]]` entries are read as recipient labels and converted to `[[recipient]]` entries when the manifest is next saved.
+
+Use GitHub `CODEOWNERS` and branch protection if your team requires review of Access changes. `sopsdeck recipient request` opens a metadata-only PR; `sopsdeck recipient grant` re-encrypts and opens the Access PR.
 
 ## Copy your key
 
-Your Age public key is in **Account** and on the **Project** panel. Copy it and send it to an owner, or include it in a Request access message. The private key never leaves the keychain.
+Your Age public key is in **Account** and on the **Project** panel. Copy it and send it to a teammate with Access, or include it in a Request access message. Back up your private key to your password manager from **Account**.
 
 ## Back up and recover your identity
 
@@ -92,14 +96,22 @@ The CLI equivalent is `sopsdeck identity key`; it prints the private key, so nev
 
 - Encrypted Managed Files and `.sopsdeck.toml` live in the Project and can be committed to Git. `.sopsdeck.toml` contains public recipient keys and labels, never private keys.
 - Your private Age identity is in the operating system keychain. On macOS, the keychain item uses service `sopsdeck` and account `age`; it is not a folder in the Project or home directory.
-- The browser keeps only UI preferences, recent Project paths, folder/inspector state, and clipboard-dismissal fingerprints in browser local storage for its `127.0.0.1` origin. It does not store secret values or the Age private key.
+- The browser keeps only UI preferences, recent Project paths, and folder/inspector state in browser local storage for its `127.0.0.1` origin. It does not store secret values or the Age private key, and never reads your clipboard automatically.
 - CLI diagnostics are optional: if you set `SOPSDECK_STATE_DIR`, it contains only the redacted `$SOPSDECK_STATE_DIR/errors.json` error log.
 
 To forget browser UI state, clear site data for Sopsdeck’s local `127.0.0.1` address in your browser; Projects, keys, and encrypted files remain untouched. To remove the identity from this machine, use **Account → Remove local identity** or `sopsdeck identity remove --yes`. That does not revoke its public key from any Managed File and makes local decryption impossible until you import a backup. Delete the optional `errors.json` file if you want to clear CLI diagnostics.
 
+## Recover an out-of-sync manifest
+
+If `.sopsdeck.toml` lists a missing or unsafe file, Sopsdeck shows a warning and keeps the other Managed Files usable. Opening the Project does not rewrite the manifest, recreate missing files, or change your identity.
+
+Restore an intended missing file from Git, or open **Project → Edit managed files**, uncheck the stale entry, and apply the change. This removes only the manifest entry. The CLI equivalent is `sopsdeck project remove FOLDER --file PATH`; it also works when the file is missing. Commit and share the corrected manifest with your normal Git workflow.
+
+If the manifest contains invalid TOML, fix it on disk and choose **Retry opening project**. Do not reinitialize the Project or remove your identity. Managed Files may use any name; Sopsdeck detects dotenv, JSON, and YAML content when possible and treats other content as a binary Managed File.
+
 ## Remove someone and rotate secrets
 
-Remove a person under **Access** for every Managed File they could read, then commit and Sync the changes. This is an owner action when a Project has owners. Sopsdeck rotates the SOPS data key for each removed file automatically.
+Remove a person under **Access** for every Managed File they could read, then commit and push with Git. Sopsdeck rotates the SOPS data key for each removed file automatically.
 
 That protects future file revisions, not secrets the person already read, copied, or has in Git history. Rotate the actual provider credentials afterward (for example, create a new Stripe key, update the Managed File, commit, and revoke the old Stripe key). If the person’s device or Age key might be compromised, treat that provider rotation as required.
 

@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
-import { realpathSync } from 'node:fs';
-import { access, chmod, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { Buffer } from 'node:buffer';
+import { createWriteStream, realpathSync } from 'node:fs';
+import { access, chmod, mkdir, readFile, rename, stat, unlink } from 'node:fs/promises';
 import process from 'node:process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { arch, homedir, platform } from 'node:os';
 import { spawn } from 'node:child_process';
+import http from 'node:http';
+import https from 'node:https';
+import net from 'node:net';
+import { PassThrough } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
@@ -24,27 +28,40 @@ const cliCommands = new Set([
   'identity',
   'account',
   'robot',
-  'configure_integration',
-  'commit',
   'sync',
   'review',
   'history',
   'restore',
   'recipient',
-  'publish',
   'files',
   'project',
   'references',
   'unused',
   'rename',
   'scan',
-  'mcp',
   'drive',
   'team',
+  'sops',
+  'encrypt',
+  'decrypt',
+  'edit',
+  'rotate',
+  'updatekeys',
+  'unset',
+  'exec-env',
+  'exec-file',
+  'filestatus',
+  'groups',
+  'keyservice',
+  'publish',
+  'completion',
+  'help',
+  'h',
 ]);
 
 function usage() {
   return `sopsdeck [PROJECT]
+sopsdeck COMMAND [ARGS]
 
 Open the local Sopsdeck workspace in your browser.
 
@@ -56,6 +73,14 @@ Options:
   --port PORT     listen on localhost PORT (default: ${defaultPort})
   --no-open       print the URL without opening a browser
   -h, --help      show this help
+
+Commands:
+  ${[...cliCommands].join(' ')}
+
+  sync -f FILE   write selected secrets to configured Sync Targets
+  encrypt, decrypt, edit, rotate, updatekeys, ...   use the installed SOPS CLI
+  sops [ARGS]    pass any arguments directly to SOPS, including --help
+  --version, -V, version   print the version
 
 Install in a project with: npm install -D @sopsdeck/sopsdeck
 `;
@@ -107,10 +132,60 @@ async function fileExists(path) {
   }
 }
 
+async function assertPortAvailable(port) {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        reject(
+          new Error(
+            `Port ${port} is already in use. Stop the existing instance or choose --port PORT.`,
+          ),
+        );
+      } else {
+        reject(error);
+      }
+    });
+    server.listen(port, '127.0.0.1', resolve);
+  });
+  await new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
 function cachePath() {
   const root = process.env.SOPSDECK_CACHE_DIR || path.join(homedir(), '.cache', 'sopsdeck');
   const suffix = platform() === 'win32' ? '.exe' : '';
   return path.join(root, `v${packageJson.version}`, `${platform()}-${arch()}`, `sopsdeck${suffix}`);
+}
+
+function fetchBinary(url, redirects = 0) {
+  return new Promise((resolve, reject) => {
+    const client = url.protocol === 'http:' ? http : https;
+    const request = client.get(url, (response) => {
+      if (
+        response.statusCode >= 300 &&
+        response.statusCode < 400 &&
+        response.headers.location &&
+        redirects < 5
+      ) {
+        response.resume();
+        resolve(fetchBinary(new URL(response.headers.location, url), redirects + 1));
+
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`download failed (${response.statusCode}) from ${url}`));
+
+        return;
+      }
+
+      resolve({ response, total: Number(response.headers['content-length'] || 0) });
+    });
+    request.on('error', reject);
+  });
 }
 
 async function downloadBinary(target) {
@@ -120,13 +195,54 @@ async function downloadBinary(target) {
     `https://github.com/sopsdeck/sopsdeck/releases/download/v${packageJson.version}`;
   const url = process.env.SOPSDECK_BINARY_URL || `${base.replace(/\/$/, '')}/${asset}`;
   process.stderr.write(`sopsdeck: downloading ${asset}...\n`);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`download failed (${response.status}) from ${url}`);
+  const { response, total } = await fetchBinary(new URL(url));
   const temporary = `${target}.${process.pid}.tmp`;
   await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(temporary, Buffer.from(await response.arrayBuffer()), { mode: 0o755 });
-  await chmod(temporary, 0o755);
-  await rename(temporary, target);
+  const out = createWriteStream(temporary, { mode: 0o755 });
+  const tracker = new PassThrough();
+  let received = 0;
+  let lastReport = 0;
+  let timer;
+
+  const stallMs = 30_000;
+  const resetTimer = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      tracker.destroy(new Error(`download stalled (no data for ${stallMs / 1000}s) from ${url}`));
+    }, stallMs);
+  };
+
+  tracker.on('data', (chunk) => {
+    received += chunk.length;
+    resetTimer();
+    const now = Date.now();
+    if (now - lastReport < 500) return;
+    lastReport = now;
+    const done = (received / 1_048_576).toFixed(1);
+    const size = total ? `${(total / 1_048_576).toFixed(1)}MB` : '?';
+    const percent = total ? ` ${Math.floor((received / total) * 100)}%` : '';
+    process.stderr.write(`\rsopsdeck: downloading ${asset}... ${done}/${size}MB${percent}`);
+  });
+  resetTimer();
+  try {
+    await pipeline(response, tracker, out);
+    clearTimeout(timer);
+    process.stderr.write(
+      `\rsopsdeck: downloaded ${asset} (${(received / 1_048_576).toFixed(1)}MB)      \n`,
+    );
+    await chmod(temporary, 0o755);
+    await rename(temporary, target);
+  } catch (error) {
+    clearTimeout(timer);
+    out.destroy();
+
+    try {
+      await unlink(temporary);
+    } catch {}
+
+    throw error;
+  }
+
   return target;
 }
 
@@ -193,16 +309,36 @@ async function main(args = process.argv.slice(2)) {
     return 0;
   }
 
-  if (args[0] === '--version' || args[0] === '-V') {
+  if (args[0] === '--version' || args[0] === '-V' || args[0] === 'version') {
     process.stdout.write(`${packageJson.version}\n`);
     return 0;
   }
 
-  if (cliCommands.has(args[0])) return run(await runnerPath(), args, { stdio: 'inherit' });
+  if (
+    cliCommands.has(args[0]) ||
+    (args[0]?.startsWith('-') &&
+      !['--port', '--no-open'].includes(args[0]) &&
+      !args[0].startsWith('--port='))
+  )
+    return run(await runnerPath(), args, { stdio: 'inherit' });
   const options = parseLauncherArgs(args);
 
-  const projectInfo = await stat(options.project);
-  if (!projectInfo.isDirectory()) throw new Error(`${options.project} is not a folder`);
+  let projectInfo;
+  try {
+    projectInfo = await stat(options.project);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error(
+        `unknown command or project folder: ${options.project}. Run sopsdeck --help.`,
+      );
+    }
+
+    throw error;
+  }
+
+  if (!projectInfo.isDirectory()) return run(await runnerPath(), args, { stdio: 'inherit' });
+  options.project = realpathSync(options.project);
+  await assertPortAvailable(options.port);
 
   const binary = await runnerPath();
   const url = `http://127.0.0.1:${options.port}`;
@@ -260,4 +396,4 @@ if (isMainEntry()) {
   }
 }
 
-export { assetName, parseLauncherArgs };
+export { assertPortAvailable, assetName, parseLauncherArgs };

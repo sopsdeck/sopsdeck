@@ -11,12 +11,10 @@ import (
 )
 
 type accountIdentity struct {
-	Name        string              `json:"name"`
-	Email       string              `json:"email"`
-	PublicKey   string              `json:"public_key"`
-	HasIdentity bool                `json:"has_identity"`
-	Owners      []manifestRecipient `json:"owners,omitempty"`
-	CanGrant    bool                `json:"can_grant"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	PublicKey   string `json:"public_key"`
+	HasIdentity bool   `json:"has_identity"`
 }
 
 func cmdAccount(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
@@ -68,14 +66,11 @@ func cmdAccount(args []string, stdout, stderr io.Writer, getenv func(string) str
 func accountForPath(path string, getenv func(string) string) accountIdentity {
 	name, email := gitIdentity(path)
 	publicKey, err := ageRecipientFromEnv(getenv)
-	cfg := projectConfigFor(path, getenv)
 	return accountIdentity{
 		Name:        name,
 		Email:       email,
 		PublicKey:   publicKey,
 		HasIdentity: err == nil && publicKey != "",
-		Owners:      cfg.Owners,
-		CanGrant:    cfg.CanGrant,
 	}
 }
 
@@ -152,18 +147,8 @@ func invokeCreateUserIdentity(path string, getenv func(string) string) (any, err
 }
 
 func invokeIdentityBackup(getenv func(string) string) (string, error) {
-	var stdout, stderr strings.Builder
-	if code := identityPrintKey(&stdout, &stderr, getenv); code == 0 {
-		return strings.TrimSpace(stdout.String()), nil
-	}
-	if path := getenv("SOPS_AGE_KEY_FILE"); path != "" {
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		return strings.TrimSpace(string(body)), nil
-	}
-	return "", fmt.Errorf("%s", strings.TrimSpace(stderr.String()))
+	body, err := ageIdentityFromEnv(getenv)
+	return strings.TrimSpace(body), err
 }
 
 func invokeIdentityRemove(getenv func(string) string) error {

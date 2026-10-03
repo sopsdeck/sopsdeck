@@ -42,6 +42,12 @@ export function icon(kind) {
       svgEl('path', { d: 'M9 7V4h6v3', ...stroke }),
     ],
     plus: [svgEl('path', { d: 'M12 5v14M5 12h14', ...stroke })],
+    check: [svgEl('path', { d: 'M5 12l4 4L19 6', ...stroke })],
+    alert: [
+      svgEl('circle', { cx: '12', cy: '12', r: '9', ...stroke }),
+      svgEl('path', { d: 'M12 7v6M12 17h.01', ...stroke }),
+    ],
+    edit: [svgEl('path', { d: 'm16 3 5 5L9 20l-6 1 1-6zM14 5l5 5', ...stroke })],
     folder: [
       svgEl('path', { d: 'M3 7h6l2 2h10v10H3z', ...stroke }),
       svgEl('path', { d: 'M3 7V5h5l2 2', ...stroke }),
@@ -134,4 +140,23 @@ export function iconButton(testid, label, kind, onClick) {
   btn.append(icon(kind));
   btn.addEventListener('click', onClick);
   return btn;
+}
+
+export function buttonFeedback(button, message, success = true) {
+  button.querySelector('.button-feedback')?.remove();
+  if (!button.hasAttribute('aria-label')) {
+    button.setAttribute('aria-label', button.textContent.trim());
+  }
+
+  const feedback = document.createElement('span');
+  feedback.className = 'button-feedback';
+  feedback.setAttribute('role', 'status');
+  feedback.append(icon(success ? 'check' : 'alert'), document.createTextNode(message));
+  button.dataset.feedback = success ? 'success' : 'error';
+  button.append(feedback);
+  setTimeout(() => {
+    if (button.querySelector('.button-feedback') !== feedback) return;
+    feedback.remove();
+    delete button.dataset.feedback;
+  }, 1800);
 }

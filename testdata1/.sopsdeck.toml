@@ -1,0 +1,10 @@
+[[managed_file]]
+path = '.env.dev'
+
+[[owner]]
+key = 'age1wx4z6uu3grx5p7at50ajf3dhfgkf8fwnfccx5cyrjctwlqfhrv3qcmcauy'
+name = 'Jack Kitto'
+email = 'jack@kitto.sh'
+kind = 'person'
+
+[scan]

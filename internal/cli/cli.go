@@ -2,14 +2,16 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"filippo.io/age"
 	"github.com/getsops/sops/v3"
@@ -27,6 +29,10 @@ import (
 )
 
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+	// Native SOPS can run programs whose stderr contains secrets. Do not persist it.
+	if len(args) > 0 && (args[0] == "sops" || isSOPSInvocation(args)) {
+		return run(args, stdin, stdout, stderr, getenv)
+	}
 	var captured bytes.Buffer
 	logged := io.MultiWriter(stderr, &captured)
 	code := run(args, stdin, stdout, logged, getenv)
@@ -49,6 +55,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 		fmt.Fprintln(stdout, appver.Version)
 		return 0
 	}
+	if args[0] == "sops" {
+		return cmdSOPS(args[1:], stdin, stdout, stderr, getenv)
+	}
+	if isSOPSInvocation(args) {
+		return cmdSOPS(args, stdin, stdout, stderr, getenv)
+	}
 	if code, ok := runLocal(args, stdin, stdout, stderr, getenv); ok {
 		return code
 	}
@@ -62,7 +74,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 func runLocal(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) (int, bool) {
 	switch args[0] {
 	case "get":
-		return cmdGet(args[1:], stdout, stderr), true
+		return cmdGet(args[1:], stdout, stderr, getenv), true
 	case "lock":
 		return cmdLock(args[1:], stdout, stderr, getenv), true
 	case "unlock":
@@ -76,15 +88,13 @@ func runLocal(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv f
 	case "del":
 		return cmdDel(args[1:], stdout, stderr), true
 	case "run":
-		return cmdRun(args[1:], stdin, stdout, stderr), true
+		return cmdRun(args[1:], stdin, stdout, stderr, getenv), true
 	case "identity":
 		return cmdIdentity(args[1:], stdout, stderr, getenv), true
 	case "account":
 		return cmdAccount(args[1:], stdout, stderr, getenv), true
 	case "robot":
 		return cmdRobot(args[1:], stdout, stderr), true
-	case "configure_integration":
-		return cmdConfigureIntegration(args[1:], stderr), true
 	default:
 		return 0, false
 	}
@@ -92,10 +102,6 @@ func runLocal(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv f
 
 func runShared(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) (int, bool) {
 	switch args[0] {
-	case "commit":
-		return cmdCommit(args[1:], stdout, stderr), true
-	case "sync":
-		return cmdSync(args[1:], stdout, stderr), true
 	case "review":
 		return cmdReview(args[1:], stdout, stderr), true
 	case "history":
@@ -104,8 +110,8 @@ func runShared(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv 
 		return cmdRestore(args[1:], stdout, stderr), true
 	case "recipient":
 		return cmdRecipient(args[1:], stdout, stderr, getenv), true
-	case "publish":
-		return cmdPublish(args[1:], stdout, stderr, getenv), true
+	case "sync":
+		return cmdSyncSecrets(args[1:], stdout, stderr, getenv), true
 	case "files":
 		return cmdFiles(args[1:], stdout, stderr), true
 	case "drive":
@@ -116,25 +122,11 @@ func runShared(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv 
 		return cmdScan(args[1:], stdout, stderr), true
 	case "project":
 		return cmdProject(args[1:], stdout, stderr, getenv), true
-	case "mcp":
-		return cmdMCP(args[1:], stdin, stdout, stderr, getenv), true
 	case "references", "unused", "rename":
 		return runReferenceCommands(args[0], args[1:], stdout, stderr), true
 	default:
 		return 0, false
 	}
-}
-
-func cmdConfigureIntegration(args []string, stderr io.Writer) int {
-	if len(args) != 7 {
-		fmt.Fprintln(stderr, "usage: sopsdeck configure_integration FILE SCOPE REPO ORG ENVIRONMENT PREFIX VISIBILITY")
-		return 1
-	}
-	if err := configureIntegration(args[0], args[1], args[2], args[3], args[4], args[5], args[6]); err != nil {
-		fmt.Fprintf(stderr, "configure integration: %v\n", err)
-		return 1
-	}
-	return 0
 }
 
 func runReferenceCommands(cmd string, args []string, stdout, stderr io.Writer) int {
@@ -199,7 +191,7 @@ func parseGetFlags(args []string) (getFlags, string) {
 	return flags, ""
 }
 
-func cmdGet(args []string, stdout, stderr io.Writer) int {
+func cmdGet(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	flags, usage := parseGetFlags(args)
 	if usage != "" {
 		fmt.Fprintln(stderr, usage)
@@ -231,10 +223,9 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, explainGet(err))
 		return 1
 	}
-	warnEASCLI(file, stderr)
 	if key == "" {
 		if output == "json" {
-			pairs, err := plainPairs(plain, format)
+			pairs, err := plainPairs(plain, format, getenv)
 			if err != nil {
 				fmt.Fprintf(stderr, "get: %v\n", err)
 				return 1
@@ -256,7 +247,7 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	pairs, err := plainPairs(plain, format)
+	pairs, err := plainPairs(plain, format, getenv)
 	if err != nil {
 		fmt.Fprintf(stderr, "get: %v\n", err)
 		return 1
@@ -406,6 +397,15 @@ func setEncrypted(file string, store sops.Store, path []interface{}, value strin
 }
 
 func writeAtomic(path string, data []byte) error {
+	if _, err := os.Stat(transientRunLockPath(path)); err == nil {
+		return fmt.Errorf("%s is in use by sopsdeck run", path)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return writeAtomicMode(path, data, 0o600)
+}
+
+func writeAtomicMode(path string, data []byte, mode os.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
@@ -416,7 +416,7 @@ func writeAtomic(path string, data []byte) error {
 	}
 	tmpName := tmp.Name()
 	defer func() { _ = os.Remove(tmpName) }()
-	if err := tmp.Chmod(0o600); err != nil {
+	if err := tmp.Chmod(mode.Perm()); err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -543,8 +543,7 @@ func delEncrypted(file string, store sops.Store, path []interface{}, stderr io.W
 	return 0
 }
 
-func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	var file string
+func parseRunFlags(args []string) (file string, noRedact bool, argv []string, usage bool) {
 	dash := -1
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--" {
@@ -555,58 +554,255 @@ func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		case "-f", "--env-file":
 			i++
 			if i >= len(args) {
-				fmt.Fprintln(stderr, "run: -f requires a file")
-				return 1
+				return "", false, nil, true
 			}
 			file = args[i]
+		case "--no-redact":
+			noRedact = true
 		default:
-			fmt.Fprintln(stderr, "usage: sopsdeck run -f FILE -- CMD [ARG...]")
-			return 1
+			return "", false, nil, true
 		}
 	}
-	if dash < 0 || file == "" || dash+1 >= len(args) {
-		fmt.Fprintln(stderr, "usage: sopsdeck run -f FILE -- CMD [ARG...]")
+	if dash < 0 || dash+1 >= len(args) || (file == "" && !noRedact) {
+		return "", false, nil, true
+	}
+	return file, noRedact, args[dash+1:], false
+}
+
+func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) (code int) {
+	file, noRedact, argv, usage := parseRunFlags(args)
+	if usage {
+		fmt.Fprintln(stderr, "usage: sopsdeck run [-f FILE] [--no-redact] -- CMD [ARG...]")
 		return 1
 	}
-	argv := args[dash+1:]
-	format := fileFormat(file)
-	plain, err := decrypt.File(file, formatName(format))
-	if err != nil {
-		fmt.Fprintf(stderr, "run: %v\n", err)
-		return 1
+	// Arm SIGINT/SIGTERM handling before any plaintext can touch disk: a
+	// signal arriving between transient unlock and signal.Notify would
+	// otherwise kill sopsdeck with the default handler and skip the relock.
+	signals := make(chan os.Signal, 4)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(signals)
+	expansionCtx, stopExpansion := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopExpansion()
+
+	runner := childRunner{
+		stdin:   stdin,
+		stdout:  stdout,
+		stderr:  stderr,
+		signals: signals,
 	}
-	fileEnv, err := plainEnv(plain, format)
-	if err != nil {
-		fmt.Fprintf(stderr, "run: %v\n", err)
-		return 1
-	}
-	childEnv := os.Environ()
-	have := map[string]bool{}
-	for _, kv := range childEnv {
-		k, _, _ := strings.Cut(kv, "=")
-		have[k] = true
-	}
-	for k, v := range fileEnv {
-		if have[k] {
-			continue
+	if file != "" {
+		format := fileFormat(file)
+		if format == formats.Dotenv {
+			plain, err := decrypt.File(file, formatName(format))
+			if err != nil {
+				fmt.Fprintf(stderr, "run: %v\n", err)
+				return 1
+			}
+			fileEnv, err := dotenvPairsContext(expansionCtx, plain, getenv)
+			if err != nil {
+				fmt.Fprintf(stderr, "run: %v\n", err)
+				return 1
+			}
+			childEnv := os.Environ()
+			have := map[string]bool{}
+			for _, kv := range childEnv {
+				k, _, _ := strings.Cut(kv, "=")
+				have[k] = true
+			}
+			for k, v := range fileEnv {
+				if have[k] {
+					continue
+				}
+				childEnv = append(childEnv, k+"="+v)
+			}
+			runner.env = childEnv
+			if !noRedact {
+				runner.redact = newRedactorValues(redactionPairs(file, fileEnv, true, nil, false, ""))
+			}
+		} else {
+			encryptedKeys, encryptsAll, regex := fileEncryptionPolicy(file)
+			runner.unlock = &transientUnlock{file: file}
+			defer func() {
+				if err := runner.unlock.close(stderr); err != nil {
+					code = 1
+				}
+			}()
+			if err := runner.unlock.open(stderr); err != nil {
+				return 1
+			}
+			if !noRedact {
+				pairs, err := plainPairs(runner.unlock.plain, format, getenv)
+				if err != nil {
+					fmt.Fprintf(stderr, "run: %v\n", err)
+					return 1
+				}
+				runner.redact = newRedactorValues(redactionPairs(file, pairs, false, encryptedKeys, encryptsAll, regex))
+			}
 		}
-		childEnv = append(childEnv, k+"="+v)
 	}
+	return runner.run(argv)
+}
+
+// childRunner spawns the run child and reports its outcome. The zero value
+// inherits the parent environment; transientUnlock supplies a decrypted
+// working copy for the duration of one command. signals is the already-armed
+// SIGINT/SIGTERM channel from cmdRun.
+type childRunner struct {
+	env     []string
+	stdin   io.Reader
+	stdout  io.Writer
+	stderr  io.Writer
+	signals chan os.Signal
+	unlock  *transientUnlock
+	redact  *redactor
+}
+
+func (r childRunner) run(argv []string) int {
+	stdout := r.outputWriter(r.stdout)
+	stderr := r.outputWriter(r.stderr)
 	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Stdin = stdin
+	cmd.Stdin = r.stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	cmd.Env = childEnv
-	err = cmd.Run()
+	cmd.Env = r.env
+	configureChildCommand(cmd)
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(r.stderr, "run: %v\n", err)
+		return 1
+	}
+
+	// While the child runs, forward SIGINT/SIGTERM into its process group so
+	// sopsdeck stays alive long enough to relock any transiently unlocked
+	// file before exiting with the same signal. The channel was armed before
+	// the transient unlock, so no window exists where a signal can kill
+	// sopsdeck while plaintext is on disk.
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	err := func() error {
+		for {
+			select {
+			case sig := <-r.signals:
+				forwardChildSignal(cmd, sig)
+			case err := <-done:
+				return err
+			}
+		}
+	}()
+
+	// The child is done; flush any redacted tail the streams held back.
+	var flushErr error
+	for _, w := range []io.Writer{stdout, stderr} {
+		if f, ok := w.(interface{ Flush() error }); ok {
+			if err := f.Flush(); err != nil && flushErr == nil {
+				flushErr = err
+			}
+		}
+	}
+	if flushErr != nil {
+		fmt.Fprintln(r.stderr, "run: could not write redacted command output")
+		return 1
+	}
+
 	if err == nil {
 		return 0
 	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
-		return ee.ExitCode()
+	return childExitCode(err, r.stderr)
+}
+
+// transientUnlock decrypts a structured Managed File to its real path for
+// the duration of one child command, then relocks it. The unlocked working
+// copy carries no sops metadata — zero remnants.
+type transientUnlock struct {
+	file     string
+	plain    []byte
+	previous []byte
+	mode     os.FileMode
+	lock     string
+	locked   bool
+}
+
+func (u *transientUnlock) open(stderr io.Writer) error {
+	if canonical, err := filepath.EvalSymlinks(u.file); err == nil {
+		u.file = canonical
 	}
-	fmt.Fprintf(stderr, "run: %v\n", err)
-	return 1
+	u.lock = transientRunLockPath(u.file)
+	lockFile, err := os.OpenFile(u.lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		if os.IsExist(err) {
+			err = fmt.Errorf("another run is active or a stale run lock exists at %s", u.lock)
+		}
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return err
+	}
+	u.locked = true
+	if _, err = fmt.Fprintf(lockFile, "%d\n", os.Getpid()); err == nil {
+		err = lockFile.Sync()
+	}
+	closeErr := lockFile.Close()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		fmt.Fprintf(stderr, "run: could not create run lock: %v\n", err)
+		return err
+	}
+
+	info, err := os.Stat(u.file)
+	if err != nil {
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return err
+	}
+	raw, err := os.ReadFile(u.file)
+	if err != nil {
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return err
+	}
+	u.mode = info.Mode().Perm()
+	if !isEncryptedBytes(raw) {
+		u.plain = raw
+		return nil
+	}
+	plain, err := decrypt.File(u.file, formatName(fileFormat(u.file)))
+	if err != nil {
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return err
+	}
+	if err := writeAtomicMode(u.file, plain, 0o600); err != nil {
+		fmt.Fprintf(stderr, "run: %v\n", err)
+		return err
+	}
+	u.plain = plain
+	u.previous = raw
+	return nil
+}
+
+func transientRunLockPath(file string) string {
+	if canonical, err := filepath.EvalSymlinks(file); err == nil {
+		file = canonical
+	}
+	return file + ".sopsdeck-run.lock"
+}
+
+func (u *transientUnlock) close(stderr io.Writer) error {
+	if u.locked {
+		defer func() { _ = os.Remove(u.lock) }()
+	}
+	if u.previous == nil {
+		return nil
+	}
+	current, err := os.ReadFile(u.file)
+	if err == nil && !bytes.Equal(current, u.plain) {
+		err = fmt.Errorf("file changed during run")
+	}
+	if err == nil {
+		err = writeAtomicMode(u.file, u.previous, u.mode)
+	}
+	if err != nil {
+		fmt.Fprintf(stderr, "run: could not restore encrypted file %s: %v; inspect it and recover with `sopsdeck lock -f %s` if needed\n", u.file, err, u.file)
+		return err
+	}
+	return nil
 }
 
 func plainEnv(plain []byte, format formats.Format) (map[string]string, error) {
@@ -637,9 +833,9 @@ func plainEnv(plain []byte, format formats.Format) (map[string]string, error) {
 	return out, nil
 }
 
-func plainPairs(plain []byte, format formats.Format) (map[string]string, error) {
+func plainPairs(plain []byte, format formats.Format, getenv func(string) string) (map[string]string, error) {
 	if format == formats.Dotenv {
-		return parseDotenvMap(plain)
+		return dotenvPairs(plain, getenv)
 	}
 	var doc any
 	var err error
@@ -656,6 +852,36 @@ func plainPairs(plain []byte, format formats.Format) (map[string]string, error) 
 	}
 	out := map[string]string{}
 	flattenPairs(out, "", doc)
+	return out, nil
+}
+
+// dotenvPairs parses a dotenv file and resolves live computed values in file
+// order, so earlier keys feed later ones. Single-quoted values stay literal
+// (dotenvx's expansion opt-out).
+func dotenvPairs(plain []byte, getenv func(string) string) (map[string]string, error) {
+	return dotenvPairsContext(context.Background(), plain, getenv)
+}
+
+func dotenvPairsContext(ctx context.Context, plain []byte, getenv func(string) string) (map[string]string, error) {
+	branches, single, err := parseDotenvQuoted(plain)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, item := range branches[0] {
+		key, ok := item.Key.(string)
+		if !ok {
+			continue
+		}
+		value := fmt.Sprint(item.Value)
+		if !single[key] {
+			value, err = expandDotenvValue(ctx, value, out, getenv)
+			if err != nil {
+				return nil, err
+			}
+		}
+		out[key] = value
+	}
 	return out, nil
 }
 
@@ -680,16 +906,14 @@ func flattenPairs(out map[string]string, prefix string, value any) {
 	}
 }
 
-func warnEASCLI(file string, stderr io.Writer) {
-	if filepath.Base(file) != "eas.json" {
-		return
-	}
-	fmt.Fprintln(stderr, easJSONWarning)
-}
-
-const easJSONWarning = "eas.json: EAS CLI will not read SOPS ciphertext"
-
 func fileFormat(path string) formats.Format {
+	if mapping, _, _ := mappingFor(path); mapping.Format != "" {
+		return formats.FormatFromString(mapping.Format)
+	}
+	data, err := os.ReadFile(path)
+	if err == nil && !isEncryptedBytes(data) {
+		return detectFileFormat(data)
+	}
 	base := filepath.Base(path)
 	switch {
 	case base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(strings.ToLower(base), ".env"):
@@ -698,9 +922,35 @@ func fileFormat(path string) formats.Format {
 		return formats.Json
 	case strings.HasSuffix(strings.ToLower(base), ".yaml"), strings.HasSuffix(strings.ToLower(base), ".yml"):
 		return formats.Yaml
-	default:
-		return formats.FormatForPath(path)
 	}
+	if os.IsNotExist(err) {
+		return formats.Dotenv
+	}
+	return formats.Binary
+}
+
+func detectFileFormat(data []byte) formats.Format {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return formats.Dotenv
+	}
+	if json.Valid(trimmed) {
+		return formats.Json
+	}
+	if bytes.Contains(trimmed, []byte("=")) {
+		return formats.Dotenv
+	}
+	if _, err := parseDotenv(trimmed); err == nil {
+		return formats.Dotenv
+	}
+	var document any
+	if yaml.Unmarshal(trimmed, &document) == nil {
+		switch document.(type) {
+		case map[string]any, []any:
+			return formats.Yaml
+		}
+	}
+	return formats.Binary
 }
 
 func formatName(format formats.Format) string {
@@ -714,42 +964,6 @@ func formatName(format formats.Format) string {
 	default:
 		return "binary"
 	}
-}
-
-func lookupValue(plain []byte, format formats.Format, key string) (string, bool, error) {
-	if format == formats.Dotenv {
-		return dotenvValue(plain, key)
-	}
-	var doc map[string]any
-	var err error
-	switch format {
-	case formats.Json:
-		err = json.Unmarshal(plain, &doc)
-	case formats.Yaml:
-		err = yaml.Unmarshal(plain, &doc)
-	default:
-		return "", false, fmt.Errorf("unsupported format")
-	}
-	if err != nil {
-		return "", false, err
-	}
-	raw, ok := doc[key]
-	if !ok {
-		return "", false, nil
-	}
-	if s, ok := raw.(string); ok {
-		return s, true, nil
-	}
-	return fmt.Sprint(raw), true, nil
-}
-
-func dotenvValue(plain []byte, key string) (string, bool, error) {
-	values, err := parseDotenvMap(plain)
-	if err != nil {
-		return "", false, err
-	}
-	v, ok := values[key]
-	return v, ok, nil
 }
 
 func cmdIdentity(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
@@ -921,14 +1135,34 @@ func setCreate(file, key, value string, stderr io.Writer, getenv func(string) st
 }
 
 func ageRecipientFromEnv(getenv func(string) string) (string, error) {
+	body, err := ageIdentityFromEnv(getenv)
+	if err != nil {
+		return "", err
+	}
+	return recipientFromIdentityReader(strings.NewReader(body))
+}
+
+func ageIdentityFromEnv(getenv func(string) string) (string, error) {
+	if body := getenv("SOPS_AGE_KEY"); body != "" {
+		return body, nil
+	}
 	if path := getenv("SOPS_AGE_KEY_FILE"); path != "" {
-		return recipientFromIdentityFile(path)
+		body, err := os.ReadFile(path)
+		return string(body), err
+	}
+	if command := getenv("SOPS_AGE_KEY_CMD"); command != "" {
+		body, err := exec.Command("sh", "-c", command).Output()
+		if err != nil {
+			return "", fmt.Errorf("age identity command failed")
+		}
+		return string(body), nil
 	}
 	if body, err := getIdentity(getenv); err == nil && strings.TrimSpace(body) != "" {
-		return recipientFromIdentityReader(strings.NewReader(body))
+		return body, nil
 	}
 	if dir := getenv("SOPSDECK_STATE_DIR"); dir != "" {
-		return recipientFromIdentityFile(filepath.Join(dir, "age.txt"))
+		body, err := os.ReadFile(filepath.Join(dir, "age.txt"))
+		return string(body), err
 	}
 	return "", fmt.Errorf("no age identity (set SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, or SOPSDECK_STATE_DIR)")
 }
@@ -957,46 +1191,6 @@ func recipientFromIdentityReader(r io.Reader) (string, error) {
 	return id.Recipient().String(), nil
 }
 
-func cmdCommit(args []string, stdout, stderr io.Writer) int {
-	_ = stdout
-	var message, file string
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "-m":
-			i++
-			if i >= len(args) {
-				fmt.Fprintln(stderr, "commit: -m requires a message")
-				return 1
-			}
-			message = args[i]
-		case "-f":
-			i++
-			if i >= len(args) {
-				fmt.Fprintln(stderr, "commit: -f requires a file")
-				return 1
-			}
-			file = args[i]
-		default:
-			fmt.Fprintln(stderr, "usage: sopsdeck commit -m MESSAGE -f FILE")
-			return 1
-		}
-	}
-	if message == "" || file == "" {
-		fmt.Fprintln(stderr, "usage: sopsdeck commit -m MESSAGE -f FILE")
-		return 1
-	}
-	dir := filepath.Dir(file)
-	if err := runGitCmd(dir, "add", "--", file); err != nil {
-		fmt.Fprintf(stderr, "commit: %v\n", err)
-		return 1
-	}
-	if err := runGitCmd(dir, "commit", "-m", message, "--", file); err != nil {
-		fmt.Fprintf(stderr, "commit: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
 func gitCLIArgs(args []string) []string {
 	out := []string{"-c", "commit.gpgsign=false"}
 	if len(args) > 0 && args[0] == "commit" {
@@ -1015,39 +1209,6 @@ func runGitCmd(dir string, args ...string) error {
 			return err
 		}
 		return fmt.Errorf("%s", msg)
-	}
-	return nil
-}
-
-func cmdSync(args []string, stdout, stderr io.Writer) int {
-	_ = stdout
-	if len(args) != 0 {
-		fmt.Fprintln(stderr, "usage: sopsdeck sync")
-		return 1
-	}
-	if err := syncAt("."); err != nil {
-		fmt.Fprintln(stderr, err.Error())
-		return 1
-	}
-	return 0
-}
-
-func syncAt(dir string) error {
-	dirty, err := gitWorktreeDirtyAt(dir)
-	if err != nil {
-		return errors.New(explainSync(err))
-	}
-	if dirty {
-		return errors.New("sync: commit local Managed File changes before Sync")
-	}
-	if err := runGitCmd(dir, "fetch"); err != nil {
-		return errors.New(explainSync(err))
-	}
-	if err := runGitCmd(dir, "pull", "--ff-only"); err != nil {
-		return errors.New(explainSync(err))
-	}
-	if err := runGitCmd(dir, "push"); err != nil {
-		return errors.New(explainSync(err))
 	}
 	return nil
 }

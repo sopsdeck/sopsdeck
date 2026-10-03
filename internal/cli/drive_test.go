@@ -3,7 +3,9 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +15,67 @@ import (
 
 	"sopsdeck/internal/studio"
 )
+
+func TestDriveBusyPortDoesNotSeedOrChangeTeam(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	root := filepath.Join(t.TempDir(), "team")
+	getenv := func(key string) string {
+		if key == "SOPSDECK_TEAM_ROOT" {
+			return root
+		}
+		return os.Getenv(key)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := cmdDrive([]string{"--demo", "--listen", ln.Addr().String()}, &stdout, &stderr, getenv); code != 1 {
+		t.Fatalf("exit %d", code)
+	}
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatalf("busy server mutated studio: %v", err)
+	}
+}
+
+func TestDriveAccessSurvivesEncryptionPolicyAndUnlock(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+	root := t.TempDir()
+	file := filepath.Join(root, "config.json")
+	mustWriteFile(t, file, `{"SECRET":"fixture","PUBLIC":"safe"}`)
+	var stdout, stderr bytes.Buffer
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "config.json", "--keys", "SECRET"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	bob, err := st.Identity("bob", "bob@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(&drive{getenv: os.Getenv})
+	t.Cleanup(srv.Close)
+	postInvoke(t, srv.URL, invokeReq{Cmd: "add_recipient", Path: file, PublicKey: bob.PublicKey, Name: "bob"})
+	for _, operation := range []invokeReq{
+		{Cmd: "set_encrypted_keys", Path: file, Keys: []string{"SECRET", "PUBLIC"}},
+		{Cmd: "unlock_managed_file", Path: file},
+		{Cmd: "lock_managed_file", Path: file},
+	} {
+		postInvoke(t, srv.URL, operation)
+		if operation.Cmd == "unlock_managed_file" {
+			continue
+		}
+		access := postInvoke(t, srv.URL, invokeReq{Cmd: "list_file_access", Path: file})
+		if !bytes.Contains(access, []byte(bob.PublicKey)) {
+			t.Fatalf("%s dropped Bob's Access", operation.Cmd)
+		}
+	}
+	account := postInvoke(t, srv.URL, invokeReq{Cmd: "get_account", Path: root})
+	if bytes.Contains(account, []byte(`"owners"`)) || bytes.Contains(account, []byte(`"can_grant"`)) {
+		t.Fatalf("account still includes owner roles: %s", account)
+	}
+}
 
 func TestDriveInvokeListsAndReadsManagedFile(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
@@ -103,7 +166,7 @@ func TestDriveInvokeRenamesKeyAndRewritesReferences(t *testing.T) {
 	}
 }
 
-func TestDriveInvokePublishesToFakeGitHub(t *testing.T) {
+func TestDriveInvokeSyncsToFakeGitHub(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -121,13 +184,12 @@ func TestDriveInvokePublishesToFakeGitHub(t *testing.T) {
 	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
 	t.Cleanup(srv.Close)
 	body := postInvoke(t, srv.URL, invokeReq{
-		Cmd:    "publish_managed_file",
+		Cmd:    "sync_managed_file",
 		Path:   env,
 		Prefix: "SD_",
-		Yes:    true,
 	})
-	if !bytes.Contains(body, []byte("published")) {
-		t.Fatalf("publish=%s", body)
+	if !bytes.Contains(body, []byte("synced")) {
+		t.Fatalf("sync=%s", body)
 	}
 	names := st.GitHub.Names()
 	found := false
@@ -141,7 +203,7 @@ func TestDriveInvokePublishesToFakeGitHub(t *testing.T) {
 	}
 }
 
-func TestDriveInvokeReturnsPublishMapping(t *testing.T) {
+func TestDriveInvokeReturnsSyncMapping(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -161,7 +223,7 @@ func TestDriveInvokeReturnsPublishMapping(t *testing.T) {
 	}
 	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
 	t.Cleanup(srv.Close)
-	body := postInvoke(t, srv.URL, invokeReq{Cmd: "get_publish_mapping", Path: env})
+	body := postInvoke(t, srv.URL, invokeReq{Cmd: "get_sync_mapping", Path: env})
 	if !bytes.Contains(body, []byte("acme/app")) || !bytes.Contains(body, []byte("production")) || !bytes.Contains(body, []byte("SD_")) {
 		t.Fatalf("mapping=%s", body)
 	}
@@ -343,7 +405,7 @@ func TestSeedDemoCreatesSharedManagedFile(t *testing.T) {
 	if filepath.Base(info.Projects[1]) != "atlas-web" || filepath.Base(info.Projects[2]) != "docs-site" {
 		t.Fatalf("projects=%v", info.Projects)
 	}
-	if _, err := os.Stat(filepath.Join(info.Projects[1], "eas.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(info.Projects[1], "app.config.json")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(info.Projects[1], ".sopsdeck.toml")); err != nil {
@@ -396,6 +458,73 @@ func TestDriveTeamRootUsesSharedStudio(t *testing.T) {
 	if aliceEnv("SOPSDECK_DEV_PROJECT") != aliceInfo.Project {
 		t.Fatalf("alice boot %q", aliceEnv("SOPSDECK_DEV_PROJECT"))
 	}
+	verifySharedStudioFlow(t, aliceInfo, bobInfo, aliceEnv, bobEnv)
+}
+
+func verifySharedStudioFlow(t *testing.T, aliceInfo, bobInfo *demoInfo, aliceEnv, bobEnv func(string) string) {
+	t.Helper()
+	aliceServer := httptest.NewServer(&drive{getenv: aliceEnv})
+	bobServer := httptest.NewServer(&drive{getenv: bobEnv})
+	t.Cleanup(aliceServer.Close)
+	t.Cleanup(bobServer.Close)
+	aliceFile := filepath.Join(aliceInfo.Project, ".env")
+	bobFile := filepath.Join(bobInfo.Project, ".env")
+	mustWriteFile(t, aliceFile, "TEAM_SECRET=team_fixture\n")
+	postInvoke(t, aliceServer.URL, invokeReq{Cmd: "initialize_project", Path: aliceInfo.Project, Files: []projectSelection{{Path: ".env"}}})
+	postInvoke(t, aliceServer.URL, invokeReq{Cmd: "add_recipient", Path: aliceFile, PublicKey: aliceInfo.BobPublicKey, Name: "bob", Email: "bob@sopsdeck.example"})
+	for _, args := range [][]string{{"add", ".env", ".sopsdeck.toml"}, {"commit", "-m", "grant fixture access"}, {"push", "-u", "origin", "main"}} {
+		if err := runGitCmd(aliceInfo.Project, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := runGitCmd(bobInfo.Project, "pull", "--ff-only", "origin", "main"); err != nil {
+		t.Fatal(err)
+	}
+	got := postInvoke(t, bobServer.URL, invokeReq{Cmd: "get_managed_file", Path: bobFile})
+	if !bytes.Contains(got, []byte("team_fixture")) {
+		t.Fatal("Bob cannot decrypt after pulling granted Access")
+	}
+	access := postInvoke(t, bobServer.URL, invokeReq{Cmd: "list_file_access", Path: bobFile})
+	if !bytes.Contains(access, []byte(`"self":true`)) {
+		t.Fatal("Bob's Access was not recognized as his own identity")
+	}
+	postInvoke(t, bobServer.URL, invokeReq{Cmd: "remove_recipient", Path: bobFile, PublicKey: bobInfo.BobPublicKey})
+	access = postInvoke(t, bobServer.URL, invokeReq{Cmd: "list_file_access", Path: bobFile})
+	if bytes.Contains(access, []byte(bobInfo.BobPublicKey)) {
+		t.Fatal("Bob could not remove Alice's Access")
+	}
+	postInvoke(t, bobServer.URL, invokeReq{Cmd: "add_recipient", Path: bobFile, PublicKey: bobInfo.BobPublicKey, Name: "alice", Email: "alice@sopsdeck.example"})
+	// Concurrent browser requests must not exchange process-wide identities.
+	errors := make(chan error, 2)
+	for _, actor := range []struct {
+		name, path, publicKey string
+		getenv                func(string) string
+	}{
+		{"alice", aliceInfo.Project, bobInfo.BobPublicKey, aliceEnv},
+		{"bob", bobInfo.Project, aliceInfo.BobPublicKey, bobEnv},
+	} {
+		go func() {
+			d := &drive{getenv: actor.getenv}
+			for range 10 {
+				value, err := d.invoke(invokeReq{Cmd: "get_account", Path: actor.path})
+				if err != nil {
+					errors <- err
+					return
+				}
+				account := value.(accountIdentity)
+				if account.Name != actor.name || account.PublicKey != actor.publicKey {
+					errors <- fmt.Errorf("concurrent request used another actor's identity")
+					return
+				}
+			}
+			errors <- nil
+		}()
+	}
+	for range 2 {
+		if err := <-errors; err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestDriveFlagErrors(t *testing.T) {
@@ -413,7 +542,7 @@ func TestDriveFlagErrors(t *testing.T) {
 	}
 }
 
-func TestDriveInvokeSetCommitSyncAndErrors(t *testing.T) {
+func TestDriveInvokeSetGetAndRemovedCommands(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -427,7 +556,10 @@ func TestDriveInvokeSetCommitSyncAndErrors(t *testing.T) {
 	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
 		t.Fatal(err)
 	}
-	if err := aliceCLI(alice, "commit", "-m", "seed", "-f", env); err != nil {
+	if _, err := alice.Git("add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := alice.Git("commit", "--allow-empty", "-m", "seed"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
@@ -442,12 +574,41 @@ func TestDriveInvokeSetCommitSyncAndErrors(t *testing.T) {
 	if !bytes.Contains(got, []byte("next")) {
 		t.Fatalf("get=%s", got)
 	}
-	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "commit_managed_file", Path: env, Message: "rotate hello"})
-	_ = postInvoke(t, srv.URL, invokeReq{Cmd: "sync_project", Path: env})
+	for _, removed := range []string{"commit_managed_file", "sync_project"} {
+		reqBody, err := json.Marshal(invokeReq{Cmd: removed, Path: env})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := http.Post(srv.URL+"/invoke", "application/json", bytes.NewReader(reqBody))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest || !bytes.Contains(buf.Bytes(), []byte("unknown")) {
+			t.Fatalf("%s must be removed with 400 unknown, got %d %s", removed, resp.StatusCode, buf.String())
+		}
+	}
 	boot := postInvoke(t, srv.URL, invokeReq{Cmd: "boot_project"})
 	if bytes.Contains(boot, []byte(alice.Home)) {
 		t.Fatal("boot should be empty without SOPSDECK_DEV_PROJECT")
 	}
+}
+
+func TestDriveInvokeHTTPProtocol(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(&drive{getenv: alice.Getenv})
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/invoke")
 	if err != nil {
@@ -486,6 +647,112 @@ func TestDriveInvokeSetCommitSyncAndErrors(t *testing.T) {
 	}
 }
 
+func TestDriveInvokeRejectsHostileRequests(t *testing.T) {
+	st, err := studio.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	alice, err := st.User("alice", "alice@sopsdeck.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := filepath.Join(alice.Home, ".env.production")
+	if err := aliceCLI(alice, "set", "API_TOKEN", "fake_original_token", "-f", env); err != nil {
+		t.Fatal(err)
+	}
+
+	d := &drive{getenv: alice.Getenv}
+	srv := httptest.NewUnstartedServer(d)
+	d.allowedHost = srv.Listener.Addr().String()
+	srv.Start()
+	t.Cleanup(srv.Close)
+	host := d.allowedHost
+	if got := readHostedEnvToken(t, srv, host, env); !bytes.Contains(got, []byte("fake_original_token")) {
+		t.Fatalf("same-origin JSON request failed: %s", got)
+	}
+
+	body, err := json.Marshal(invokeReq{Cmd: "set_managed_key", Path: env, Key: "API_TOKEN", Value: "fake_attacker_value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRejectedInvokeRequests(t, srv, host, body)
+	if got := readHostedEnvToken(t, srv, host, env); !bytes.Contains(got, []byte("fake_original_token")) || bytes.Contains(got, []byte("fake_attacker_value")) {
+		t.Fatalf("rejected requests changed the fake secret: %s", got)
+	}
+}
+
+func readHostedEnvToken(t *testing.T, srv *httptest.Server, host, file string) []byte {
+	t.Helper()
+	body, err := json.Marshal(invokeReq{Cmd: "get_managed_file", Path: file})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := invokeHTTPRequest(srv, http.MethodPost, host, srv.URL, "application/json", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	got, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("same-origin request status %d: %s", resp.StatusCode, got)
+	}
+	return got
+}
+
+func invokeHTTPRequest(srv *httptest.Server, method, host, origin, contentType string, body []byte) (*http.Response, error) {
+	req, err := http.NewRequest(method, srv.URL+"/invoke", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	if host != "" {
+		req.Host = host
+	}
+	if origin != "" {
+		req.Header.Set("Origin", origin)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	if method == http.MethodOptions {
+		req.Header.Set("Access-Control-Request-Method", http.MethodPost)
+		req.Header.Set("Access-Control-Request-Headers", "content-type")
+	}
+	return http.DefaultClient.Do(req)
+}
+
+func assertRejectedInvokeRequests(t *testing.T, srv *httptest.Server, host string, body []byte) {
+	t.Helper()
+	cases := []struct {
+		name, method, host, origin, contentType string
+		wantStatus                              int
+	}{
+		{name: "host header", method: http.MethodPost, host: "attacker.invalid", origin: srv.URL, contentType: "application/json", wantStatus: http.StatusForbidden},
+		{name: "unrelated origin", method: http.MethodPost, host: host, origin: "https://attacker.invalid", contentType: "application/json", wantStatus: http.StatusForbidden},
+		{name: "null origin", method: http.MethodPost, host: host, origin: "null", contentType: "application/json", wantStatus: http.StatusForbidden},
+		{name: "wrong content type", method: http.MethodPost, host: host, origin: srv.URL, contentType: "text/plain", wantStatus: http.StatusUnsupportedMediaType},
+		{name: "preflight", method: http.MethodOptions, host: host, origin: "https://attacker.invalid", wantStatus: http.StatusMethodNotAllowed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := invokeHTTPRequest(srv, tc.method, tc.host, tc.origin, tc.contentType, body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = resp.Body.Close() }()
+			if resp.StatusCode != tc.wantStatus {
+				t.Fatalf("status %d, want %d", resp.StatusCode, tc.wantStatus)
+			}
+			if resp.Header.Get("Access-Control-Allow-Origin") != "" {
+				t.Fatal("unexpected CORS permission")
+			}
+		})
+	}
+}
+
 func TestDriveInvokeReviewHistoryAndRestore(t *testing.T) {
 	st, err := studio.New(t.TempDir())
 	if err != nil {
@@ -500,13 +767,19 @@ func TestDriveInvokeReviewHistoryAndRestore(t *testing.T) {
 	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
 		t.Fatal(err)
 	}
-	if err := aliceCLI(alice, "commit", "-m", "seed production", "-f", env); err != nil {
+	if _, err := alice.Git("add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := alice.Git("commit", "--allow-empty", "-m", "seed production"); err != nil {
 		t.Fatal(err)
 	}
 	if err := aliceCLI(alice, "set", "HELLO", "next", "-f", env); err != nil {
 		t.Fatal(err)
 	}
-	if err := aliceCLI(alice, "commit", "-m", "rotate hello", "-f", env); err != nil {
+	if _, err := alice.Git("add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := alice.Git("commit", "--allow-empty", "-m", "rotate hello"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -612,10 +885,10 @@ func TestDriveInvokeDeletesManagedKey(t *testing.T) {
 func TestDriveInvokeMarksAndUpdatesEncryptedJSONLeaves(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
 	root := t.TempDir()
-	file := filepath.Join(root, "eas.json")
+	file := filepath.Join(root, "app.config.json")
 	mustWriteFile(t, file, `{"build":{"env":{"SECRET":"value","PUBLIC":"safe"}}}`)
 	var stdout, stderr bytes.Buffer
-	mustCLI(t, cmdProject([]string{"init", root, "--file", "eas.json", "--keys", "build.env.SECRET"}, &stdout, &stderr, os.Getenv), &stderr, "init")
+	mustCLI(t, cmdProject([]string{"init", root, "--file", "app.config.json", "--keys", "build.env.SECRET"}, &stdout, &stderr, os.Getenv), &stderr, "init")
 
 	srv := httptest.NewServer(&drive{getenv: os.Getenv})
 	t.Cleanup(srv.Close)

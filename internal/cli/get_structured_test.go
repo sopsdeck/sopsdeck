@@ -25,11 +25,11 @@ func TestGetPrintsValueFromSOPSJSONAndYAML(t *testing.T) {
 	}
 }
 
-func TestGetPrintsValueFromEASJSONAndWarnsOnStderr(t *testing.T) {
+func TestGetPrintsValueFromStructuredJSON(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
 
 	var stdout, stderr bytes.Buffer
-	code := Main([]string{"get", "EXPO_PUBLIC_API_URL", "-f", testdata(t, "eas.json")}, os.Stdin, &stdout, &stderr, os.Getenv)
+	code := Main([]string{"get", "EXPO_PUBLIC_API_URL", "-f", testdata(t, "config.json")}, os.Stdin, &stdout, &stderr, os.Getenv)
 	if code != 0 {
 		t.Fatalf("exit %d stderr=%q", code, stderr.String())
 	}
@@ -37,9 +37,6 @@ func TestGetPrintsValueFromEASJSONAndWarnsOnStderr(t *testing.T) {
 		t.Fatalf("stdout=%q", got)
 	}
 	errOut := stderr.String()
-	if !strings.Contains(errOut, "EAS CLI will not read SOPS ciphertext") {
-		t.Fatalf("stderr=%q, want EAS CLI ciphertext warning", errOut)
-	}
 	if strings.Contains(errOut, "usage:") || strings.Contains(errOut, "(1)") {
 		t.Fatalf("stderr dumped extra help: %q", errOut)
 	}

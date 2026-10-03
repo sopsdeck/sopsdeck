@@ -51,15 +51,25 @@ export function rewriteDocHrefs(href) {
 }
 
 function inline(text) {
-  let out = escapeHtml(text);
-  out = out.replaceAll(/`([^`]+)`/g, '<code>$1</code>');
-  out = out.replaceAll(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    (_, label, href) => `<a href="${escapeHtml(rewriteDocHrefs(href))}">${label}</a>`,
-  );
-  out = out.replaceAll(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  out = out.replaceAll(/_([^_]+)_/g, '<em>$1</em>');
-  return out;
+  let out = '';
+  let end = 0;
+  for (const match of text.matchAll(
+    /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|_([^_]+)_/g,
+  )) {
+    out += escapeHtml(text.slice(end, match.index));
+    const [, code, label, href, strong, emphasis] = match;
+    if (code !== undefined) {
+      out += `<code>${escapeHtml(code)}</code>`;
+    } else if (label !== undefined) {
+      out += `<a href="${escapeHtml(rewriteDocHrefs(href))}">${inline(label)}</a>`;
+    } else if (strong !== undefined) {
+      out += `<strong>${inline(strong)}</strong>`;
+    } else {
+      out += `<em>${inline(emphasis)}</em>`;
+    }
+    end = match.index + match[0].length;
+  }
+  return out + escapeHtml(text.slice(end));
 }
 
 function parseTable(lines, start) {

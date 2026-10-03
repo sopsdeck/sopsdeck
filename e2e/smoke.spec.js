@@ -11,7 +11,7 @@ test('demo boots a Managed File and reveals a secret', async ({ page }) => {
   await expect(page.getByTestId('key-value')).toHaveValue('sk_test_demo');
 });
 
-test('publish runs against the local fake GitHub', async ({ request }) => {
+test('Secret Sync runs against the local fake GitHub', async ({ request }) => {
   const demo = await request.get('/demo');
   expect(demo.ok()).toBeTruthy();
   const info = await demo.json();
@@ -27,14 +27,14 @@ test('publish runs against the local fake GitHub', async ({ request }) => {
 
   const published = await request.post('/invoke', {
     data: {
-      cmd: 'publish_managed_file',
+      cmd: 'sync_managed_file',
       path: file.path,
       prefix: 'SD_',
       yes: true,
     },
   });
   const body = await published.json();
-  expect(body.result).toContain('published');
+  expect(body.result).toContain('synced');
 });
 
 test('GitHub Sync now publishes to the local fake GitHub', async ({ page }) => {
@@ -44,6 +44,10 @@ test('GitHub Sync now publishes to the local fake GitHub', async ({ page }) => {
   await expect(page.getByTestId('integration-dialog')).toBeVisible();
   await page.getByTestId('integration-sync').click();
   await expect(page.getByTestId('integration-dialog-status')).toBeVisible();
+  await expect(page.getByTestId('integration-sync')).toContainText('Synced');
+  await page.getByTestId('integration-sync').click();
+  await expect(page.getByTestId('integration-sync')).toContainText('Synced');
+  await expect(page.getByTestId('integration-sync')).toHaveAttribute('aria-label', 'Sync now');
 });
 
 test('Grant Access from the inspector', async ({ page }) => {

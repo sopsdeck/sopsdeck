@@ -23,10 +23,8 @@ func TestRestoreCopiesHistoricalValuesWithoutCommitting(t *testing.T) {
 	if err := os.WriteFile(env, src, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	runGitCommit(t, dir, "seed production")
 	var stdout, stderr bytes.Buffer
-	if code := Main([]string{"commit", "-m", "seed production", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("first commit exit %d stderr=%q", code, stderr.String())
-	}
 	stdout.Reset()
 	stderr.Reset()
 	if code := Main([]string{"set", "HELLO", "universe", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
@@ -34,9 +32,7 @@ func TestRestoreCopiesHistoricalValuesWithoutCommitting(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"commit", "-m", "rotate hello", "-f", env}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("second commit exit %d stderr=%q", code, stderr.String())
-	}
+	runGitCommit(t, dir, "rotate hello")
 
 	stdout.Reset()
 	stderr.Reset()

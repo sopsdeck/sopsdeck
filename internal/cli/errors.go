@@ -1,22 +1,8 @@
 package cli
 
 import (
-	"errors"
-	"os/exec"
 	"strings"
 )
-
-func explainSync(err error) string {
-	msg := err.Error()
-	switch {
-	case noUpstream(msg):
-		return "sync: this branch has no upstream. Push to origin once, then Sync again."
-	case diverged(msg):
-		return "sync: this branch has diverged from origin. Sync never force-pushes."
-	default:
-		return "sync: " + firstLine(msg)
-	}
-}
 
 func explainReview(err error) string {
 	msg := err.Error()
@@ -43,21 +29,9 @@ func notSOPS(msg string) bool {
 		strings.Contains(msg, `cannot parse ""`)
 }
 
-func explainPublish(err error) string {
+func explainSyncSecrets(err error) string {
 	_ = err
-	return "publish: Publish did not finish. Retry Publish."
-}
-
-func noUpstream(msg string) bool {
-	return strings.Contains(msg, "no tracking information") ||
-		strings.Contains(msg, "no upstream") ||
-		strings.Contains(msg, "has no upstream branch")
-}
-
-func diverged(msg string) bool {
-	return strings.Contains(msg, "Not possible to fast-forward") ||
-		strings.Contains(msg, "cannot fast-forward") ||
-		strings.Contains(strings.ToLower(msg), "diverged")
+	return "sync: Secret Sync did not finish. Retry sync."
 }
 
 func noAccess(msg string) bool {
@@ -71,18 +45,4 @@ func noAccess(msg string) bool {
 func firstLine(msg string) string {
 	line, _, _ := strings.Cut(msg, "\n")
 	return strings.TrimSpace(line)
-}
-
-func gitWorktreeDirtyAt(dir string) (bool, error) {
-	cmd := exec.Command("git", "diff-index", "--quiet", "HEAD")
-	cmd.Dir = dir
-	err := cmd.Run()
-	if err == nil {
-		return false, nil
-	}
-	var status *exec.ExitError
-	if errors.As(err, &status) && status.ExitCode() == 1 {
-		return true, nil
-	}
-	return false, err
 }

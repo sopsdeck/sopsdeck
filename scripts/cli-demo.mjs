@@ -40,26 +40,6 @@ function run(args, cwd) {
   return result;
 }
 
-function git(cwd, args) {
-  const result = spawnSync('git', args, {
-    cwd,
-    encoding: 'utf8',
-    env: { ...process.env, GIT_TEMPLATE_DIR: '' },
-  });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(' ')}: ${result.stderr}${result.stdout}`);
-  }
-
-  return result.stdout;
-}
-
-function initRepo(dir) {
-  git(dir, ['init']);
-  git(dir, ['config', 'user.email', 'demo@sopsdeck.example']);
-  git(dir, ['config', 'user.name', 'Sopsdeck Demo']);
-  git(dir, ['checkout', '-b', 'main']);
-}
-
 class Cast {
   constructor(title) {
     this.title = title;
@@ -138,47 +118,6 @@ function recordSet() {
   cast.write('cli-set.cast');
 }
 
-function recordCommit() {
-  const cwd = mkdtempSync(join(scratch, 'commit-'));
-  initRepo(cwd);
-  copyFileSync(hello, join(cwd, 'hello.env'));
-  const committed = run(['commit', '-m', 'add production secrets', '-f', 'hello.env'], cwd);
-  const subject = git(cwd, ['log', '-1', '--pretty=%s']);
-  const cast = new Cast('sopsdeck commit');
-  cast.typeLine('sopsdeck commit -m "add production secrets" -f hello.env');
-  cast.output(committed.stdout);
-  cast.typeLine('git log -1 --pretty=%s');
-  cast.output(subject);
-  cast.hold();
-  cast.write('cli-commit.cast');
-}
-
-function recordSync() {
-  const bare = mkdtempSync(join(scratch, 'origin-'));
-  git(bare, ['init', '--bare']);
-  git(bare, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
-
-  const cwd = mkdtempSync(join(scratch, 'sync-'));
-  initRepo(cwd);
-  git(cwd, ['remote', 'add', 'origin', bare]);
-  copyFileSync(hello, join(cwd, 'hello.env'));
-  run(['commit', '-m', 'first', '-f', 'hello.env'], cwd);
-  git(cwd, ['push', '-u', 'origin', 'main']);
-  copyFileSync(join(root, 'testdata', 'hello.json'), join(cwd, 'hello.json'));
-  run(['commit', '-m', 'add hello.json', '-f', 'hello.json'], cwd);
-  const synced = run(['sync'], cwd);
-  const log = git(cwd, ['log', 'origin/main', '--pretty=%s']);
-  const cast = new Cast('sopsdeck sync');
-  cast.typeLine('sopsdeck sync');
-  cast.output(synced.stdout);
-  cast.typeLine('git log origin/main --pretty=%s');
-  cast.output(log);
-  cast.hold();
-  cast.write('cli-sync.cast');
-}
-
 recordGet();
 recordSet();
-recordCommit();
-recordSync();
-process.stdout.write('wrote docs/assets/cli-get.cast cli-set.cast cli-commit.cast cli-sync.cast\n');
+process.stdout.write('wrote docs/assets/cli-get.cast cli-set.cast\n');

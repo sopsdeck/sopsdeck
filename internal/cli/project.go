@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/getsops/sops/v3"
@@ -23,9 +24,17 @@ type projectFile struct {
 }
 
 type projectState struct {
+	Path        string             `json:"path"`
+	GitRoot     string             `json:"git_root"`
 	Initialized bool               `json:"initialized"`
 	Managed     []projectFile      `json:"managed"`
 	Candidates  []projectCandidate `json:"candidates"`
+	Warnings    []projectWarning   `json:"warnings,omitempty"`
+}
+
+type projectWarning struct {
+	Path    string `json:"path"`
+	Message string `json:"message"`
 }
 
 type projectCandidate struct {
@@ -83,18 +92,33 @@ func addProjectFile(args []string, stdout, stderr io.Writer, getenv func(string)
 		return 1
 	}
 	root := args[0]
+	root, err := canonicalProjectFolder(root)
+	if err != nil {
+		fmt.Fprintf(stderr, "project add: %v\n", err)
+		return 1
+	}
 	file, rel, err := projectPath(root, args[2])
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(stderr, "project add: %v\n", err)
+		return 1
+	}
+	detectedFormat := fileFormat(file)
+	m, manifestErr := loadManifest(filepath.Join(root, ".sopsdeck.toml"))
+	if manifestErr != nil && !os.IsNotExist(manifestErr) {
+		fmt.Fprintf(stderr, "project add: read .sopsdeck.toml: %v\n", manifestErr)
+		return 1
+	}
+	for _, entry := range m.ManagedFile {
+		if filepath.ToSlash(entry.Path) == filepath.ToSlash(rel) {
+			fmt.Fprintf(stderr, "project add: %s is already managed\n", rel)
+			return 1
+		}
+	}
 	keys := []string(nil)
 	if len(args) == 5 {
 		keys = splitKeys(args[4])
 	}
 	if err != nil {
-		if filepath.IsAbs(args[2]) || strings.Contains(filepath.Clean(args[2]), ".."+string(filepath.Separator)) {
-			fmt.Fprintf(stderr, "project add: %v\n", err)
-			return 1
-		}
-		rel = filepath.Clean(filepath.FromSlash(args[2]))
-		file = filepath.Join(root, rel)
 		if code := setCreate(file, "", "", stderr, getenv); code != 0 {
 			return code
 		}
@@ -111,6 +135,10 @@ func addProjectFile(args []string, stdout, stderr io.Writer, getenv func(string)
 			}
 		}
 	}
+	return appendManagedEntry(root, rel, keys, formatName(detectedFormat), stdout, stderr, getenv)
+}
+
+func appendManagedEntry(root, rel string, keys []string, format string, stdout, stderr io.Writer, getenv func(string) string) int {
 	manifestPath := filepath.Join(root, ".sopsdeck.toml")
 	m, err := loadManifest(manifestPath)
 	if os.IsNotExist(err) {
@@ -118,8 +146,9 @@ func addProjectFile(args []string, stdout, stderr io.Writer, getenv func(string)
 			ManagedFile: []manifestFile{{
 				Path:          filepath.ToSlash(rel),
 				EncryptedKeys: keys,
+				Format:        format,
 			}},
-			Owner: ownersFromEnv(root, getenv),
+			Recipient: recipientsFromEnv(root, getenv),
 		}); err != nil {
 			fmt.Fprintf(stderr, "project add: %v\n", err)
 			return 1
@@ -137,7 +166,7 @@ func addProjectFile(args []string, stdout, stderr io.Writer, getenv func(string)
 			return 1
 		}
 	}
-	m.ManagedFile = append(m.ManagedFile, manifestFile{Path: filepath.ToSlash(rel), EncryptedKeys: keys})
+	m.ManagedFile = append(m.ManagedFile, manifestFile{Path: filepath.ToSlash(rel), EncryptedKeys: keys, Format: format})
 	if err := writeManifest(manifestPath, m); err != nil {
 		fmt.Fprintf(stderr, "project add: %v\n", err)
 		return 1
@@ -151,12 +180,14 @@ func removeProjectFile(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: sopsdeck project remove FOLDER --file PATH")
 		return 1
 	}
-	_, rel, err := projectPath(args[0], args[2])
+	root, err := canonicalProjectFolder(args[0])
 	if err != nil {
 		fmt.Fprintf(stderr, "project remove: %v\n", err)
 		return 1
 	}
-	manifestPath := filepath.Join(args[0], ".sopsdeck.toml")
+	// Removing metadata must also work for missing or unsafe file paths. No file is touched.
+	rel := filepath.ToSlash(strings.TrimSpace(args[2]))
+	manifestPath := filepath.Join(root, ".sopsdeck.toml")
 	m, err := loadManifest(manifestPath)
 	if err != nil {
 		fmt.Fprintf(stderr, "project remove: %v\n", err)
@@ -185,6 +216,15 @@ func removeProjectFile(args []string, stdout, stderr io.Writer) int {
 }
 
 func inspectProject(root string) (projectState, error) {
+	root, err := canonicalProjectFolder(root)
+	if err != nil {
+		return projectState{}, err
+	}
+	if owner, _ := findManifest(root); owner != "" {
+		root = owner
+	}
+	gitRoot, _, _ := gitTrackedRel(filepath.Join(root, ".sopsdeck.toml"))
+	state := projectState{Path: root, GitRoot: gitRoot}
 	rawFiles, err := managed.Candidates(root)
 	if err != nil {
 		return projectState{}, err
@@ -199,25 +239,39 @@ func inspectProject(root string) (projectState, error) {
 	manifestPath := filepath.Join(root, ".sopsdeck.toml")
 	m, err := loadManifest(manifestPath)
 	if os.IsNotExist(err) {
-		return projectState{Candidates: candidates}, nil
+		state.Candidates = candidates
+		return state, nil
 	}
 	if err != nil {
-		return projectState{}, err
+		return projectState{}, fmt.Errorf("read .sopsdeck.toml: %w", err)
 	}
 	managedByRel := make(map[string]bool, len(m.ManagedFile))
-	for _, file := range m.ManagedFile {
-		managedByRel[filepath.ToSlash(file.Path)] = true
-	}
 	var managedFiles []projectFile
+	for _, file := range m.ManagedFile {
+		path, rel, err := projectPath(root, file.Path)
+		if err != nil {
+			message := err.Error()
+			if os.IsNotExist(err) {
+				message = "File is missing. Restore it from Git or remove this entry from managed files."
+			}
+			state.Warnings = append(state.Warnings, projectWarning{Path: file.Path, Message: message})
+			continue
+		}
+		managedByRel[filepath.ToSlash(rel)] = true
+		managedFiles = append(managedFiles, projectFile{
+			File:    managed.File{Name: filepath.Base(path), Path: path, Rel: rel},
+			Managed: true,
+		})
+	}
+	sort.Slice(managedFiles, func(i, j int) bool { return managedFiles[i].Rel < managedFiles[j].Rel })
 	var available []projectCandidate
 	for _, file := range candidates {
-		if managedByRel[filepath.ToSlash(file.Rel)] {
-			managedFiles = append(managedFiles, projectFile{File: file.File, Managed: true})
-		} else {
+		if !managedByRel[filepath.ToSlash(file.Rel)] {
 			available = append(available, file)
 		}
 	}
-	return projectState{Initialized: true, Managed: managedFiles, Candidates: available}, nil
+	state.Initialized, state.Managed, state.Candidates = true, managedFiles, available
+	return state, nil
 }
 
 func projectKeys(file managed.File) []string {
@@ -271,6 +325,15 @@ func leafValuePaths(value interface{}, prefix string) []string {
 
 func initProject(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	root := args[0]
+	root, err := canonicalProjectFolder(root)
+	if err != nil {
+		fmt.Fprintf(stderr, "project init: %v\n", err)
+		return 1
+	}
+	if owner, _ := findManifest(root); owner != "" && owner != root {
+		fmt.Fprintf(stderr, "project init: folder already belongs to Project %s\n", owner)
+		return 1
+	}
 	var selections []projectSelection
 	for i := 1; i < len(args); i++ {
 		if args[i] != "--file" || i+1 >= len(args) {
@@ -292,6 +355,12 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 		fmt.Fprintf(stderr, "project init: %v\n", err)
 		return 1
 	}
+	for _, selection := range selections {
+		if _, _, err := projectPath(root, selection.Path); err != nil {
+			fmt.Fprintf(stderr, "project init: %v\n", err)
+			return 1
+		}
+	}
 	entries := make([]manifestFile, 0, len(selections))
 	for _, selection := range selections {
 		file, rel, err := projectPath(root, selection.Path)
@@ -299,6 +368,7 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 			fmt.Fprintf(stderr, "project init: %v\n", err)
 			return 1
 		}
+		detectedFormat := fileFormat(file)
 		data, err := os.ReadFile(file)
 		if err != nil {
 			fmt.Fprintf(stderr, "project init: %v\n", err)
@@ -310,11 +380,15 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 				return 1
 			}
 		}
-		entries = append(entries, manifestFile{Path: filepath.ToSlash(rel), EncryptedKeys: selection.Keys})
+		entries = append(entries, manifestFile{
+			Path:          filepath.ToSlash(rel),
+			EncryptedKeys: selection.Keys,
+			Format:        formatName(detectedFormat),
+		})
 	}
 	if err := writeManifest(filepath.Join(root, ".sopsdeck.toml"), projectManifest{
 		ManagedFile: entries,
-		Owner:       ownersFromEnv(root, getenv),
+		Recipient:   recipientsFromEnv(root, getenv),
 	}); err != nil {
 		fmt.Fprintf(stderr, "project init: %v\n", err)
 		return 1
@@ -505,19 +579,62 @@ type managedPair struct {
 }
 
 func projectPath(root, raw string) (string, string, error) {
+	root, err := canonicalProjectFolder(root)
+	if err != nil {
+		return "", "", err
+	}
+	if owner, _ := findManifest(root); owner != "" && owner != root {
+		return "", "", fmt.Errorf("folder belongs to Project %s", owner)
+	}
 	rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(raw)))
 	if rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", "", fmt.Errorf("file must stay inside the Project")
 	}
 	file := filepath.Join(root, rel)
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if os.IsNotExist(err) {
+			break
+		}
+		if err != nil {
+			return "", "", err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", "", fmt.Errorf("file must stay inside the Project without symlinks: %s", rel)
+		}
+		if info.IsDir() && managed.SkipDirectory(current, root) {
+			return "", "", fmt.Errorf("%s is outside this Project's scope", rel)
+		}
+	}
 	info, err := os.Stat(file)
 	if err != nil {
-		return "", "", err
+		return file, rel, err
 	}
 	if !info.Mode().IsRegular() {
 		return "", "", fmt.Errorf("%s is not a regular file", rel)
 	}
 	return file, rel, nil
+}
+
+func canonicalProjectFolder(root string) (string, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(root)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("project path must be a folder")
+	}
+	return root, nil
 }
 
 func isEncryptedBytes(data []byte) bool {

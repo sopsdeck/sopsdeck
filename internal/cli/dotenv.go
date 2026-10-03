@@ -18,8 +18,16 @@ func loadPlainBranches(format formats.Format, plain []byte) (sops.TreeBranches, 
 }
 
 func parseDotenv(plain []byte) (sops.TreeBranches, error) {
+	branches, _, err := parseDotenvQuoted(plain)
+	return branches, err
+}
+
+// parseDotenvQuoted also reports which keys had single-quoted values; dotenvx
+// treats those as literals and skips expansion for them.
+func parseDotenvQuoted(plain []byte) (sops.TreeBranches, map[string]bool, error) {
 	lines := strings.Split(strings.ReplaceAll(string(plain), "\r\n", "\n"), "\n")
 	var branch sops.TreeBranch
+	single := map[string]bool{}
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 		if line == "" {
@@ -31,11 +39,13 @@ func parseDotenv(plain []byte) (sops.TreeBranches, error) {
 		}
 		pos := strings.IndexByte(line, '=')
 		if pos < 1 {
-			return nil, fmt.Errorf("invalid dotenv input line: %s", line)
+			return nil, nil, fmt.Errorf("invalid dotenv input line: %s", line)
 		}
 		key, value := line[:pos], line[pos+1:]
+		quoted := byte(0)
 		if len(value) > 0 && (value[0] == '\'' || value[0] == '"') {
 			quote := value[0]
+			quoted = quote
 			firstLine := line
 			for {
 				end, ok := dotenvQuoteEnd(value, quote)
@@ -44,15 +54,18 @@ func parseDotenv(plain []byte) (sops.TreeBranches, error) {
 					break
 				}
 				if i+1 == len(lines) {
-					return nil, fmt.Errorf("invalid dotenv input line: %s", firstLine)
+					return nil, nil, fmt.Errorf("invalid dotenv input line: %s", firstLine)
 				}
 				i++
 				value += "\n" + lines[i]
 			}
 		}
+		if quoted == '\'' {
+			single[key] = true
+		}
 		branch = append(branch, sops.TreeItem{Key: key, Value: strings.ReplaceAll(value, `\n`, "\n")})
 	}
-	return sops.TreeBranches{branch}, nil
+	return sops.TreeBranches{branch}, single, nil
 }
 
 func dotenvQuoteEnd(value string, quote byte) (int, bool) {

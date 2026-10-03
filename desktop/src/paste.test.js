@@ -1,6 +1,5 @@
 import { expect, test } from 'bun:test';
 import {
-  classifyClipboard,
   classifyPasteKeys,
   parseGitIdentity,
   parsePastePayload,
@@ -30,41 +29,10 @@ test('paste preview lists names and never values', () => {
   expect(text).not.toContain('world');
 });
 
-test('classifyClipboard routes paths, recipients, bulk secrets, and lone values', () => {
-  const recipient = `age1${'q'.repeat(58)}`;
-  expect(classifyClipboard('/Users/alice/code/app')).toEqual({
-    kind: 'path',
-    path: '/Users/alice/code/app',
-  });
-  expect(classifyClipboard(recipient)).toEqual({
-    kind: 'recipient',
-    publicKey: recipient,
-    name: '',
-    email: '',
-  });
-  expect(classifyClipboard('TOKEN=supersecret\n')).toEqual({
-    kind: 'bulk',
-    pairs: { TOKEN: 'supersecret' },
-    names: ['TOKEN'],
-  });
-  expect(classifyClipboard('supersecret')).toEqual({ kind: 'lone', value: 'supersecret' });
-  expect(classifyClipboard('  ')).toBeNull();
-});
-
-test('classifyClipboard reads a git identity from an access request', () => {
-  const recipient = `age1${'q'.repeat(58)}`;
+test('parseGitIdentity reads recipient names and email addresses', () => {
   expect(parseGitIdentity('Bob Builder <bob@example.com>')).toEqual({
     name: 'Bob Builder',
     email: 'bob@example.com',
   });
-  expect(
-    classifyClipboard(
-      `Hi — please grant me Access to .env in checkout.\n\nName: Bob Builder <bob@example.com>\nAge public key:\n${recipient}\n`,
-    ),
-  ).toEqual({
-    kind: 'recipient',
-    publicKey: recipient,
-    name: 'Bob Builder',
-    email: 'bob@example.com',
-  });
+  expect(parseGitIdentity('Bob')).toEqual({ name: 'Bob', email: '' });
 });

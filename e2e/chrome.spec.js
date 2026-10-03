@@ -5,7 +5,81 @@ async function encryptAndSave(page) {
   await expect(page.getByTestId('save-preview-dialog')).toBeVisible();
   await page.getByTestId('save-preview-confirm').click();
   await expect(page.getByTestId('save-preview-dialog')).toBeHidden();
+  await expect(page.getByTestId('save')).not.toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByTestId('save')).toBeDisabled();
 }
+
+test('Encrypt & save relocks plaintext and refreshes saved state without reload', async ({
+  page,
+}) => {
+  await page.route('**/invoke', async (route) => {
+    if (route.request().postDataJSON()?.cmd === 'unused') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ result: ['STRIPE_SECRET'] }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('file-lock').click();
+  await expect(page.getByTestId('file-lock')).toHaveAttribute('data-locked', 'false');
+  const row = await keyRowByName(page, 'STRIPE_SECRET');
+  await row.getByTestId('key-value').fill('sk_saved_fixture');
+  await expect(row.locator('.kind')).toHaveText('changed unused');
+  await encryptAndSave(page);
+  await expect(page.getByTestId('file-lock')).toHaveAttribute('data-locked', 'true');
+  await expect(page.locator('#meta-enc')).toHaveText('age + SOPS (locked)');
+  await expect(page.locator('.key-row.changed')).toHaveCount(0);
+  const saved = await keyRowByName(page, 'STRIPE_SECRET');
+  await saved.getByTestId('reveal-key').click();
+  await expect(saved.getByTestId('key-value')).toHaveValue('sk_saved_fixture');
+});
+
+test('focus does not read the clipboard or open a clipboard prompt', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.clipboardReads = 0;
+    Object.defineProperty(navigator.clipboard, 'readText', {
+      value: async () => {
+        window.clipboardReads++;
+        return 'TOKEN=clipboard_fixture';
+      },
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.evaluate(async () => {
+    window.dispatchEvent(new Event('blur'));
+    window.dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  });
+  expect(await page.evaluate(() => window.clipboardReads)).toBe(0);
+  await expect(page.getByTestId('clipboard-dialog')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
+    'href',
+    'https://github.com/sopsdeck/sopsdeck',
+  );
+});
+
+test('folders outside Git can edit secrets without offering Git history', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    if (route.request().postDataJSON()?.cmd === 'inspect_project') {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.result.git_root = '';
+      await route.fulfill({ response, json: body });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('key-name')).toHaveValue('STRIPE_SECRET');
+  await expect(page.getByTestId('file-history')).toBeDisabled();
+  await expect(page.getByTestId('secret-history')).toBeDisabled();
+});
 
 async function keyNames(page) {
   return page.getByTestId('key-name').evaluateAll((els) => els.map((el) => el.value));
@@ -170,13 +244,18 @@ test("What's new shows bundled notes", async ({ page }) => {
   await page.getByTestId('whats-new').click();
   const dialog = page.getByTestId('whats-new-dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('Unreleased');
+  const bundled = await (await page.request.get('/whats-new.json')).json();
+  await expect(dialog).toContainText(bundled.heading);
   await expect(page.getByTestId('whats-new-list').locator('li')).not.toHaveCount(0);
   await expect(page.getByTestId('whats-new-list').locator('li').first()).toHaveClass(
     /whats-new-item/,
   );
   await expect(page.getByTestId('whats-new-tag').first()).toHaveText('Feature');
-  await expect(page.getByTestId('whats-new-platform').first()).toHaveText('macOS');
+  if (bundled.notes[0].platforms?.length) {
+    await expect(page.getByTestId('whats-new-platform').first()).toHaveText(
+      bundled.notes[0].platforms[0],
+    );
+  }
 });
 
 test('save preview shows a plaintext secret diff', async ({ page }) => {
@@ -282,6 +361,175 @@ test('sidebar rejects a Managed File path outside the Project', async ({ page })
   await expect(error).toContainText('inside the Project');
 });
 
+test('refresh finds a file created outside Sopsdeck', async ({ page }) => {
+  let refreshed = false;
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request?.cmd === 'inspect_project') {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.result.candidates = refreshed
+        ? [
+            {
+              name: '.env.external',
+              path: `${request.path}/.env.external`,
+              rel: '.env.external',
+              managed: false,
+              keys: ['NEW_SECRET'],
+            },
+          ]
+        : [];
+      await route.fulfill({ response, json: body });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  refreshed = true;
+  await page.getByTestId('refresh-project').click();
+  await expect(page.getByTestId('project-refresh-status')).toContainText('1 unmanaged file found');
+  await page.getByTestId('edit-project-files').click();
+  await expect(
+    page.locator('.setup-project-file').filter({ hasText: '.env.external' }),
+  ).toBeVisible();
+});
+
+test('stale manifest warns without blocking valid files and can be repaired', async ({ page }) => {
+  let stale = true;
+  const writes = [];
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request.cmd === 'inspect_project') {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.result.warnings = stale ? [{ path: '.en', message: 'File is missing.' }] : [];
+      await route.fulfill({ response, json: body });
+      return;
+    }
+
+    if (request.cmd === 'remove_project_file') {
+      writes.push(request);
+      stale = false;
+      await route.fulfill({ json: { result: 'managed file removed' } });
+      return;
+    }
+
+    if (['add_project_file', 'initialize_project', 'configure_account'].includes(request.cmd)) {
+      writes.push(request);
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('project-warnings')).toContainText('.en');
+  await expect(page.getByTestId('project-error-state')).toBeHidden();
+  await expect(page.getByTestId('access-gate')).toBeHidden();
+  expect(writes).toEqual([]);
+  await page.getByTestId('edit-project-files').click();
+  const staleRow = page
+    .locator('.setup-project-file')
+    .filter({ hasText: '.en', hasNotText: '.env' });
+  await expect(staleRow).toContainText('File is missing');
+  await staleRow.getByTestId('setup-project-file-toggle').uncheck();
+  await page.getByTestId('setup-project-init').click();
+  await expect(page.getByTestId('project-warnings')).toBeHidden();
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  expect(writes.map(({ cmd, file }) => ({ cmd, file }))).toEqual([
+    { cmd: 'remove_project_file', file: '.en' },
+  ]);
+});
+
+test('sidebar manages a .en name and keeps the project usable', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('tree-project')).toHaveCount(3);
+  await page.getByTestId('add-file-name').fill('.en');
+  await page.getByTestId('add-file').click();
+  await expect(page.getByTestId('editor-error')).toBeHidden();
+  await expect(page.getByRole('button', { name: '.en', exact: true })).toBeVisible();
+  await expect(
+    page.getByTestId('managed-file').filter({ hasText: '.env.production' }),
+  ).toBeVisible();
+  await expect(page.getByTestId('headline')).toHaveText('.en');
+  await expect(page.getByTestId('project-error-state')).toBeHidden();
+  await page.getByTestId('edit-project-files').click();
+  const addedRow = page
+    .locator('.setup-project-file')
+    .filter({ hasText: '.en', hasNotText: '.env' });
+  await addedRow.getByTestId('setup-project-file-toggle').uncheck();
+  await page.getByTestId('setup-project-init').click();
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+});
+
+test('a project with only missing files remains open for recovery', async ({ page }) => {
+  let stale = true;
+  const initialized = [];
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request.cmd === 'inspect_project') {
+      await route.fulfill({
+        json: {
+          result: {
+            path: request.path,
+            initialized: true,
+            managed: [],
+            candidates: [],
+            warnings: stale ? [{ path: '.en', message: 'File is missing.' }] : [],
+          },
+        },
+      });
+      return;
+    }
+
+    if (request.cmd === 'remove_project_file') {
+      stale = false;
+      await route.fulfill({ json: { result: 'managed file removed' } });
+      return;
+    }
+
+    if (request.cmd === 'initialize_project') initialized.push(request);
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('project-warnings')).toContainText('.en');
+  await expect(page.getByTestId('empty-state')).toHaveText('This Project has no Managed Files.');
+  await expect(page.getByTestId('account-dialog')).toBeHidden();
+  await page.getByTestId('edit-project-files').click();
+  await page.getByTestId('setup-project-file-toggle').uncheck();
+  await page.getByTestId('setup-project-init').click();
+  await expect(page.getByTestId('project-warnings')).toBeHidden();
+  expect(initialized).toEqual([]);
+});
+
+test('a malformed manifest can be fixed and retried without reinitializing', async ({ page }) => {
+  let broken = true;
+  const initialized = [];
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request.cmd === 'inspect_project' && broken) {
+      await route.fulfill({
+        status: 400,
+        json: { error: 'project files: read .sopsdeck.toml: invalid TOML' },
+      });
+      return;
+    }
+
+    if (request.cmd === 'initialize_project') initialized.push(request);
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('project-error-state')).toContainText('Fix .sopsdeck.toml');
+  await expect(page.locator('#account-label')).toHaveText('checkout');
+  broken = false;
+  await page.getByTestId('project-error-retry').click();
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('project-error-state')).toBeHidden();
+  expect(initialized).toEqual([]);
+});
+
 test('nested folders group and collapse', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
@@ -352,7 +600,9 @@ test('demo seed shows several Projects with extras collapsed', async ({ page }) 
   await expect(docs).toHaveAttribute('aria-expanded', 'false');
   await atlas.click();
   await expect(atlas).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toBeVisible();
+  await expect(
+    page.getByTestId('managed-file').filter({ hasText: 'app.config.json' }).first(),
+  ).toBeVisible();
 });
 
 test('structured editor hides plaintext fields and edits encrypted paths in a modal', async ({
@@ -360,7 +610,7 @@ test('structured editor hides plaintext fields and edits encrypted paths in a mo
 }) => {
   await page.route('**/invoke', async (route) => {
     const request = route.request().postDataJSON();
-    if (request?.cmd === 'get_managed_file' && request.path?.endsWith('/eas.json')) {
+    if (request?.cmd === 'get_managed_file' && request.path?.endsWith('/app.config.json')) {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
@@ -378,11 +628,12 @@ test('structured editor hides plaintext fields and edits encrypted paths in a mo
 
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await page.getByTestId('managed-file').filter({ hasText: 'eas.json' }).click();
+  await page.getByTestId('managed-file').filter({ hasText: 'app.config.json' }).first().click();
 
   const tree = page.getByTestId('json-tree');
   await expect(tree).toContainText('EXPO_PUBLIC_API_URL');
   await expect(tree).not.toContainText('appVersionSource');
+  await expect(page.locator('.key-head-tree')).toHaveText(/Path\s*Value/);
 
   await page.getByTestId('edit-encrypted-paths').click();
   const dialog = page.getByTestId('setup-project-dialog');
@@ -396,6 +647,109 @@ test('structured editor hides plaintext fields and edits encrypted paths in a mo
   await dialog.getByTestId('setup-project-init').click();
   await expect(dialog).toBeHidden();
   await expect(tree).toContainText('appVersionSource');
+});
+
+test('structured path picker selects a dragged range', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request?.cmd === 'get_managed_file' && request.path?.endsWith('/app.config.json')) {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          result: [
+            { key: 'build.env.API_URL', value: 'https://example.test', encrypted: false },
+            { key: 'build.env.API_TOKEN', value: 'token', encrypted: false },
+            { key: 'submit.env.API_TOKEN', value: 'submit-token', encrypted: false },
+          ],
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('managed-file').filter({ hasText: 'app.config.json' }).first().click();
+  await page.getByTestId('edit-encrypted-paths').click();
+  const dialog = page.getByTestId('setup-project-dialog');
+  await dialog.getByTestId('setup-project-file-disclosure').click();
+  const fields = dialog.getByTestId('setup-project-key-toggle');
+  await expect(fields).toHaveCount(3);
+
+  const first = await dialog.locator('.setup-project-key').nth(0).boundingBox();
+  const middle = await dialog.locator('.setup-project-key').nth(1).boundingBox();
+  const last = await dialog.locator('.setup-project-key').nth(2).boundingBox();
+  if (!first || !middle || !last) throw new Error('path picker fields are not laid out');
+  await page.mouse.move(first.x + 8, first.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(middle.x + 8, middle.y + 8);
+  await page.mouse.move(last.x + 8, last.y + 8);
+  await page.mouse.up();
+  await expect(fields.nth(0)).toBeChecked();
+  await expect(fields.nth(1)).toBeChecked();
+  await expect(fields.nth(2)).toBeChecked();
+});
+
+test('structured path picker selects nested object groups', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const request = route.request().postDataJSON();
+    if (request?.cmd === 'get_managed_file' && request.path?.endsWith('/app.config.json')) {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          result: [
+            { key: 'build.env.API_URL', value: 'https://example.test', encrypted: false },
+            { key: 'build.env.API_TOKEN', value: 'token', encrypted: false },
+            { key: 'build.channel', value: 'preview', encrypted: false },
+            { key: 'submit.env.API_TOKEN', value: 'submit-token', encrypted: false },
+          ],
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('managed-file').filter({ hasText: 'app.config.json' }).first().click();
+  await page.getByTestId('edit-encrypted-paths').click();
+  const dialog = page.getByTestId('setup-project-dialog');
+  await dialog.getByTestId('setup-project-file-disclosure').click();
+  const buildGroup = dialog.locator(
+    '[data-testid="setup-project-folder-key-toggle"][aria-label="Select all paths under build"]',
+  );
+  const envGroup = dialog.locator(
+    '[data-testid="setup-project-folder-key-toggle"][aria-label="Select all paths under build.env"]',
+  );
+  await expect(buildGroup).toHaveCount(1);
+  await expect(envGroup).toHaveCount(1);
+  const envField = dialog.locator(
+    '[data-testid="setup-project-key-toggle"][value="build.env.API_URL"]',
+  );
+  const channelField = dialog.locator(
+    '[data-testid="setup-project-key-toggle"][value="build.channel"]',
+  );
+  const envPosition = await envField.boundingBox();
+  const channelPosition = await channelField.boundingBox();
+  if (!envPosition || !channelPosition) throw new Error('nested path fields are not laid out');
+  expect(envPosition.x).toBeGreaterThan(channelPosition.x);
+  const envFolderName = await envGroup.locator('xpath=..').locator('code').boundingBox();
+  const envFieldName = await envField.locator('xpath=..').locator('code').boundingBox();
+  if (!envFolderName || !envFieldName) throw new Error('nested path labels are not laid out');
+  expect(envPosition.x).toBeGreaterThanOrEqual(envFolderName.x);
+  expect(envFieldName.x).toBeGreaterThan(envFolderName.x);
+  await envGroup.check();
+  expect(await buildGroup.isChecked()).toBe(false);
+  expect(await buildGroup.evaluate((input) => input.indeterminate)).toBe(true);
+  const fields = dialog.getByTestId('setup-project-key-toggle');
+  await expect(fields.nth(0)).toBeChecked();
+  await expect(fields.nth(1)).toBeChecked();
+  await expect(fields.nth(2)).not.toBeChecked();
+  await expect(fields.nth(3)).not.toBeChecked();
 });
 
 test('project file selector adds and removes managed files', async ({ page }) => {
@@ -417,10 +771,10 @@ test('project file selector adds and removes managed files', async ({ page }) =>
         body: JSON.stringify({
           result: {
             initialized: true,
-            managed: updated ? [file('eas.json', true)] : [file('.env.production', true)],
+            managed: updated ? [file('app.config.json', true)] : [file('.env.production', true)],
             candidates: updated
               ? [file('.env.production')]
-              : [file('eas.json', false, ['build.env.EXPO_TOKEN'])],
+              : [file('app.config.json', false, ['build.env.EXPO_TOKEN'])],
           },
         }),
       });
@@ -450,12 +804,14 @@ test('project file selector adds and removes managed files', async ({ page }) =>
   const dialog = page.getByTestId('setup-project-dialog');
   await expect(dialog.locator('.kicker')).toHaveText('Managed files');
   await expect(dialog.locator('input[value=".env.production"]')).toBeChecked();
-  await expect(dialog.locator('input[value="eas.json"]')).not.toBeChecked();
+  await expect(dialog.locator('input[value="app.config.json"]')).not.toBeChecked();
   await dialog.locator('input[value=".env.production"]').uncheck();
-  await dialog.locator('input[value="eas.json"]').check();
+  await dialog.locator('input[value="app.config.json"]').check();
   await dialog.getByTestId('setup-project-init').click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByTestId('managed-file').filter({ hasText: 'eas.json' })).toBeVisible();
+  await expect(
+    page.getByTestId('managed-file').filter({ hasText: 'app.config.json' }),
+  ).toBeVisible();
   await expect(
     page.getByTestId('managed-file').filter({ hasText: '.env.production' }),
   ).toBeHidden();
@@ -567,10 +923,67 @@ test('account modal copies the Age public key and an access request', async ({ p
   await expect(key).toBeVisible();
   await expect(key).toHaveValue(/age1/);
   await expect(page.getByTestId('account-request')).toBeVisible();
-  await expect(page.getByTestId('account-request-template')).toContainText('Age public key');
+  await expect(page.getByTestId('account-request-template')).toHaveValue(/Age public key/);
   await page.getByTestId('account-copy-key').click();
-  await expect(page.getByTestId('account-status')).toContainText('Copied your Age public key');
+  await expect(page.getByTestId('account-copy-key')).toHaveAttribute('data-feedback', 'success');
   await expect(page.getByTestId('access-status')).toBeHidden();
+});
+
+test('account loads even when a missing managed file stops the project opening', async ({
+  page,
+}) => {
+  const missingFile = 'project files: managed file .en: no such file or directory';
+  const commands = [];
+  const accountPaths = [];
+  await page.route('**/invoke', async (route) => {
+    const { cmd, path } = route.request().postDataJSON();
+    commands.push(cmd);
+    if (cmd === 'get_account') accountPaths.push(path);
+    if (cmd === 'inspect_project') {
+      await route.fulfill({ status: 400, json: { error: missingFile } });
+      return;
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.locator('#project-error-details')).toHaveText(missingFile);
+  await expect(page.locator('#account-label')).toHaveText('checkout');
+  await expect(page.getByTestId('project-panel-identity')).toHaveText('checkout');
+  await expect(page.getByTestId('account-dialog')).toBeHidden();
+  expect(commands).toContain('get_account');
+  expect(commands).not.toContain('configure_account');
+  expect(commands).not.toContain('create_user_identity');
+  await page.getByTestId('account').click();
+  await expect(page.locator('#account-name')).toHaveValue('checkout');
+  await expect(page.getByTestId('account-public-key')).toHaveValue(/age1/);
+  await expect(page.locator('#account-label')).toHaveText('checkout');
+  expect(accountPaths[0]).toBeTruthy();
+  expect(accountPaths.at(-1)).toBe(accountPaths[0]);
+});
+
+test('account loads without an open project or a setup prompt', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const { cmd } = route.request().postDataJSON();
+    if (cmd === 'boot_project') {
+      await route.fulfill({ json: { result: '' } });
+      return;
+    }
+
+    if (cmd === 'get_account') {
+      await route.fulfill({
+        json: { result: { name: 'bob', email: 'bob@sopsdeck.example', has_identity: true } },
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.locator('#account-label')).toHaveText('bob');
+  await expect(page.getByTestId('project-panel-identity')).toHaveText('bob');
+  await expect(page.getByTestId('account-dialog')).toBeHidden();
+  await expect(page.getByTestId('project-error-state')).toBeHidden();
 });
 
 test('sidebar stacks Project name above the path', async ({ page }) => {
@@ -633,7 +1046,10 @@ test('missing Access shows a recovery panel instead of a raw error', async ({ pa
   await expect(page.getByTestId('access-gate')).toBeVisible();
   await expect(page.getByTestId('access-gate')).toContainText('don’t have Access');
   await expect(page.getByTestId('editor-error')).toBeHidden();
-  await page.getByRole('button', { name: 'Open account' }).click();
+  await page
+    .getByTestId('access-gate')
+    .getByRole('button', { name: 'Open account', exact: true })
+    .click();
   await expect(page.getByTestId('account-dialog')).toBeVisible();
 });
 
@@ -645,14 +1061,115 @@ test('Account reveals a private-key backup on demand', async ({ page }) => {
   await expect(page.getByTestId('account-private-key')).toHaveValue(/AGE-SECRET-KEY-/);
 });
 
-test('JSON files render a tree with encrypt toggles', async ({ page }) => {
+test('JSON files render paths with contextual encryption editing', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('headline')).toHaveText('Production');
-  await page.getByTestId('managed-file').filter({ hasText: 'eas.json' }).click();
+  await page.getByTestId('managed-file').filter({ hasText: 'app.config.json' }).first().click();
   await expect(page.getByTestId('json-tree')).toBeVisible();
-  await expect(page.getByTestId('encrypt-toggle').first()).toBeVisible();
+  await expect(page.getByTestId('encrypt-toggle')).toHaveCount(0);
   await expect(page.getByTestId('file-fields')).toBeVisible();
   await expect(page.locator('.key-head')).not.toContainText('Type');
+  await expect(page.locator('.key-head')).toContainText('Path');
+  await expect(page.locator('.key-head').getByTestId('edit-encrypted-paths')).toBeVisible();
+  await expect(page.getByTestId('add-project')).toHaveCount(0);
+  await expect(page.locator('#subline')).not.toContainText('never uploaded');
+});
+
+test('copy feedback stays in the clicked button', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    if (route.request().postDataJSON()?.cmd === 'copy_text') {
+      await route.fulfill({ contentType: 'application/json', body: '{"result":""}' });
+      return;
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  const projectCopy = page.getByTestId('project-copy-key');
+  await projectCopy.click();
+  await expect(projectCopy).toHaveAttribute('data-feedback', 'success');
+  await expect(page.getByTestId('file-status')).toBeHidden();
+  await page.getByTestId('account').click();
+  await page.getByRole('button', { name: 'Back up private key' }).click();
+  const privateCopy = page.getByRole('button', { name: 'Copy private key', exact: true });
+  await privateCopy.click();
+  await expect(privateCopy).toContainText('Copied');
+  const requestCopy = page.getByTestId('account-copy-request');
+  await requestCopy.click();
+  await expect(requestCopy).toContainText('Copied');
+  await expect(requestCopy).not.toHaveAttribute('data-feedback', 'success');
+  await expect(requestCopy).toHaveText('Copy request');
+});
+
+test('dialogs dismiss outside and settle cancelled saves', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await page.getByTestId('account').click();
+  await page.getByRole('button', { name: 'Back up private key' }).click();
+  await page.mouse.click(5, 5);
+  await expect(page.getByTestId('account-dialog')).toBeHidden();
+  await expect(page.getByTestId('account-private-key')).toHaveValue('');
+  await page.getByTestId('reveal').click();
+  await page.getByTestId('key-value').first().fill('dismiss-fixture');
+  await page.getByTestId('save').click();
+  await expect(page.getByTestId('save-preview-dialog')).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(page.getByTestId('save-preview-dialog')).toBeHidden();
+  await expect(page.getByTestId('save')).toBeEnabled();
+  await page.getByTestId('save').click();
+  await expect(page.getByTestId('save-preview-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('save-preview-dialog')).toBeHidden();
+});
+
+test('legacy owners do not hide access actions', async ({ page }) => {
+  await page.route('**/invoke', async (route) => {
+    const command = route.request().postDataJSON()?.cmd;
+    if (command === 'list_file_access') {
+      await route.fulfill({ json: { result: [] } });
+      return;
+    }
+
+    if (command === 'get_account') {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.result.can_grant = false;
+      body.result.owners = [{ name: 'Alice', key: 'age1alice' }];
+      await route.fulfill({ json: body });
+      return;
+    }
+
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  await expect(page.getByTestId('add-team-member')).toBeVisible();
+  await expect(page.getByTestId('project-owners')).toHaveCount(0);
+});
+
+test('account scroll stays inside the modal in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.goto('/');
+  await expect(page.getByTestId('headline')).toHaveText('Production');
+  for (const theme of ['light', 'dark']) {
+    if (theme === 'dark') await page.getByTestId('theme-toggle').click();
+    await page.getByTestId('account').click();
+    await page.getByRole('button', { name: 'Back up private key' }).click();
+    await expect(page.getByTestId('account-backup')).toBeVisible();
+    const dialog = page.getByTestId('account-dialog');
+    const bounds = await dialog.boundingBox();
+    expect(bounds.y).toBeGreaterThanOrEqual(16);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(584);
+    const content = dialog.locator('.dialog-content');
+    await content.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+    await expect.poll(() => content.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await page.screenshot({ path: `test-results/ui/account-${theme}.png` });
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+  }
 });
 
 test('secret values can be edited on more than one line', async ({ page }) => {

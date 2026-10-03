@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 
+	"sopsdeck/internal/managed"
+
 	"github.com/getsops/sops/v3/aes"
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/config"
@@ -251,9 +253,12 @@ func plannedReferenceRenames(root, oldKey, newKey string, managedRel map[string]
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" {
+			if managed.SkipDirectory(path, root) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
 			return nil
 		}
 		rel, relErr := filepath.Rel(root, path)

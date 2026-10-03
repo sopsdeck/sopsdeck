@@ -116,6 +116,13 @@ func TestRecipientGrantOpensReencryptPR(t *testing.T) {
 	}
 }
 
+func mustCommit(t *testing.T, file, message string) {
+	t.Helper()
+	dir := filepath.Dir(file)
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "--allow-empty", "-m", message)
+}
+
 func fakeGH(t *testing.T) string {
 	t.Helper()
 	bin := t.TempDir()
