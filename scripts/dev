@@ -3,8 +3,10 @@ set -eu
 cd "$(dirname "$0")/.."
 root="$(pwd)"
 bin="$root/sopsdeck"
+native_bin="$bin"
 if [ "$(go env GOOS)" = "windows" ]; then
   bin="$bin.exe"
+  native_bin="$(cygpath -w "$bin")"
 fi
 
 if [ "${1:-}" = "--team" ]; then
@@ -15,11 +17,11 @@ fi
 go build -o "$bin" ./cmd/sopsdeck
 
 if [ "${1:-}" = "--build-only" ]; then
-  printf '%s\n' "$bin"
+  printf '%s\n' "$native_bin"
   exit 0
 fi
 
-export SOPSDECK_BIN="$bin"
+export SOPSDECK_BIN="$native_bin"
 
 if [ "${1:-}" = "--team" ]; then
   team_root="${SOPSDECK_TEAM_ROOT:-$root/test-results/team}"

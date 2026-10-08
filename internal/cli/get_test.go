@@ -29,6 +29,7 @@ func TestGetReadsCRLFSOPSDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	raw = bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
 	file := filepath.Join(t.TempDir(), "hello.env")
 	if err := os.WriteFile(file, bytes.ReplaceAll(raw, []byte("\n"), []byte("\r\n")), 0o600); err != nil {
 		t.Fatal(err)
