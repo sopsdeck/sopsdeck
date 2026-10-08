@@ -28,6 +28,7 @@ Domain words come from [CONTEXT.md](../CONTEXT.md).
 - Drive Health And Demo JSON (`TestDriveHealthAndDemoJSON`)
 - Drive Invoke Adds Recipient (`TestDriveInvokeAddsRecipient`)
 - Drive Invoke Backs Up And Removes Identity (`TestDriveInvokeBacksUpAndRemovesIdentity`)
+- Drive Invoke Summarizes Command Errors (`TestDriveInvokeSummarizesCommandErrors`)
 - Seed Demo Creates Shared Managed File (`TestSeedDemoCreatesSharedManagedFile`)
 - Drive Team Root Uses Shared Studio (`TestDriveTeamRootUsesSharedStudio`)
 - Drive Flag Errors (`TestDriveFlagErrors`)
