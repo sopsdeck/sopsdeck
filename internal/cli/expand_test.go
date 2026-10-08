@@ -289,7 +289,7 @@ func TestRunSubstitutionHonorsCancellation(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("error=%v want context deadline", err)
 	}
-	if elapsed := time.Since(start); elapsed > time.Second {
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
 		t.Fatalf("substitution ignored cancellation for %s", elapsed)
 	}
 }

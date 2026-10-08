@@ -91,7 +91,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 	}
 
 	tail := "TAIL=" + strings.Repeat("x", 64*1024) + ":END"
-	for !strings.Contains(output.String(), "HELLO=[sopsdeck:HELLO]") || !strings.Contains(output.String(), "RESPONSE=answer") || !strings.Contains(output.String(), tail) {
+	for !interactiveOutputComplete(output.String(), tail) {
 		select {
 		case chunk := <-chunks:
 			output.Write(chunk)
@@ -118,7 +118,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 	}
 
 readComplete:
-	got := output.String()
+	got := stripTerminalSequences(output.String())
 	if !strings.Contains(got, "TTY prompt:") || !strings.Contains(got, "RESPONSE=answer") {
 		t.Fatalf("interactive prompt/response missing: %q", got)
 	}
@@ -128,6 +128,59 @@ readComplete:
 	if !strings.Contains(got, tail) {
 		t.Fatal("interactive PTY truncated the child's final output")
 	}
+}
+
+func interactiveOutputComplete(output, tail string) bool {
+	text := stripTerminalSequences(output)
+	return strings.Contains(text, "HELLO=[sopsdeck:HELLO]") &&
+		strings.Contains(text, "RESPONSE=answer") &&
+		strings.Contains(text, tail)
+}
+
+// ConPTY emits cursor-control sequences while wrapping long output. Remove
+// those sequences and line breaks before checking that the full payload arrived.
+func stripTerminalSequences(input string) string {
+	var output strings.Builder
+	for i := 0; i < len(input); {
+		switch input[i] {
+		case '\x1b':
+			i++
+			if i == len(input) {
+				continue
+			}
+			switch input[i] {
+			case '[':
+				i++
+				for i < len(input) && (input[i] < 0x40 || input[i] > 0x7e) {
+					i++
+				}
+				if i < len(input) {
+					i++
+				}
+			case ']':
+				i++
+				for i < len(input) {
+					if input[i] == '\a' {
+						i++
+						break
+					}
+					if input[i] == '\x1b' && i+1 < len(input) && input[i+1] == '\\' {
+						i += 2
+						break
+					}
+					i++
+				}
+			default:
+				i++
+			}
+		case '\r', '\n':
+			i++
+		default:
+			output.WriteByte(input[i])
+			i++
+		}
+	}
+	return output.String()
 }
 
 func outputSummary(output string) string {
