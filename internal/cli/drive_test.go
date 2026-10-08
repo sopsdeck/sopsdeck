@@ -341,6 +341,35 @@ func TestDriveInvokeBacksUpAndRemovesIdentity(t *testing.T) {
 	}
 }
 
+func TestDriveInvokeSummarizesCommandErrors(t *testing.T) {
+	state := t.TempDir()
+	t.Setenv("SOPSDECK_STATE_DIR", state)
+	secret := filepath.Join(t.TempDir(), "fake-api-secret")
+	srv := httptest.NewServer(&drive{getenv: os.Getenv})
+	t.Cleanup(srv.Close)
+
+	body, err := json.Marshal(invokeReq{Cmd: "get_managed_file", Path: secret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Post(srv.URL+"/invoke", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	got, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusBadRequest || !bytes.Contains(got, []byte(`"error":"command failed (exit 1)"`)) || bytes.Contains(got, []byte(secret)) {
+		t.Fatalf("API command error was not safely summarized (status=%d body length=%d)", resp.StatusCode, len(got))
+	}
+	records := readErrorLog(t, state)
+	if len(records) != 1 || records[0].Message != "command failed (exit 1)" {
+		t.Fatalf("API command diagnostic was not safely summarized (records=%d)", len(records))
+	}
+}
+
 func postInvoke(t *testing.T, base string, req invokeReq) []byte {
 	t.Helper()
 	body, err := json.Marshal(req)
