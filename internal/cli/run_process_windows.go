@@ -18,7 +18,10 @@ func configureChildCommand(cmd *exec.Cmd) {
 }
 
 func configureInteractiveChildCommand(cmd *exec.Cmd) {
-	configureChildCommand(cmd)
+	// ConPTY translates Ctrl-C input into a console control event. Starting the
+	// attached process group with CREATE_NEW_PROCESS_GROUP would suppress that
+	// event, so let the pseudo-console deliver it to its foreground process.
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
 }
 
 func closePTYParentSlave(xpty.Pty) {}

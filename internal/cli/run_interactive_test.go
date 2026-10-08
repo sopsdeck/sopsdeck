@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -76,7 +77,11 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 		t.Fatalf("redacted child did not receive a terminal: %q", output.String())
 	}
 
-	if _, err := io.WriteString(pty, "answer\n"); err != nil {
+	answer := "answer\n"
+	if runtime.GOOS == "windows" {
+		answer = "answer\r"
+	}
+	if _, err := io.WriteString(pty, answer); err != nil {
 		t.Fatalf("answer interactive prompt: %v", err)
 	}
 	waitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -48,7 +48,11 @@ func TestMain(m *testing.M) {
 			os.Exit(17)
 		}
 		fmt.Fprint(os.Stdout, "TTY prompt: ")
-		answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		lineEnding := byte('\n')
+		if runtime.GOOS == "windows" {
+			lineEnding = '\r'
+		}
+		answer, err := bufio.NewReader(os.Stdin).ReadString(lineEnding)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(18)
