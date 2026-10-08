@@ -19,6 +19,11 @@ type capturedStderr struct {
 
 func (w *capturedStderr) TerminalFile() *os.File { return w.terminal }
 
+type ptyReadError struct{ err error }
+
+func (e ptyReadError) Error() string { return e.err.Error() }
+func (e ptyReadError) Unwrap() error { return e.err }
+
 func terminalFile(w io.Writer) *os.File {
 	var file *os.File
 	switch wrapped := w.(type) {
@@ -106,7 +111,7 @@ func (r childRunner) runInteractive(argv []string) int {
 	resizeSignals, stopResize := interactiveResizeSignals()
 	defer stopResize()
 
-	var waitErr, outputErr error
+	var waitErr, outputErr, outputFailure error
 	waiting := true
 	for waiting {
 		select {
@@ -121,7 +126,11 @@ func (r childRunner) runInteractive(argv []string) int {
 		case outputErr = <-outputDone:
 			outputDone = nil
 			if outputErr != nil && !isPTYClosedError(outputErr) {
-				_ = cancelChildCommand(cmd)
+				var readErr ptyReadError
+				if !errors.As(outputErr, &readErr) || cmd.ProcessState == nil {
+					outputFailure = outputErr
+					_ = cancelChildCommand(cmd)
+				}
 			}
 		case waitErr = <-done:
 			waiting = false
@@ -136,9 +145,15 @@ func (r childRunner) runInteractive(argv []string) int {
 	if outputDone != nil {
 		outputErr = <-outputDone
 	}
-	if outputErr != nil && !isPTYClosedError(outputErr) {
+	if outputFailure == nil && outputErr != nil && !isPTYClosedError(outputErr) {
+		var readErr ptyReadError
+		if !errors.As(outputErr, &readErr) {
+			outputFailure = outputErr
+		}
+	}
+	if outputFailure != nil {
 		restoreErr := restoreTerminal()
-		fmt.Fprintf(r.stderr, "run: could not relay interactive command output: %v\n", outputErr)
+		fmt.Fprintf(r.stderr, "run: could not relay interactive command output: %v\n", outputFailure)
 		if restoreErr != nil {
 			fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", restoreErr)
 		}
@@ -186,7 +201,7 @@ func relayPTYOutput(input io.Reader, output io.Writer) error {
 			}
 		}
 		if readErr != nil {
-			return readErr
+			return ptyReadError{err: readErr}
 		}
 	}
 }
