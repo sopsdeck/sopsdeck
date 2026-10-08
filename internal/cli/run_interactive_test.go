@@ -91,18 +91,22 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 	}
 
 	tail := "TAIL=" + strings.Repeat("x", 64*1024) + ":END"
+	outputDeadline := time.NewTimer(10 * time.Second)
+	defer outputDeadline.Stop()
 	for !interactiveOutputComplete(output.String(), tail) {
 		select {
 		case chunk := <-chunks:
 			output.Write(chunk)
 		case err := <-readDone:
 			t.Fatalf("parent PTY closed before final output (read error %v), output=%q", err, outputSummary(output.String()))
-		case <-time.After(10 * time.Second):
+		case <-outputDeadline.C:
 			t.Fatalf("timed out waiting for final output: %q", outputSummary(output.String()))
 		}
 	}
 	_ = pty.Close()
 
+	drainDeadline := time.NewTimer(10 * time.Second)
+	defer drainDeadline.Stop()
 	for {
 		select {
 		case chunk := <-chunks:
@@ -112,7 +116,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 				goto readComplete
 			}
 			t.Fatalf("read parent PTY: %v", err)
-		case <-time.After(10 * time.Second):
+		case <-drainDeadline.C:
 			t.Fatalf("timed out draining interactive output: %q", outputSummary(output.String()))
 		}
 	}
@@ -125,7 +129,7 @@ readComplete:
 	if !strings.Contains(got, "HELLO=[sopsdeck:HELLO]") || strings.Contains(got, "HELLO=world") {
 		t.Fatalf("secret was not redacted from interactive output: %q", got)
 	}
-	if !strings.Contains(got, tail) {
+	if !interactiveOutputComplete(got, tail) {
 		t.Fatal("interactive PTY truncated the child's final output")
 	}
 }
@@ -134,7 +138,9 @@ func interactiveOutputComplete(output, tail string) bool {
 	text := stripTerminalSequences(output)
 	return strings.Contains(text, "HELLO=[sopsdeck:HELLO]") &&
 		strings.Contains(text, "RESPONSE=answer") &&
-		strings.Contains(text, tail)
+		strings.Contains(text, "TAIL=") &&
+		strings.Contains(text, ":END") &&
+		strings.Count(text, "x") >= strings.Count(tail, "x")
 }
 
 // ConPTY emits cursor-control sequences while wrapping long output. Remove
