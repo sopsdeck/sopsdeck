@@ -104,7 +104,7 @@ func (r childRunner) runInteractive(argv []string) int {
 	output := r.outputWriter(terminalFile(r.stderr))
 	outputDone := make(chan error, 1)
 	go func() { outputDone <- relayPTYOutput(pty, output) }()
-	go func() { _, _ = io.Copy(pty, in) }()
+	go func() { _ = relayPTYInput(pty, in) }()
 
 	done := make(chan error, 1)
 	go func() { done <- xpty.WaitProcess(context.Background(), cmd) }()

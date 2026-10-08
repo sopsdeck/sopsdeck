@@ -65,16 +65,16 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 		case chunk := <-chunks:
 			output.Write(chunk)
 		case err := <-readDone:
-			t.Fatalf("parent PTY closed before interactive prompt (read error %v), output=%q", err, output.String())
+			t.Fatalf("parent PTY closed before interactive prompt (read error %v), output=%q", err, outputSummary(output.String()))
 		case <-deadline.C:
 			_ = cmd.Process.Kill()
 			_ = xpty.WaitProcess(context.Background(), cmd)
-			t.Fatalf("timed out waiting for interactive prompt, output=%q", output.String())
+			t.Fatalf("timed out waiting for interactive prompt, output=%q", outputSummary(output.String()))
 		}
 	}
 	if strings.Contains(output.String(), "TTY=false") {
 		_ = xpty.WaitProcess(context.Background(), cmd)
-		t.Fatalf("redacted child did not receive a terminal: %q", output.String())
+		t.Fatalf("redacted child did not receive a terminal: %q", outputSummary(output.String()))
 	}
 
 	answer := "answer\n"
@@ -87,7 +87,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 	waitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := xpty.WaitProcess(waitCtx, cmd); err != nil {
-		t.Fatalf("sopsdeck interactive run failed: %v, output=%q", err, output.String())
+		t.Fatalf("sopsdeck interactive run failed: %v, output=%q", err, outputSummary(output.String()))
 	}
 
 	tail := "TAIL=" + strings.Repeat("x", 64*1024) + ":END"
@@ -96,9 +96,9 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 		case chunk := <-chunks:
 			output.Write(chunk)
 		case err := <-readDone:
-			t.Fatalf("parent PTY closed before final output (read error %v), output=%q", err, output.String())
+			t.Fatalf("parent PTY closed before final output (read error %v), output=%q", err, outputSummary(output.String()))
 		case <-time.After(10 * time.Second):
-			t.Fatalf("timed out waiting for final output: %q", output.String())
+			t.Fatalf("timed out waiting for final output: %q", outputSummary(output.String()))
 		}
 	}
 	_ = pty.Close()
@@ -113,7 +113,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 			}
 			t.Fatalf("read parent PTY: %v", err)
 		case <-time.After(10 * time.Second):
-			t.Fatalf("timed out draining interactive output: %q", output.String())
+			t.Fatalf("timed out draining interactive output: %q", outputSummary(output.String()))
 		}
 	}
 
@@ -128,6 +128,13 @@ readComplete:
 	if !strings.Contains(got, tail) {
 		t.Fatal("interactive PTY truncated the child's final output")
 	}
+}
+
+func outputSummary(output string) string {
+	if len(output) <= 512 {
+		return output
+	}
+	return output[:256] + "…" + output[len(output)-256:]
 }
 
 func mustExecutable(t *testing.T) string {

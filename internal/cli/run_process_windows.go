@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"unicode/utf16"
 
 	"github.com/charmbracelet/x/xpty"
+	"golang.org/x/sys/windows"
 )
 
 func configureChildCommand(cmd *exec.Cmd) {
@@ -22,6 +24,33 @@ func configureInteractiveChildCommand(cmd *exec.Cmd) {
 	// attached process group with CREATE_NEW_PROCESS_GROUP would suppress that
 	// event, so let the pseudo-console deliver it to its foreground process.
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
+}
+
+func relayPTYInput(pty io.Writer, input io.Reader) error {
+	file, ok := input.(*os.File)
+	if !ok {
+		_, err := io.Copy(pty, input)
+		return err
+	}
+
+	chars := make([]uint16, 1024)
+	for {
+		var read uint32
+		if err := windows.ReadConsole(windows.Handle(file.Fd()), &chars[0], uint32(len(chars)), &read, nil); err != nil {
+			return err
+		}
+		if read == 0 {
+			continue
+		}
+		p := []byte(string(utf16.Decode(chars[:read])))
+		written, err := pty.Write(p)
+		if err != nil {
+			return err
+		}
+		if written != len(p) {
+			return io.ErrShortWrite
+		}
+	}
 }
 
 func closePTYParentSlave(xpty.Pty) {}

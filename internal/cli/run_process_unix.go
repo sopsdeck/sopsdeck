@@ -22,6 +22,11 @@ func configureInteractiveChildCommand(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Setctty: true, Ctty: 0}
 }
 
+func relayPTYInput(pty io.Writer, input io.Reader) error {
+	_, err := io.Copy(pty, input)
+	return err
+}
+
 func closePTYParentSlave(pty xpty.Pty) {
 	if unixPTY, ok := pty.(*xpty.UnixPty); ok {
 		_ = unixPTY.Slave().Close()
