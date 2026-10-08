@@ -14,6 +14,7 @@ import (
 
 var (
 	cloudKey    = regexp.MustCompile(`AKIA[0-9A-Z]{16}`)
+	ageSecretRE = regexp.MustCompile(`AGE-SECRET-KEY-[A-Z0-9-]+`)
 	privatePEM  = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
 	commonToken = regexp.MustCompile(`(?:ghp|gho|github_pat|sk_live)_[A-Za-z0-9_]{8,}`)
 	testToken   = regexp.MustCompile(`sk_test_[A-Za-z0-9_]+`)

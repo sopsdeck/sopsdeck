@@ -570,11 +570,10 @@ func invokeProject(args []string, getenv func(string) string) (any, error) {
 	return state, nil
 }
 
-func cliErr(code int, stderr *strings.Builder) error {
+func cliErr(code int, _ *strings.Builder) error {
 	if code != 0 {
-		msg := strings.TrimSpace(stderr.String())
-		recordError(os.Getenv, msg)
-		return fmt.Errorf("%s", msg)
+		recordError(os.Getenv, code)
+		return fmt.Errorf("command failed (exit %d)", code)
 	}
 	return nil
 }

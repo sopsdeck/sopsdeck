@@ -12,12 +12,12 @@ import (
 	"golang.org/x/term"
 )
 
-type capturedStderr struct {
+type terminalStderr struct {
 	io.Writer
 	terminal *os.File
 }
 
-func (w *capturedStderr) TerminalFile() *os.File { return w.terminal }
+func (w *terminalStderr) TerminalFile() *os.File { return w.terminal }
 
 type ptyReadError struct{ err error }
 

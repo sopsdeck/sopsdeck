@@ -76,6 +76,11 @@ func TestMain(m *testing.M) {
 		<-signals
 		signal.Stop(signals)
 		os.Exit(0)
+	case "failed-stderr":
+		fmt.Fprintf(os.Stderr, "fake child diagnostic: %s\n", os.Getenv("SOPSDECK_TEST_FAKE_SECRET"))
+		fmt.Fprint(os.Stderr, strings.Repeat("x", 1<<20))
+		fmt.Fprintln(os.Stderr, "\nchild diagnostic stream end")
+		os.Exit(23)
 	case "gh-args":
 		if err := os.WriteFile(os.Getenv("SOPSDECK_GH_ARGS"), []byte(strings.Join(os.Args[1:], "\n")+"\n"), 0o600); err != nil {
 			fmt.Fprintln(os.Stderr, err)

@@ -32,11 +32,10 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 	if len(args) > 0 && (args[0] == "sops" || isSOPSInvocation(args)) {
 		return run(args, stdin, stdout, stderr, getenv)
 	}
-	var captured bytes.Buffer
-	logged := &capturedStderr{Writer: io.MultiWriter(stderr, &captured), terminal: terminalFile(stderr)}
+	logged := &terminalStderr{Writer: stderr, terminal: terminalFile(stderr)}
 	code := run(args, stdin, stdout, logged, getenv)
 	if code != 0 {
-		recordError(getenv, captured.String())
+		recordError(getenv, code)
 	}
 	return code
 }
