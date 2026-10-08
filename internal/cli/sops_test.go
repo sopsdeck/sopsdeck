@@ -68,13 +68,7 @@ func TestSOPSPassthrough(t *testing.T) {
 }
 
 func TestSOPSPreservesArgumentsStreamsAndExitCode(t *testing.T) {
-	dir := t.TempDir()
-	script := filepath.Join(dir, "sops")
-	mustWriteFile(t, script, "#!/bin/sh\nprintf '%s\\n' \"$@\"\ncat\nprintf 'upstream error\\n' >&2\nexit 23\n")
-	if err := os.Chmod(script, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	fakeTestExecutable(t, "sops", "sops")
 	stateDir := t.TempDir()
 	t.Setenv("SOPSDECK_STATE_DIR", stateDir)
 	var stdout, stderr bytes.Buffer

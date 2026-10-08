@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -14,6 +14,9 @@ import (
 func buildSopsdeckBin(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "sopsdeck")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	out, err := exec.Command("go", "build", "-o", bin, "sopsdeck/cmd/sopsdeck").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
@@ -34,6 +37,9 @@ func waitFor(t *testing.T, cond func() bool, timeout time.Duration, what string)
 }
 
 func TestRunRelocksWhenChildIsKilled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGTERM process-group behavior is Unix-specific")
+	}
 	bin := buildSopsdeckBin(t)
 	dir := t.TempDir()
 	file := filepath.Join(dir, "app.config.json")
@@ -71,7 +77,7 @@ func TestRunRelocksWhenChildIsKilled(t *testing.T) {
 		return err == nil && !isEncryptedBytes(raw)
 	}, 5*time.Second, "transient unlock")
 
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+	if err := cmd.Process.Signal(os.Interrupt); err != nil {
 		t.Fatal(err)
 	}
 	_ = cmd.Wait()

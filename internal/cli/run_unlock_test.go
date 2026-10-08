@@ -18,6 +18,11 @@ func TestRunUnlocksStructuredFileForChildAndRelocks(t *testing.T) {
 	if err := os.Chmod(file, 0o640); err != nil {
 		t.Fatal(err)
 	}
+	initial, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initialMode := initial.Mode().Perm()
 
 	var stdout, stderr bytes.Buffer
 	code := Main([]string{"run", "-f", file, "--", "cat", file}, os.Stdin, &stdout, &stderr, os.Getenv)
@@ -39,8 +44,8 @@ func TestRunUnlocksStructuredFileForChildAndRelocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := info.Mode().Perm(); got != 0o640 {
-		t.Fatalf("restored mode=%#o want %#o", got, 0o640)
+	if got := info.Mode().Perm(); got != initialMode {
+		t.Fatalf("restored mode=%#o want %#o", got, initialMode)
 	}
 	if _, err := os.Stat(transientRunLockPath(file)); !os.IsNotExist(err) {
 		t.Fatalf("run lock was not removed: %v", err)

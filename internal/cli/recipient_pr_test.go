@@ -125,13 +125,8 @@ func mustCommit(t *testing.T, file, message string) {
 
 func fakeGH(t *testing.T) string {
 	t.Helper()
-	bin := t.TempDir()
-	argsFile := filepath.Join(bin, "args")
-	script := []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$SOPSDECK_GH_ARGS\"\n")
-	if err := os.WriteFile(filepath.Join(bin, "gh"), script, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	argsFile := filepath.Join(t.TempDir(), "args")
+	fakeTestExecutable(t, "gh", "gh-args")
 	t.Setenv("SOPSDECK_GH_ARGS", argsFile)
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return argsFile
 }

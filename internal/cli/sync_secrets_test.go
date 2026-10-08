@@ -429,12 +429,7 @@ func TestSyncUsesGhAuthToken(t *testing.T) {
 	if err := aliceCLI(alice, "set", "HELLO", "world", "-f", env); err != nil {
 		t.Fatal(err)
 	}
-	bin := t.TempDir()
-	script := []byte("#!/bin/sh\n[ \"$1\" = auth ] && [ \"$2\" = token ] && echo gho_from_gh && exit 0\nexit 1\n")
-	if err := os.WriteFile(filepath.Join(bin, "gh"), script, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	fakeTestExecutable(t, "gh", "gh-token")
 	getenv := func(key string) string {
 		if key == "GH_TOKEN" || key == "GITHUB_TOKEN" {
 			return ""

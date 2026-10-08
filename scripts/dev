@@ -3,6 +3,9 @@ set -eu
 cd "$(dirname "$0")/.."
 root="$(pwd)"
 bin="$root/sopsdeck"
+if [ "$(go env GOOS)" = "windows" ]; then
+  bin="$bin.exe"
+fi
 
 if [ "${1:-}" = "--team" ]; then
   # Check before --reset can replace keys used by a running instance.
