@@ -21,6 +21,41 @@ func TestGetPrintsValueFromSOPSDotenv(t *testing.T) {
 	if got := stdout.String(); got != "world\n" {
 		t.Fatalf("stdout=%q want %q", got, "world\n")
 	}
+
+}
+
+func TestGetReadsCRLFSOPSDotenv(t *testing.T) {
+	raw, err := os.ReadFile(testdata(t, "hello.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "hello.env")
+	if err := os.WriteFile(file, bytes.ReplaceAll(raw, []byte("\n"), []byte("\r\n")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
+
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"get", "HELLO", "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("exit %d stderr=%q", code, stderr.String())
+	}
+	if got := stdout.String(); got != "world\n" {
+		t.Fatalf("stdout=%q want %q", got, "world\n")
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"set", "NEW", "value", "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("set exit %d stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := Main([]string{"get", "NEW", "-f", file}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
+		t.Fatalf("get after set exit %d stderr=%q", code, stderr.String())
+	}
+	if got := stdout.String(); got != "value\n" {
+		t.Fatalf("stdout after set=%q want %q", got, "value\n")
+	}
 }
 
 func TestGetPrintsMultilineDotenvValueContainingANewline(t *testing.T) {

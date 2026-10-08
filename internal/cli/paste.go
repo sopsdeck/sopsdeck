@@ -16,7 +16,6 @@ import (
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/cmd/sops/formats"
 	"github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/decrypt"
 	"github.com/getsops/sops/v3/keyservice"
 	"github.com/getsops/sops/v3/version"
 	"go.yaml.in/yaml/v3"
@@ -168,7 +167,7 @@ func currentEnvPairs(file string, getenv func(string) string) (map[string]string
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return map[string]string{}, nil
 	}
-	plain, err := decrypt.File(file, formatName(format))
+	plain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		mapping, _, _ := mappingFor(file)
 		if mapping.Path == "" {
@@ -282,7 +281,7 @@ func encryptPlainFile(file string, plain []byte, getenv func(string) string, key
 	}
 	// Re-encryption changes the policy, not who can decrypt the file.
 	if raw, err := os.ReadFile(file); err == nil && isEncryptedBytes(raw) {
-		previous, err := common.LoadEncryptedFile(store, file)
+		previous, err := loadEncryptedSOPSFile(store, file)
 		if err != nil {
 			return err
 		}
@@ -359,7 +358,7 @@ func pasteApplyExisting(file string, pairs map[string]string, stderr io.Writer) 
 		}
 		return 0
 	}
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1

@@ -14,7 +14,6 @@ import (
 	"github.com/getsops/sops/v3/aes"
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/decrypt"
 	"github.com/getsops/sops/v3/keyservice"
 )
 
@@ -46,7 +45,7 @@ func parseFileFlag(args []string, cmd string) (string, string, int) {
 
 func managedKeys(file string) ([]string, error) {
 	format := fileFormat(file)
-	plain, err := decrypt.File(file, formatName(format))
+	plain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +323,7 @@ func writeAtomicText(path string, data []byte) error {
 func renameManagedKey(file, oldKey, newKey string, stderr io.Writer) error {
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		return err
 	}
@@ -337,7 +336,7 @@ func renameManagedKey(file, oldKey, newKey string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	plain, err := decrypt.File(file, formatName(format))
+	plain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		return err
 	}

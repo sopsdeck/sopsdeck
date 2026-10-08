@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/getsops/sops/v3/cmd/sops/formats"
-	"github.com/getsops/sops/v3/decrypt"
 )
 
 func cmdReview(args []string, stdout, stderr io.Writer) int {
@@ -46,7 +45,7 @@ func writeReview(file string, stdout io.Writer) error {
 	} else if unmerged {
 		return writeThreeWay(file, format, stdout)
 	}
-	workPlain, err := decrypt.File(file, formatName(format))
+	workPlain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		return fmt.Errorf("%s", explainReview(err))
 	}
@@ -92,7 +91,7 @@ func headSecretPairs(file string, format formats.Format) (map[string]string, err
 	if err != nil {
 		return map[string]string{}, nil
 	}
-	plain, err := decrypt.Data(raw, formatName(format))
+	plain, err := decryptSOPSData(raw, format)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +148,7 @@ func stagePairs(file, stage string, format formats.Format) (map[string]string, e
 	if err != nil {
 		return nil, fmt.Errorf("review: leave this conflict to Git")
 	}
-	plain, err := decrypt.Data(raw, formatName(format))
+	plain, err := decryptSOPSData(raw, format)
 	if err != nil {
 		return nil, fmt.Errorf("review: leave this conflict to Git")
 	}

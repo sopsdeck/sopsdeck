@@ -20,7 +20,6 @@ import (
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/cmd/sops/formats"
 	"github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/decrypt"
 	"github.com/getsops/sops/v3/keyservice"
 	"github.com/getsops/sops/v3/version"
 	"go.yaml.in/yaml/v3"
@@ -207,9 +206,9 @@ func cmdGet(args []string, stdout, stderr io.Writer, getenv func(string) string)
 			fmt.Fprintf(stderr, "get: %v\n", showErr)
 			return 1
 		}
-		plain, err = decrypt.Data(raw, formatName(format))
+		plain, err = decryptSOPSData(raw, format)
 	} else {
-		plain, err = decrypt.File(file, formatName(format))
+		plain, err = decryptSOPSFile(file, format)
 	}
 	if err != nil {
 		mapping, _, _ := mappingFor(file)
@@ -364,7 +363,7 @@ func setUnlocked(file string, store sops.Store, path []interface{}, value string
 }
 
 func setEncrypted(file string, store sops.Store, path []interface{}, value string, stderr io.Writer) int {
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
@@ -506,7 +505,7 @@ func delUnlocked(file string, store sops.Store, path []interface{}, raw []byte, 
 }
 
 func delEncrypted(file string, store sops.Store, path []interface{}, stderr io.Writer) int {
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "del: %v\n", err)
 		return 1
@@ -593,7 +592,7 @@ func cmdRun(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 	if file != "" {
 		format := fileFormat(file)
 		if format == formats.Dotenv {
-			plain, err := decrypt.File(file, formatName(format))
+			plain, err := decryptSOPSFile(file, format)
 			if err != nil {
 				fmt.Fprintf(stderr, "run: %v\n", err)
 				return 1
@@ -763,7 +762,7 @@ func (u *transientUnlock) open(stderr io.Writer) error {
 		u.plain = raw
 		return nil
 	}
-	plain, err := decrypt.File(u.file, formatName(fileFormat(u.file)))
+	plain, err := decryptSOPSFile(u.file, fileFormat(u.file))
 	if err != nil {
 		fmt.Fprintf(stderr, "run: %v\n", err)
 		return err

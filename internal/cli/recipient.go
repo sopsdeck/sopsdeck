@@ -55,7 +55,7 @@ func recipientAdd(args []string, stderr io.Writer, getenv func(string) string) i
 	}
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "recipient add: %v\n", err)
 		return 1
@@ -130,7 +130,7 @@ func recipientRemove(args []string, stderr io.Writer, getenv func(string) string
 	}
 	format := fileFormat(file)
 	store := common.StoreForFormat(format, config.NewStoresConfig())
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "recipient remove: %v\n", err)
 		return 1
@@ -280,7 +280,7 @@ func recipientList(args []string, stdout, stderr io.Writer, getenv func(string) 
 	}
 	file := args[1]
 	format := fileFormat(file)
-	tree, err := common.LoadEncryptedFile(common.StoreForFormat(format, config.NewStoresConfig()), file)
+	tree, err := loadEncryptedSOPSFile(common.StoreForFormat(format, config.NewStoresConfig()), file)
 	if err != nil {
 		fmt.Fprintf(stderr, "recipient list: %v\n", err)
 		return 1

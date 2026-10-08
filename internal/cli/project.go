@@ -14,7 +14,6 @@ import (
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/cmd/sops/formats"
 	"github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/decrypt"
 	"sopsdeck/internal/managed"
 )
 
@@ -493,7 +492,7 @@ func setFileEncryptedKeys(file string, keys []string, getenv func(string) string
 }
 
 func decryptManaged(file string) ([]byte, error) {
-	return decrypt.File(file, formatName(fileFormat(file)))
+	return decryptSOPSFile(file, fileFormat(file))
 }
 
 func encryptedKeyRegex(keys []string) string {
@@ -564,7 +563,7 @@ func fileEncryptionPolicy(path string) (keys []string, encryptsAll bool, regex s
 	if err != nil || !isEncryptedBytes(data) {
 		return keys, false, ""
 	}
-	tree, err := common.LoadEncryptedFile(common.StoreForFormat(fileFormat(path), config.NewStoresConfig()), path)
+	tree, err := loadEncryptedSOPSFile(common.StoreForFormat(fileFormat(path), config.NewStoresConfig()), path)
 	if err != nil {
 		return keys, false, ""
 	}
