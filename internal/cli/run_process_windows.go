@@ -9,10 +9,26 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+
+	"github.com/charmbracelet/x/xpty"
 )
 
 func configureChildCommand(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
+}
+
+func configureInteractiveChildCommand(cmd *exec.Cmd) {
+	configureChildCommand(cmd)
+}
+
+func closePTYParentSlave(xpty.Pty) {}
+
+func interactiveResizeSignals() (<-chan os.Signal, func()) {
+	return nil, func() {}
+}
+
+func isPTYClosedError(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.ERROR_BROKEN_PIPE)
 }
 
 func cancelChildCommand(cmd *exec.Cmd) error {

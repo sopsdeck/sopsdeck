@@ -33,7 +33,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(
 		return run(args, stdin, stdout, stderr, getenv)
 	}
 	var captured bytes.Buffer
-	logged := io.MultiWriter(stderr, &captured)
+	logged := &capturedStderr{Writer: io.MultiWriter(stderr, &captured), terminal: terminalFile(stderr)}
 	code := run(args, stdin, stdout, logged, getenv)
 	if code != 0 {
 		recordError(getenv, captured.String())
@@ -657,6 +657,10 @@ type childRunner struct {
 }
 
 func (r childRunner) run(argv []string) int {
+	if r.needsInteractivePTY() {
+		return r.runInteractive(argv)
+	}
+
 	stdout := r.outputWriter(r.stdout)
 	stderr := r.outputWriter(r.stderr)
 	cmd := exec.Command(argv[0], argv[1:]...)

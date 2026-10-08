@@ -8,11 +8,34 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"syscall"
+
+	"github.com/charmbracelet/x/xpty"
 )
 
 func configureChildCommand(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+}
+
+func configureInteractiveChildCommand(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Setctty: true, Ctty: 0}
+}
+
+func closePTYParentSlave(pty xpty.Pty) {
+	if unixPTY, ok := pty.(*xpty.UnixPty); ok {
+		_ = unixPTY.Slave().Close()
+	}
+}
+
+func interactiveResizeSignals() (<-chan os.Signal, func()) {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGWINCH)
+	return signals, func() { signal.Stop(signals) }
+}
+
+func isPTYClosedError(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.EIO)
 }
 
 func cancelChildCommand(cmd *exec.Cmd) error {
