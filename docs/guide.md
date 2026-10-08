@@ -97,7 +97,7 @@ The CLI equivalent is `sopsdeck identity key`; it prints the private key, so nev
 - Encrypted Managed Files and `.sopsdeck.toml` live in the Project and can be committed to Git. `.sopsdeck.toml` contains public recipient keys and labels, never private keys.
 - Your private Age identity is in the operating system keychain. On macOS, the keychain item uses service `sopsdeck` and account `age`; it is not a folder in the Project or home directory.
 - The browser keeps only UI preferences, recent Project paths, and folder/inspector state in browser local storage for its `127.0.0.1` origin. It does not store secret values or the Age private key, and never reads your clipboard automatically.
-- CLI diagnostics are optional: if you set `SOPSDECK_STATE_DIR`, it contains only the redacted `$SOPSDECK_STATE_DIR/errors.json` error log.
+- CLI diagnostics are optional: if you set `SOPSDECK_STATE_DIR`, it contains exit summaries in `$SOPSDECK_STATE_DIR/errors.json`. Child stderr is streamed to the caller and is not retained.
 
 To forget browser UI state, clear site data for Sopsdeck’s local `127.0.0.1` address in your browser; Projects, keys, and encrypted files remain untouched. To remove the identity from this machine, use **Account → Remove local identity** or `sopsdeck identity remove --yes`. That does not revoke its public key from any Managed File and makes local decryption impossible until you import a backup. Delete the optional `errors.json` file if you want to clear CLI diagnostics.
 

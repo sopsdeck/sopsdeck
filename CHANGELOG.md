@@ -44,6 +44,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - The npm launcher lists supported CLI commands, accepts `version`, reports unknown commands or missing Project folders clearly, and rejects occupied browser ports before starting the runner. Upstream SOPS stderr is passed through without saving it to Sopsdeck's error log.
 - Team startup refuses occupied ports before seeding or resetting identities, waits for both instances, and stops its servers on exit. `./scripts/dev --team --reset` refuses workspace roots, home directories, symlinks, and unrecognized studios.
 - The local browser API rejects mismatched Host and Origin headers, non-JSON commands, and browser preflights. Same-origin UI requests and local clients without an Origin header remain supported.
+- Failed CLI and API diagnostics now store only an exit summary. Child stderr is streamed to the caller and is not retained in `errors.json`.
 - Dotenv references resolve in file order, so forward and self references no longer see unresolved values. A command's generated `$(...)` text is not executed as a second expansion, and failed or timed-out substitutions now stop reads instead of returning the original expression.
 - Playwright test output is isolated from the persistent Alice/Bob studio, so browser tests no longer remove its keys and checkouts.
 - Changed and unused labels have a space between them.

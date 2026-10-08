@@ -101,7 +101,7 @@ sopsdeck unused -f FILE
 sopsdeck scan
 ```
 
-`identity key` prints the Age private key for SOPS; save the entire output in a password manager and never commit it. `identity remove --yes` clears only this machine’s OS-keychain identity; it does not remove the public key from files. `SOPSDECK_STATE_DIR` is optional: when set, failed commands append redacted messages to `$SOPSDECK_STATE_DIR/errors.json`.
+`identity key` prints the Age private key for SOPS; save the entire output in a password manager and never commit it. `identity remove --yes` clears only this machine’s OS-keychain identity; it does not remove the public key from files. `SOPSDECK_STATE_DIR` is optional: when set, failed commands append exit summaries to `$SOPSDECK_STATE_DIR/errors.json`; child stderr is not retained.
 
 `run` masks every nonempty protected value it captures, including short values. Add exact dotenv keys or structured paths to a Managed File's `public_keys` list in `.sopsdeck.toml` when their values should stay visible in command output. Structured parent paths opt out their descendants. This list changes output redaction only; it does not change encryption or Secret Sync. Names such as `PUBLIC`, `VITE_*`, or `_PLAIN` do not opt values out automatically.
 

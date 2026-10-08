@@ -64,7 +64,7 @@ export SOPS_AGE_KEY_CMD="sopsdeck identity key"
 
 In the browser, **Account → Back up private key** shows the same Age identity block to copy into a password manager. The private key is stored in the OS keychain, not the Project. `identity key` prints it for SOPS; `identity import -f FILE --confirmed-backup` restores it; and `identity remove --yes` removes it from this machine only. Existing `SOPS_AGE_KEY_FILE` Age files still work.
 
-`SOPSDECK_STATE_DIR` is optional CLI diagnostics storage. When set, failed commands append redacted messages to `$SOPSDECK_STATE_DIR/errors.json`; the same message increments a count. Messages never include private keys or ciphertext.
+`SOPSDECK_STATE_DIR` is optional CLI diagnostics storage. When set, failed commands append an exit summary to `$SOPSDECK_STATE_DIR/errors.json`; repeated exit summaries increment a count. Child stderr is streamed to the caller and is not retained.
 
 ```bash
 ./sopsdeck get KEY -f path/to/.env.production
