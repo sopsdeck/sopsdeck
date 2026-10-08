@@ -60,7 +60,8 @@ func interactiveResizeSignals() (<-chan os.Signal, func()) {
 }
 
 func isPTYClosedError(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.ERROR_BROKEN_PIPE)
+	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) ||
+		errors.Is(err, syscall.ERROR_BROKEN_PIPE) || errors.Is(err, windows.ERROR_INVALID_HANDLE)
 }
 
 func cancelChildCommand(cmd *exec.Cmd) error {

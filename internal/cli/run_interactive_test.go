@@ -112,7 +112,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 		case chunk := <-chunks:
 			output.Write(chunk)
 		case err := <-readDone:
-			if err == nil || err == io.EOF || strings.Contains(strings.ToLower(err.Error()), "input/output error") || strings.Contains(strings.ToLower(err.Error()), "closed") {
+			if err == nil || isPTYClosedError(err) || strings.Contains(strings.ToLower(err.Error()), "input/output error") || strings.Contains(strings.ToLower(err.Error()), "closed") {
 				goto readComplete
 			}
 			t.Fatalf("read parent PTY: %v", err)
