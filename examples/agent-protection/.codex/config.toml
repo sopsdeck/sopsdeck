@@ -1,0 +1,10 @@
+# Merge these entries into the project's trusted .codex/config.toml.
+# Replace the dotenv globs with every Managed File path in .sopsdeck.toml.
+default_permissions = "sopsdeck-protected"
+
+[permissions.sopsdeck-protected]
+extends = ":workspace"
+
+[permissions.sopsdeck-protected.filesystem.":workspace_roots"]
+".env" = "deny"
+".env.*" = "deny"

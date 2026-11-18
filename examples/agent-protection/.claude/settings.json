@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v sopsdeck >/dev/null 2>&1 || exit 2; exec sopsdeck agent-hook claude",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": ["./.env", "./.env.*"]
+    }
+  }
+}
