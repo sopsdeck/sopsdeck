@@ -96,6 +96,7 @@ sopsdeck identity import -f age-identity.txt --confirmed-backup
 sopsdeck identity remove --yes
 sopsdeck run -f FILE -- your-command
 sopsdeck run --no-redact -- your-command
+sopsdeck agent-hook <claude|cursor>
 sopsdeck rename OLD NEW -f FILE
 sopsdeck unused -f FILE
 sopsdeck scan
@@ -104,6 +105,8 @@ sopsdeck scan
 `identity key` prints the Age private key for SOPS; save the entire output in a password manager and never commit it. `identity remove --yes` clears only this machine’s OS-keychain identity; it does not remove the public key from files. `SOPSDECK_STATE_DIR` is optional: when set, failed commands append exit summaries to `$SOPSDECK_STATE_DIR/errors.json`; child stderr is not retained.
 
 `run` masks every nonempty protected value it captures, including short values. Add exact dotenv keys or structured paths to a Managed File's `public_keys` list in `.sopsdeck.toml` when their values should stay visible in command output. Structured parent paths opt out their descendants. This list changes output redaction only; it does not change encryption or Secret Sync. Names such as `PUBLIC`, `VITE_*`, or `_PLAIN` do not opt values out automatically.
+
+`agent-hook` is a protocol adapter for the opt-in Claude Code `PreToolUse` `Read` hook and Cursor `beforeReadFile` / `beforeTabFileRead` hooks. It denies paths listed as Managed Files in the nearest `.sopsdeck.toml`, fails closed on malformed hook input, and never logs hook payloads. See [Agent and IDE protection](agent-protection.md) for installation, Codex filesystem profiles, the VS Code task recipe, host limits, and uninstall steps. Keep normal host approvals enabled; the adapter does not parse or rewrite shell commands.
 
 For a locked structured file, `run` temporarily writes a mode-`0600` plaintext copy at the Managed File path, then restores the original encrypted bytes and permissions. Sopsdeck writes and another `run` for that path are refused while it is active. If the child changes the file, `run` leaves that change in place and exits unsuccessfully rather than replacing it. A forced kill or machine crash can leave plaintext and a `.sopsdeck-run.lock` file behind. Inspect the file, remove the stale lock (`rm FILE.sopsdeck-run.lock` on macOS/Linux or `Remove-Item FILE.sopsdeck-run.lock` in PowerShell), then recover with `sopsdeck lock -f FILE`; the required Age identity must be available. Commands that require a terminal on stdout may not work interactively through `run` yet.
 

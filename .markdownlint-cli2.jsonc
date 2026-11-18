@@ -13,6 +13,7 @@
     "docs/README.md",
     "docs/guide.md",
     "docs/cli.md",
+    "docs/agent-protection.md",
     "docs/versioning.md",
     "desktop/README.md",
   ],
