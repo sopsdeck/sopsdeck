@@ -87,6 +87,8 @@ func runLocal(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv f
 		return cmdDel(args[1:], stdout, stderr), true
 	case "run":
 		return cmdRun(args[1:], stdin, stdout, stderr, getenv), true
+	case "agent-hook":
+		return cmdAgentHook(args[1:], stdin, stdout, stderr), true
 	case "identity":
 		return cmdIdentity(args[1:], stdout, stderr, getenv), true
 	case "account":
