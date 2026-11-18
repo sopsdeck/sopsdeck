@@ -49,6 +49,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 - Dotenv references resolve in file order, so forward and self references no longer see unresolved values. A command's generated `$(...)` text is not executed as a second expansion, and failed or timed-out substitutions now stop reads instead of returning the original expression.
 - Playwright test output is isolated from the persistent Alice/Bob studio, so browser tests no longer remove its keys and checkouts.
 - Changed and unused labels have a space between them.
+- The website and development tooling use patched Astro, Vite, undici, sharp, smol-toml, markdown-it, source-map-js, and KaTeX releases.
 
 ### Removed
 
