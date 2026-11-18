@@ -27,6 +27,10 @@ test('rewriteDocHrefs keeps contributor glossary links on the user docs', () => 
   expect(rewriteDocHrefs('../CONTEXT.md')).toBe('/docs/');
 });
 
+test('rewriteDocHrefs maps the agent-protection guide to its site page', () => {
+  expect(rewriteDocHrefs('agent-protection.md#examples')).toBe('agent-protection.html#examples');
+});
+
 test('site rendering keeps spaces around links split across lines', async () => {
   const normalized = await validateConfig(
     config,

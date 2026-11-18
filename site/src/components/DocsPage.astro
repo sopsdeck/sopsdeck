@@ -1,11 +1,12 @@
 ---
 import DocsLayout from '../layouts/DocsLayout.astro';
-import { cliHeadings, docHtml, guideHeadings } from '../lib/content.mjs';
+import { agentProtectionHeadings, cliHeadings, docHtml, guideHeadings } from '../lib/content.mjs';
 
 const { title, kicker, heading, lede, source, current = 'guide' } = Astro.props;
 const html = docHtml(source);
 const guide = guideHeadings();
 const cli = cliHeadings();
+const agentProtection = agentProtectionHeadings();
 ---
 
 <DocsLayout title={title} description={lede} current={current}>
@@ -26,6 +27,21 @@ const cli = cliHeadings();
         cli.map((item) => (
           <li>
             <a href={`/docs/cli.html#${item.id}`}>{item.title}</a>
+          </li>
+        ))
+      }
+    </ul>
+    <a
+      href="/docs/agent-protection.html"
+      aria-current={current === 'agent-protection' ? 'page' : undefined}
+    >
+      Agent protection
+    </a>
+    <ul>
+      {
+        agentProtection.map((item) => (
+          <li>
+            <a href={`/docs/agent-protection.html#${item.id}`}>{item.title}</a>
           </li>
         ))
       }

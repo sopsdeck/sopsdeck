@@ -1,12 +1,14 @@
 import { mdHeadings, mdToHtml } from '../../../scripts/site-pages.mjs';
 
 import changelog from '../../../CHANGELOG.md?raw';
+import agentProtection from '../../../docs/agent-protection.md?raw';
 import cli from '../../../docs/cli.md?raw';
 import guide from '../../../docs/guide.md?raw';
 
 export function repoFile(relativePath) {
   return {
     'CHANGELOG.md': changelog,
+    'docs/agent-protection.md': agentProtection,
     'docs/cli.md': cli,
     'docs/guide.md': guide,
   }[relativePath];
@@ -24,4 +26,8 @@ export function guideHeadings() {
 
 export function cliHeadings() {
   return mdHeadings(cli);
+}
+
+export function agentProtectionHeadings() {
+  return mdHeadings(agentProtection);
 }
