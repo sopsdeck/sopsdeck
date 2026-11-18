@@ -21,7 +21,6 @@ func TestGetPrintsValueFromSOPSDotenv(t *testing.T) {
 	if got := stdout.String(); got != "world\n" {
 		t.Fatalf("stdout=%q want %q", got, "world\n")
 	}
-
 }
 
 func TestGetReadsCRLFSOPSDotenv(t *testing.T) {
