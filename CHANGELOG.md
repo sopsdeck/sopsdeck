@@ -4,6 +4,8 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+## 0.3.1 - 2026-11-18
+
 ### Fixed
 
 - Long secret names wrap instead of being cut off in the editor. Key badges sit under the name, narrow editor panes stack the value below the key, and the side panels shrink on smaller windows so the editor and Environment panel stay visible.
