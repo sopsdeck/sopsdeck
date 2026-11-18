@@ -68,13 +68,25 @@ func TestUnknownCommandPrintsUsageHint(t *testing.T) {
 	}
 }
 
-func TestConfigureIntegrationRequiresSevenArgs(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	code := Main([]string{"configure_integration", "file"}, os.Stdin, &stdout, &stderr, os.Getenv)
-	if code == 0 {
-		t.Fatal("expected non-zero exit")
+func TestRemovedCommandsAreUnknown(t *testing.T) {
+	for _, command := range []string{"commit", "mcp", "configure_integration"} {
+		t.Run(command, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := Main([]string{command, "-f", "missing.env", "--yes"}, os.Stdin, &stdout, &stderr, os.Getenv)
+			if code != 1 || stdout.Len() != 0 || stderr.String() != "unknown command \""+command+"\"\n" {
+				t.Fatalf("exit %d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+		})
 	}
-	if !strings.Contains(stderr.String(), "usage: sopsdeck configure_integration") {
+}
+
+func TestSyncRequiresFile(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"sync"}, os.Stdin, &stdout, &stderr, os.Getenv)
+	if code == 0 {
+		t.Fatal("secret sync requires a file")
+	}
+	if !strings.Contains(stderr.String(), "usage: sopsdeck sync -f FILE") {
 		t.Fatalf("stderr=%q", stderr.String())
 	}
 }

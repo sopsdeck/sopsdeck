@@ -7,7 +7,6 @@ import (
 	"github.com/getsops/sops/v3/aes"
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/decrypt"
 	"github.com/getsops/sops/v3/keyservice"
 )
 
@@ -52,7 +51,7 @@ func restoreAt(file, rev string) error {
 	if err != nil {
 		return fmt.Errorf("restore: %w", err)
 	}
-	plain, err := decrypt.Data(raw, formatName(format))
+	plain, err := decryptSOPSData(raw, format)
 	if err != nil {
 		return fmt.Errorf("%s", explainRestore(err))
 	}
@@ -61,7 +60,7 @@ func restoreAt(file, rev string) error {
 		return fmt.Errorf("restore: %w", err)
 	}
 	store := common.StoreForFormat(format, config.NewStoresConfig())
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		return fmt.Errorf("restore: %w", err)
 	}
@@ -74,7 +73,7 @@ func restoreAt(file, rev string) error {
 	if err != nil {
 		return fmt.Errorf("%s", explainRestore(err))
 	}
-	currentPlain, err := decrypt.File(file, formatName(format))
+	currentPlain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		return fmt.Errorf("%s", explainRestore(err))
 	}

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestRunInjectsSecretsIntoChildEnv(t *testing.T) {
+func TestRunInjectsAndRedactsChildEnv(t *testing.T) {
 	age := testdata(t, "age.txt")
 	envFile := testdata(t, "hello.env")
 	t.Setenv("SOPS_AGE_KEY_FILE", age)
@@ -17,7 +17,7 @@ func TestRunInjectsSecretsIntoChildEnv(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("run exit %d stderr=%q stdout=%q", code, stderr.String(), stdout.String())
 	}
-	if got := stdout.String(); got != "world\n" {
-		t.Fatalf("stdout=%q want world", got)
+	if got := stdout.String(); got != "[sopsdeck:HELLO]\n" {
+		t.Fatalf("stdout=%q want child value redacted", got)
 	}
 }

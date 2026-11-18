@@ -16,7 +16,6 @@ import (
 	"github.com/getsops/sops/v3/cmd/sops/common"
 	"github.com/getsops/sops/v3/cmd/sops/formats"
 	"github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/decrypt"
 	"github.com/getsops/sops/v3/keyservice"
 	"github.com/getsops/sops/v3/version"
 	"go.yaml.in/yaml/v3"
@@ -50,7 +49,7 @@ func applyPaste(args []string, payload []byte, stdout, stderr io.Writer, getenv 
 		return 1
 	}
 
-	current, err := currentEnvPairs(flags.file)
+	current, err := currentEnvPairs(flags.file, getenv)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1
@@ -163,12 +162,12 @@ func stringifyPasteMap(doc map[string]any) map[string]string {
 	return out
 }
 
-func currentEnvPairs(file string) (map[string]string, error) {
+func currentEnvPairs(file string, getenv func(string) string) (map[string]string, error) {
 	format := fileFormat(file)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return map[string]string{}, nil
 	}
-	plain, err := decrypt.File(file, formatName(format))
+	plain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		mapping, _, _ := mappingFor(file)
 		if mapping.Path == "" {
@@ -179,7 +178,7 @@ func currentEnvPairs(file string) (map[string]string, error) {
 			return nil, err
 		}
 	}
-	return plainPairs(plain, format)
+	return plainPairs(plain, format, getenv)
 }
 
 func classifyPasteKeys(current, incoming map[string]string) (adds, changes []string) {
@@ -280,6 +279,30 @@ func encryptPlainFile(file string, plain []byte, getenv func(string) string, key
 		},
 		Branches: branches,
 	}
+	// Re-encryption changes the policy, not who can decrypt the file.
+	if raw, err := os.ReadFile(file); err == nil && isEncryptedBytes(raw) {
+		previous, err := loadEncryptedSOPSFile(store, file)
+		if err != nil {
+			return err
+		}
+		tree.Metadata.KeyGroups = previous.Metadata.KeyGroups
+		tree.Metadata.ShamirThreshold = previous.Metadata.ShamirThreshold
+	} else {
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		mapping, _, _ := mappingFor(file)
+		for _, recipient := range mapping.Recipients {
+			if recipient == pub {
+				continue
+			}
+			key, err := sopsage.MasterKeyFromRecipient(recipient)
+			if err != nil {
+				return err
+			}
+			tree.Metadata.KeyGroups[0] = append(tree.Metadata.KeyGroups[0], key)
+		}
+	}
 	regex := encryptedKeyRegex(keys)
 	if regex == "" && fileFormat(file) != formats.Dotenv {
 		regex = neverMatchRegex
@@ -335,7 +358,7 @@ func pasteApplyExisting(file string, pairs map[string]string, stderr io.Writer) 
 		}
 		return 0
 	}
-	tree, err := common.LoadEncryptedFile(store, file)
+	tree, err := loadEncryptedSOPSFile(store, file)
 	if err != nil {
 		fmt.Fprintf(stderr, "set: %v\n", err)
 		return 1

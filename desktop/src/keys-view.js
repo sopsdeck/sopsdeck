@@ -1,4 +1,4 @@
-import { icon, iconButton } from './icons.js';
+import { iconButton } from './icons.js';
 import { nestLeaves } from './tree.js';
 
 function valueInput(row, mark) {
@@ -30,13 +30,20 @@ function rowActions(row, shown, ui) {
   const actions = document.createElement('div');
   actions.className = 'key-actions';
   const remove = iconButton('delete-key', 'Delete key', 'trash', () => ui.deleteRow(row));
+  const history = iconButton('secret-history', 'Secret history', 'history', () =>
+    ui.showSecretHistory(row),
+  );
+  history.disabled = ui.hasHistory === false;
+  if (history.disabled) history.title = 'History requires a Git repository';
   remove.classList.add('danger');
   actions.append(
     iconButton('reveal-key', shown ? 'Hide value' : 'Reveal value', shown ? 'eye-off' : 'eye', () =>
       ui.toggleRowReveal(row),
     ),
-    iconButton('copy-value', 'Copy value', 'copy', () => ui.copyText(row.value)),
-    iconButton('secret-history', 'Secret history', 'history', () => ui.showSecretHistory(row)),
+    iconButton('copy-value', 'Copy value', 'copy', (event) =>
+      ui.copyText(row.value, event.currentTarget),
+    ),
+    history,
     remove,
   );
   return actions;
@@ -72,6 +79,18 @@ function renderKeyHead(box, structured, ui) {
   head.className = 'key-head' + (structured ? ' key-head-tree' : '');
   const keyHead = document.createElement('span');
   keyHead.textContent = structured ? 'Path' : 'Key';
+  if (structured) {
+    keyHead.className = 'path-head';
+    const edit = iconButton(
+      'edit-encrypted-paths',
+      'Edit encrypted paths',
+      'edit',
+      ui.editEncryptedPaths,
+    );
+    edit.title = 'Edit encrypted paths';
+    keyHead.append(edit);
+  }
+
   const valueHead = document.createElement('span');
   valueHead.className = 'value-head';
   valueHead.append('Value');
@@ -84,13 +103,7 @@ function renderKeyHead(box, structured, ui) {
     ),
   );
   const actionsHead = document.createElement('span');
-  if (structured) {
-    const encryptHead = document.createElement('span');
-    encryptHead.textContent = 'Encrypt';
-    head.append(encryptHead, keyHead, valueHead, actionsHead);
-  } else {
-    head.append(keyHead, valueHead, actionsHead);
-  }
+  head.append(keyHead, valueHead, actionsHead);
 
   box.append(head);
 }
@@ -130,7 +143,9 @@ function renderDotenvRow(box, row, ui) {
   keyCell.append(
     name,
     kind,
-    iconButton('copy-key', 'Copy key', 'copy', () => ui.copyText(row.key)),
+    iconButton('copy-key', 'Copy key', 'copy', (event) =>
+      ui.copyText(row.key, event.currentTarget),
+    ),
   );
   const valueCell = document.createElement('div');
   valueCell.className = 'value-cell';
@@ -149,15 +164,7 @@ function renderTreeNodes(box, nodes, byKey, ui) {
       line.className = 'key-row json-leaf' + (ui.rowDirty(row) ? ' changed' : '');
       line.dataset.testid = 'key-row';
       line.style.setProperty('--tree-depth', String(depth));
-      const encrypt = document.createElement('button');
-      encrypt.type = 'button';
-      encrypt.className = 'icon-button encrypt-toggle' + (row.encrypted ? ' is-on' : '');
-      encrypt.dataset.testid = 'encrypt-toggle';
-      encrypt.setAttribute('aria-pressed', row.encrypted ? 'true' : 'false');
-      encrypt.title = row.encrypted ? 'Stop encrypting this path' : 'Encrypt this path';
-      encrypt.append(icon(row.encrypted ? 'lock' : 'unlock'));
       const mark = () => markRow(line, row, null, ui);
-      encrypt.addEventListener('click', () => ui.toggleEncrypted(row));
       const keyCell = document.createElement('div');
       keyCell.className = 'key-cell';
       const name = document.createElement('code');
@@ -172,7 +179,7 @@ function renderTreeNodes(box, nodes, byKey, ui) {
       const valueCell = document.createElement('div');
       valueCell.className = 'value-cell';
       valueCell.append(valueInput(row, mark));
-      line.append(encrypt, keyCell, valueCell, rowActions(row, Boolean(row.revealed), ui));
+      line.append(keyCell, valueCell, rowActions(row, Boolean(row.revealed), ui));
       box.append(line);
       continue;
     }
@@ -222,14 +229,44 @@ export function appendSetupKeyTree(list, nodes, state) {
       keyLabel.append(keyInput, keyName);
       list.append(keyLabel);
       state.keyInputs.push(keyInput);
+      state.keyInputsByPath?.set(node.path, keyInput);
       continue;
     }
 
-    const folder = document.createElement('div');
+    const leaves = [];
+    const collectLeaves = (child) => {
+      if (child.leaf) {
+        leaves.push(child);
+        return;
+      }
+
+      for (const grandchild of child.children) collectLeaves(grandchild);
+    };
+
+    for (const child of node.children) collectLeaves(child);
+
+    const folder = document.createElement('label');
     folder.className = 'setup-project-folder';
     folder.style.setProperty('--tree-depth', String(state.depth));
-    folder.textContent = node.name;
+    const folderInput = document.createElement('input');
+    folderInput.type = 'checkbox';
+    folderInput.dataset.testid = 'setup-project-folder-key-toggle';
+    folderInput.setAttribute('aria-label', `Select all paths under ${node.path}`);
+    const folderName = document.createElement('code');
+    folderName.textContent = node.name;
+    folder.append(folderInput, folderName);
     list.append(folder);
+    state.folderInputs?.set(node.path, { input: folderInput, leaves });
+    folderInput.addEventListener('change', () => {
+      for (const leaf of leaves) {
+        const keyInput = state.keyInputsByPath?.get(leaf.path);
+        if (keyInput) keyInput.checked = folderInput.checked;
+        if (folderInput.checked) state.selectedKeys?.add(leaf.path);
+        else state.selectedKeys?.delete(leaf.path);
+      }
+
+      state.onSelectionChange?.();
+    });
     appendSetupKeyTree(list, node.children, {
       ...state,
       depth: state.depth + 1,

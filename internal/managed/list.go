@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 // File is a Managed File discovered in a Project folder.
@@ -15,7 +14,7 @@ type File struct {
 	Rel  string `json:"rel"`
 }
 
-// List returns dotenv files and SOPS-looking JSON/YAML under root.
+// List returns regular files in root that are safe to inspect as Project files.
 func List(root string) ([]File, error) {
 	info, err := os.Stat(root)
 	if err != nil {
@@ -29,21 +28,20 @@ func List(root string) ([]File, error) {
 		if err != nil {
 			return err
 		}
-		name := d.Name()
 		if d.IsDir() {
-			if skipDir(name) && path != root {
+			if SkipDirectory(path, root) {
 				return fs.SkipDir
 			}
 			return nil
 		}
-		if !isDotenvOrSOPS(name, path) {
+		if !d.Type().IsRegular() || isProjectMetadata(path, root) {
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			rel = path
 		}
-		out = append(out, File{Name: name, Path: path, Rel: rel})
+		out = append(out, File{Name: d.Name(), Path: path, Rel: rel})
 		return nil
 	})
 	if err != nil {
@@ -53,7 +51,7 @@ func List(root string) ([]File, error) {
 	return out, nil
 }
 
-// Candidates returns supported files that can be imported into a Project.
+// Candidates returns regular files that can be imported into a Project.
 func Candidates(root string) ([]File, error) {
 	info, err := os.Stat(root)
 	if err != nil {
@@ -68,15 +66,15 @@ func Candidates(root string) ([]File, error) {
 			return err
 		}
 		if d.IsDir() {
-			if skipDir(d.Name()) && path != root {
+			if SkipDirectory(path, root) {
 				return fs.SkipDir
 			}
 			return nil
 		}
-		if isLockfileName(d.Name()) {
+		if !d.Type().IsRegular() {
 			return nil
 		}
-		if !isDotenvName(d.Name()) && !isStructuredName(d.Name()) {
+		if isProjectMetadata(path, root) {
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)
@@ -93,6 +91,25 @@ func Candidates(root string) ([]File, error) {
 	return out, nil
 }
 
+func isProjectMetadata(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel == ".sopsdeck.toml"
+}
+
+// SkipDirectory keeps discovery and reference edits inside one Project.
+// Ordinary monorepo folders are included; nested repos/projects are not.
+func SkipDirectory(path, root string) bool {
+	if path == root {
+		return false
+	}
+	for _, marker := range []string{".git", ".sopsdeck.toml"} {
+		if _, err := os.Stat(filepath.Join(path, marker)); err == nil {
+			return true
+		}
+	}
+	return skipDir(filepath.Base(path))
+}
+
 func skipDir(name string) bool {
 	switch name {
 	case ".git", "node_modules", "target", "dist", "vendor", ".scratch",
@@ -104,52 +121,4 @@ func skipDir(name string) bool {
 	default:
 		return false
 	}
-}
-
-func isDotenvOrSOPS(name, path string) bool {
-	if isDotenvName(name) {
-		// Per issue 05, a Managed File already has SOPS metadata; a plain
-		// dotenv is not managed until it is encrypted.
-		return looksSOPSDotenv(path)
-	}
-	return isStructuredName(name) && looksSOPS(path)
-}
-
-func isDotenvName(name string) bool {
-	return name == ".env" || strings.HasPrefix(name, ".env.") || strings.HasSuffix(strings.ToLower(name), ".env")
-}
-
-func isStructuredName(name string) bool {
-	lower := strings.ToLower(name)
-	return strings.HasSuffix(lower, ".json") || strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml")
-}
-
-// isLockfileName reports whether name is a generated dependency lockfile.
-// Lockfiles are machine-generated and never hold secrets worth managing as
-// a Managed File, so they are excluded from candidates. Their structure
-// (e.g. package-lock.json's empty-string root key under "packages") also
-// breaks the dotted key-path tree.
-func isLockfileName(name string) bool {
-	switch name {
-	case "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml",
-		"yarn.lock", "bun.lock", "bun.lockb", "composer.lock",
-		"Cargo.lock", "poetry.lock", "Pipfile.lock", "mix.lock",
-		"Gemfile.lock", "packages.lock.json", "nuget.lock.json":
-		return true
-	}
-	return false
-}
-
-func looksSOPS(path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	if len(data) > 16_384 {
-		data = data[:16_384]
-	}
-	sample := string(data)
-	return strings.Contains(sample, "ENC[") ||
-		(strings.Contains(sample, `"sops"`) && strings.Contains(sample, `"sops": {`)) ||
-		strings.Contains(sample, "sops:\n")
 }

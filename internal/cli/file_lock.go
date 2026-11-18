@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
-	"github.com/getsops/sops/v3/decrypt"
+	sopsage "github.com/getsops/sops/v3/age"
+	"github.com/getsops/sops/v3/cmd/sops/common"
+	"github.com/getsops/sops/v3/config"
 )
 
 func cmdFileStatus(args []string, stdout, stderr io.Writer) int {
@@ -42,9 +45,45 @@ func cmdUnlock(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "unlock: file is already unlocked")
 		return 1
 	}
-	plain, err := decrypt.File(file, formatName(fileFormat(file)))
+	plain, err := decryptSOPSFile(file, fileFormat(file))
 	if err != nil {
 		fmt.Fprintf(stderr, "unlock: %v\n", err)
+		return 1
+	}
+	// Plaintext has no SOPS metadata; keep its public recipients for relocking.
+	tree, err := loadEncryptedSOPSFile(common.StoreForFormat(fileFormat(file), config.NewStoresConfig()), file)
+	if err != nil {
+		fmt.Fprintf(stderr, "unlock: %v\n", err)
+		return 1
+	}
+	var recipients []string
+	for _, group := range tree.Metadata.KeyGroups {
+		for _, key := range group {
+			if _, ok := key.(*sopsage.MasterKey); !ok || len(tree.Metadata.KeyGroups) != 1 {
+				fmt.Fprintln(stderr, "unlock: keep this file encrypted to preserve its non-Age or grouped Access")
+				return 1
+			}
+			recipients = append(recipients, key.ToString())
+		}
+	}
+	mapping, _, manifestPath := mappingFor(file)
+	if mapping.Path != "" {
+		m, err := loadManifest(manifestPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "unlock: %v\n", err)
+			return 1
+		}
+		for i := range m.ManagedFile {
+			if filepath.ToSlash(m.ManagedFile[i].Path) == filepath.ToSlash(mapping.Path) {
+				m.ManagedFile[i].Recipients = recipients
+			}
+		}
+		if err := writeManifest(manifestPath, m); err != nil {
+			fmt.Fprintf(stderr, "unlock: %v\n", err)
+			return 1
+		}
+	} else if len(recipients) > 1 {
+		fmt.Fprintln(stderr, "unlock: initialize a Project first to preserve all Recipients when relocking")
 		return 1
 	}
 	if err := writeAtomic(file, plain); err != nil {

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeReadFile": [
+      {
+        "command": "sopsdeck agent-hook cursor",
+        "timeout": 5,
+        "failClosed": true
+      }
+    ],
+    "beforeTabFileRead": [
+      {
+        "command": "sopsdeck agent-hook cursor",
+        "timeout": 5,
+        "failClosed": true
+      }
+    ]
+  }
+}

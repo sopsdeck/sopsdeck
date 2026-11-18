@@ -21,3 +21,4 @@ mutants.out/
 /blob-report/
 /playwright/.cache/
 .wrangler/state/v3
+/.scratch/

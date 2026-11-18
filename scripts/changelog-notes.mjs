@@ -86,6 +86,10 @@ export function changelogSectionNotes(md, heading) {
   return parseChangelog(md).find((section) => section.heading === heading);
 }
 
+export function publishedChangelogSections(md) {
+  return parseChangelog(md).filter((section) => section.heading !== 'Unreleased');
+}
+
 export function typeLabel(type) {
   return TYPE_LABEL[type] || TYPE_LABEL.changed;
 }

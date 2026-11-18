@@ -319,7 +319,7 @@ func TestRecipientLabelsRoundTrip(t *testing.T) {
 	}
 }
 
-func TestRecipientListShowsInitOwnerAndAssignedIdentity(t *testing.T) {
+func TestRecipientListPreservesLegacyIdentityLabels(t *testing.T) {
 	aliceDir := t.TempDir()
 	bobDir := t.TempDir()
 	aliceKey := filepath.Join(aliceDir, "identity")
@@ -381,7 +381,7 @@ func TestRecipientListShowsInitOwnerAndAssignedIdentity(t *testing.T) {
 	}
 }
 
-func TestRecipientAddRefusesWhenNotOwner(t *testing.T) {
+func TestRecipientAccessIgnoresLegacyOwners(t *testing.T) {
 	aliceDir := t.TempDir()
 	aliceKey := filepath.Join(aliceDir, "identity")
 	aliceEnv := identityEnv(aliceDir, aliceKey)
@@ -416,23 +416,17 @@ func TestRecipientAddRefusesWhenNotOwner(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"recipient", "add", extra.Recipient().String(), "-f", file, "--name", "Bob"}, os.Stdin, &stdout, &stderr, aliceEnv); code == 0 {
-		t.Fatal("non-owner recipient add succeeded")
-	}
-	if !strings.Contains(stderr.String(), "only a Project owner") {
-		t.Fatalf("stderr=%q", stderr.String())
+	if code := Main([]string{"recipient", "add", outsider.Recipient().String(), "-f", file, "--name", "Lead"}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("recipient with Access cannot add: %s", stderr.String())
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Main([]string{"recipient", "remove", extra.Recipient().String(), "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code == 0 {
-		t.Fatal("non-owner recipient remove succeeded")
-	}
-	if !strings.Contains(stderr.String(), "only a Project owner") {
-		t.Fatalf("stderr=%q", stderr.String())
+	if code := Main([]string{"recipient", "remove", extra.Recipient().String(), "-f", file}, os.Stdin, &stdout, &stderr, aliceEnv); code != 0 {
+		t.Fatalf("recipient with Access cannot remove: %s", stderr.String())
 	}
 }
 
-func TestRecipientAddAllowedWhenOwner(t *testing.T) {
+func TestRecipientAddAllowedWithAccess(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY_FILE", testdata(t, "age.txt"))
 	root := t.TempDir()
 	file := filepath.Join(root, ".env")
@@ -450,7 +444,7 @@ func TestRecipientAddAllowedWhenOwner(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 	if code := Main([]string{"recipient", "add", extra.Recipient().String(), "-f", file, "--name", "Bot"}, os.Stdin, &stdout, &stderr, os.Getenv); code != 0 {
-		t.Fatalf("owner add exit %d stderr=%q", code, stderr.String())
+		t.Fatalf("recipient add exit %d stderr=%q", code, stderr.String())
 	}
 }
 

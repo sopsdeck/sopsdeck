@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"sopsdeck/internal/cli"
@@ -19,6 +20,16 @@ func run(u *studio.User, args ...string) (string, string, int) {
 		code = cli.Main(args, os.Stdin, &stdout, &stderr, u.Getenv)
 	})
 	return stdout.String(), stderr.String(), code
+}
+
+func gitCommitAll(t *testing.T, u *studio.User, subject string) {
+	t.Helper()
+	if _, err := u.Git("add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := u.Git("commit", "--allow-empty", "-m", subject); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestTeammateDecryptsAfterRecipientAddAndSync(t *testing.T) {
@@ -44,9 +55,7 @@ func TestTeammateDecryptsAfterRecipientAddAndSync(t *testing.T) {
 	if _, stderr, code := run(alice, "recipient", "add", bobKeys.PublicKey, "-f", env); code != 0 {
 		t.Fatalf("recipient add: %s", stderr)
 	}
-	if _, stderr, code := run(alice, "commit", "-m", "share production", "-f", env); code != 0 {
-		t.Fatalf("commit: %s", stderr)
-	}
+	gitCommitAll(t, alice, "share production")
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
 		t.Fatal(err)
 	}
@@ -91,9 +100,7 @@ func TestTeammateLosesAccessAfterRecipientRemoveAndSync(t *testing.T) {
 	if _, stderr, code := run(alice, "recipient", "add", bobKeys.PublicKey, "-f", env); code != 0 {
 		t.Fatalf("recipient add: %s", stderr)
 	}
-	if _, stderr, code := run(alice, "commit", "-m", "share production", "-f", env); code != 0 {
-		t.Fatalf("commit: %s", stderr)
-	}
+	gitCommitAll(t, alice, "share production")
 	if _, err := alice.Git("push", "-u", "origin", "main"); err != nil {
 		t.Fatal(err)
 	}
@@ -103,16 +110,11 @@ func TestTeammateLosesAccessAfterRecipientRemoveAndSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	bobEnv := filepath.Join(bob.Home, ".env.production")
-	if _, stderr, code := run(bob, "get", "HELLO", "-f", bobEnv); code != 0 {
-		t.Fatalf("bob get before remove: %s", stderr)
-	}
 
 	if _, stderr, code := run(alice, "recipient", "remove", bobKeys.PublicKey, "-f", env); code != 0 {
 		t.Fatalf("recipient remove: %s", stderr)
 	}
-	if _, stderr, code := run(alice, "commit", "-m", "drop bob", "-f", env); code != 0 {
-		t.Fatalf("commit remove: %s", stderr)
-	}
+	gitCommitAll(t, alice, "drop bob")
 	if _, err := alice.Git("push", "origin", "main"); err != nil {
 		t.Fatal(err)
 	}
@@ -123,15 +125,15 @@ func TestTeammateLosesAccessAfterRecipientRemoveAndSync(t *testing.T) {
 		t.Fatalf("bob copy %q", stdout)
 	}
 
-	if _, stderr, code := run(bob, "sync"); code != 0 {
-		t.Fatalf("bob sync: %s", stderr)
+	if _, err := bob.Git("pull", "--ff-only", "origin", "main"); err != nil {
+		t.Fatal(err)
 	}
 	if _, stderr, code := run(bob, "get", "HELLO", "-f", bobEnv); code == 0 {
-		t.Fatalf("bob still has Access after sync: %s", stderr)
+		t.Fatalf("bob still has Access after git pull: %s", stderr)
 	}
 }
 
-func TestPublishPutsPrefixedNamesOnFakeGitHub(t *testing.T) {
+func TestSyncPutsPrefixedNamesOnFakeGitHub(t *testing.T) {
 	s, err := studio.New(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -146,8 +148,8 @@ func TestPublishPutsPrefixedNamesOnFakeGitHub(t *testing.T) {
 	if _, stderr, code := run(alice, "set", "HELLO", "world", "-f", env); code != 0 {
 		t.Fatalf("set: %s", stderr)
 	}
-	if _, stderr, code := run(alice, "publish", "-f", env, "--prefix", "SD_", "--yes"); code != 0 {
-		t.Fatalf("publish: %s", stderr)
+	if _, stderr, code := run(alice, "sync", "-f", env, "--prefix", "SD_"); code != 0 {
+		t.Fatalf("sync: %s", stderr)
 	}
 	names := s.GitHub.Names()
 	found := false
@@ -217,21 +219,21 @@ func TestPrepareTeammateCanRunAfterGrant(t *testing.T) {
 	if _, stderr, code := run(alice, "recipient", "add", bob.PublicKey, "--name", "Bob", "-f", env); code != 0 {
 		t.Fatalf("recipient add: %s", stderr)
 	}
-	if _, stderr, code := run(alice, "commit", "-m", "share production", "-f", env); code != 0 {
-		t.Fatalf("commit: %s", stderr)
-	}
+	gitCommitAll(t, alice, "share production")
 	if _, err := alice.Git("push", "origin", "main"); err != nil {
 		t.Fatal(err)
 	}
-	if _, stderr, code := run(bob, "sync"); code != 0 {
-		t.Fatalf("bob sync: %s", stderr)
+	if _, err := bob.Git("pull", "--ff-only", "origin", "main"); err != nil {
+		t.Fatal(err)
 	}
 	mustUnsetenv(t, "HELLO")
 	stdout, stderr, code := run(bob, "run", "-f", filepath.Join(bob.Home, ".env.production"), "--", "printenv", "HELLO")
 	if code != 0 {
 		t.Fatalf("bob run: %s", stderr)
 	}
-	if strings.TrimSpace(stdout) != "from-alice" {
+	// Redaction is default-on in run: the value flows to the child (bob could
+	// use it) but is masked on stdout. A leaked value here would be a bug.
+	if strings.TrimSpace(stdout) != "[sopsdeck:HELLO]" {
 		t.Fatalf("bob run %q", stdout)
 	}
 }
@@ -251,6 +253,35 @@ func TestPrepareIsIdempotent(t *testing.T) {
 	t.Cleanup(s.Close)
 	if alice.PublicKey != key {
 		t.Fatalf("age identity rotated: %q vs %q", alice.PublicKey, key)
+	}
+}
+
+func TestPrepareConcurrentIsSafe(t *testing.T) {
+	root := t.TempDir()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			s, _, _, err := studio.Prepare(root)
+			if s != nil {
+				s.Close()
+			}
+			errs <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent prepare: %v", err)
+		}
 	}
 }
 

@@ -23,7 +23,7 @@ const phases = [
     phase: 1,
     title: 'CLI core',
     seam: 'sopsdeck CLI',
-    match: /^(get|set|del|run|identity|files|errorlog)/,
+    match: /^(get|set|del|run|identity|files|errorlog|sops)/,
     names: /ErrorLog/,
   },
   {
@@ -34,9 +34,9 @@ const phases = [
   },
   {
     phase: 3,
-    title: 'Git Review / Commit / Sync',
+    title: 'Git review lenses',
     seam: 'Git adapter',
-    match: /^(commit|sync|review|history|restore)/,
+    match: /^(review|history|restore)/,
   },
   {
     phase: 4,
@@ -47,10 +47,10 @@ const phases = [
   },
   {
     phase: 5,
-    title: 'GitHub Publish',
-    seam: 'GitHub Publish adapter',
-    match: /^publish/,
-    names: /Publish|GitHub/,
+    title: 'Secret Sync targets',
+    seam: 'Sync Target adapter',
+    match: /^sync/,
+    names: /GitHub/,
   },
   {
     phase: 6,
@@ -61,10 +61,10 @@ const phases = [
   },
   {
     phase: 7,
-    title: 'Paste + MCP',
-    seam: 'MCP',
-    match: /^(mcp|set_paste)/,
-    names: /MCP|Stdin/,
+    title: 'Paste',
+    seam: 'stdin paste preview',
+    match: /^set_paste/,
+    names: /Stdin/,
   },
 ];
 
@@ -160,16 +160,18 @@ function seamsMarkdown(go) {
     `| 2 | Browser app | localhost HTTP | ${(goByPhase.get(2) ?? []).join(', ') || '_none_'} |`,
   );
   lines.push(
-    `| 3 | Git Commit / Sync | Git adapter | ${(goByPhase.get(3) ?? []).join(', ') || '_none_'} |`,
+    `| 3 | Git review lenses | Git adapter | ${(goByPhase.get(3) ?? []).join(', ') || '_none_'} |`,
   );
   lines.push(
     `| 4 | Recipients | CLI recipients / re-encrypt | ${(goByPhase.get(4) ?? []).join(', ') || '_none_'} |`,
   );
   lines.push(
-    `| 5 | GitHub Publish | GitHub Publish adapter | ${(goByPhase.get(5) ?? []).join(', ') || '_none_'} |`,
+    `| 5 | Secret Sync targets | Sync Target adapter | ${(goByPhase.get(5) ?? []).join(', ') || '_none_'} |`,
   );
   lines.push(`| 6 | Scan hook | scan hook | ${(goByPhase.get(6) ?? []).join(', ') || '_none_'} |`);
-  lines.push(`| 7 | Paste + MCP | MCP | ${(goByPhase.get(7) ?? []).join(', ') || '_none_'} |`);
+  lines.push(
+    `| 7 | Paste | stdin paste preview | ${(goByPhase.get(7) ?? []).join(', ') || '_none_'} |`,
+  );
   for (const row of uncovered) {
     lines.push(`| ${row.phase} | ${row.title} | ${row.seam} | _none_ |`);
   }
@@ -189,7 +191,7 @@ function assetsMarkdown(catalog) {
     '',
     '## Walkthrough',
     '',
-    `Full studio path (open, edit, save, commit, Sync, grant Access, Publish): [${catalog.walkthrough}](assets/${catalog.walkthrough})`,
+    `Full studio path (open, edit, encrypt and save, grant Access, Secret Sync): [${catalog.walkthrough}](assets/${catalog.walkthrough})`,
     '',
     '## Stills and clips',
     '',

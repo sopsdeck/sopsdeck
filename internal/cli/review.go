@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/getsops/sops/v3/cmd/sops/formats"
-	"github.com/getsops/sops/v3/decrypt"
 )
 
 func cmdReview(args []string, stdout, stderr io.Writer) int {
@@ -46,7 +45,7 @@ func writeReview(file string, stdout io.Writer) error {
 	} else if unmerged {
 		return writeThreeWay(file, format, stdout)
 	}
-	workPlain, err := decrypt.File(file, formatName(format))
+	workPlain, err := decryptSOPSFile(file, format)
 	if err != nil {
 		return fmt.Errorf("%s", explainReview(err))
 	}
@@ -92,7 +91,7 @@ func headSecretPairs(file string, format formats.Format) (map[string]string, err
 	if err != nil {
 		return map[string]string{}, nil
 	}
-	plain, err := decrypt.Data(raw, formatName(format))
+	plain, err := decryptSOPSData(raw, format)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +148,7 @@ func stagePairs(file, stage string, format formats.Format) (map[string]string, e
 	if err != nil {
 		return nil, fmt.Errorf("review: leave this conflict to Git")
 	}
-	plain, err := decrypt.Data(raw, formatName(format))
+	plain, err := decryptSOPSData(raw, format)
 	if err != nil {
 		return nil, fmt.Errorf("review: leave this conflict to Git")
 	}
@@ -193,15 +192,23 @@ func gitShowHEAD(file string) ([]byte, error) {
 }
 
 func gitTrackedRel(file string) (dir, rel string, err error) {
-	dir = filepath.Dir(file)
-	cmd := exec.Command("git", "rev-parse", "--show-prefix")
-	cmd.Dir = dir
-	prefixOut, err := cmd.Output()
+	file, err = filepath.Abs(file)
 	if err != nil {
 		return "", "", err
 	}
-	rel = filepath.ToSlash(strings.TrimSpace(string(prefixOut)) + filepath.Base(file))
-	return dir, rel, nil
+	dir = filepath.Dir(file)
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = dir
+	rootOut, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("git history is unavailable outside a Git repository")
+	}
+	dir = strings.TrimSpace(string(rootOut))
+	if canonical, e := filepath.EvalSymlinks(filepath.Dir(file)); e == nil {
+		file = filepath.Join(canonical, filepath.Base(file))
+	}
+	rel, err = filepath.Rel(dir, file)
+	return dir, filepath.ToSlash(rel), err
 }
 
 func secretPairs(plain []byte, format formats.Format) (map[string]string, error) {

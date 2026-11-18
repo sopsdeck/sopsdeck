@@ -6,6 +6,36 @@ import (
 	"testing"
 )
 
+func TestDiscoverySeparatesNestedProjectsAndRepos(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"apps/web", "other-project", "other-repo", "worktree"} {
+		folder := filepath.Join(root, dir)
+		if err := os.MkdirAll(folder, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(folder, ".env"), []byte("HELLO=world\nsops_mac=ENC[test]\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for dir, marker := range map[string]string{"other-project": ".sopsdeck.toml", "other-repo": ".git", "worktree": ".git"} {
+		if err := os.WriteFile(filepath.Join(root, dir, marker), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(root, "apps/web/.env"), filepath.Join(root, "alias.env")); err != nil {
+		t.Fatal(err)
+	}
+	for _, scan := range []func(string) ([]File, error){List, Candidates} {
+		files, err := scan(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(files) != 1 || filepath.ToSlash(files[0].Rel) != "apps/web/.env" {
+			t.Fatalf("nested boundaries: %+v", files)
+		}
+	}
+}
+
 func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
 	root := t.TempDir()
 	write := func(rel, body string) {
@@ -33,7 +63,7 @@ func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
 	for i, f := range files {
 		got[i] = f.Rel
 	}
-	want := []string{".env.production", filepath.Join("nested", "app.yaml"), "secrets.json"}
+	want := []string{".env.production", filepath.Join("nested", "app.yaml"), "plain.env", "plain.json", "secrets.json"}
 	if len(got) != len(want) {
 		t.Fatalf("files=%v want %v", got, want)
 	}
@@ -44,7 +74,7 @@ func TestListFindsDotenvAndSOPSStructuredFiles(t *testing.T) {
 	}
 }
 
-func TestListExcludesPlainDotenv(t *testing.T) {
+func TestListIncludesPlainDotenv(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("HELLO=world\nSTRIPE_KEY=sk_live_xyz\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -53,12 +83,12 @@ func TestListExcludesPlainDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 0 {
-		t.Fatalf("plain .env should not be a Managed File: %v", files)
+	if len(files) != 1 || files[0].Rel != ".env" {
+		t.Fatalf("plain .env should be a Managed File: %v", files)
 	}
 }
 
-func TestListExcludesPlainStructuredFileContainingSOPSWord(t *testing.T) {
+func TestListIncludesPlainStructuredFileContainingSOPSWord(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "config.json")
 	if err := os.WriteFile(path, []byte(`{"sops":"disabled","value":"plain"}`), 0o600); err != nil {
@@ -68,12 +98,12 @@ func TestListExcludesPlainStructuredFileContainingSOPSWord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 0 {
-		t.Fatalf("plain structured files should be skipped: %v", files)
+	if len(files) != 1 || files[0].Rel != "config.json" {
+		t.Fatalf("plain structured files should be listed: %v", files)
 	}
 }
 
-func TestCandidatesExcludesLockfiles(t *testing.T) {
+func TestCandidatesIncludeLockfiles(t *testing.T) {
 	root := t.TempDir()
 	write := func(rel, body string) {
 		t.Helper()
@@ -93,8 +123,14 @@ func TestCandidatesExcludesLockfiles(t *testing.T) {
 	for i, f := range files {
 		got[i] = f.Name
 	}
-	if len(got) != 1 || got[0] != "secrets.json" {
-		t.Fatalf("candidates=%v, want only secrets.json", got)
+	want := []string{"package-lock.json", "pnpm-lock.yaml", "secrets.json", "yarn.lock"}
+	if len(got) != len(want) {
+		t.Fatalf("candidates=%v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("candidates=%v, want %v", got, want)
+		}
 	}
 }
 
@@ -129,7 +165,7 @@ func TestListFindsCommittedComposeYAMLAndMultilineDotenv(t *testing.T) {
 	for _, f := range files {
 		got[f.Name] = true
 	}
-	for _, name := range []string{"compose.yaml", "hello.multiline.env", "eas.json"} {
+	for _, name := range []string{"compose.yaml", "hello.multiline.env", "config.json"} {
 		if !got[name] {
 			t.Fatalf("names=%v, want %s", keys(got), name)
 		}
@@ -142,4 +178,18 @@ func keys(m map[string]bool) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestCandidatesIncludeEASJSON(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "eas.json"), []byte(`{"build":{"env":{"SECRET":"value"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := Candidates(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Rel != "eas.json" {
+		t.Fatalf("eas.json should be a Managed File candidate: %v", files)
+	}
 }

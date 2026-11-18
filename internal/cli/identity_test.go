@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/getsops/sops/v3"
@@ -16,6 +17,34 @@ import (
 	"github.com/getsops/sops/v3/keyservice"
 	"github.com/getsops/sops/v3/version"
 )
+
+func TestAccountUsesExplicitAgeKeyBeforeKeychain(t *testing.T) {
+	keychain := t.TempDir()
+	t.Setenv("SOPSDECK_KEYCHAIN_DIR", keychain)
+	mustWriteFile(t, filepath.Join(keychain, "identity"), "invalid keychain identity\n")
+	fixture := mustReadFile(t, testdata(t, "age.txt"))
+	want, err := recipientFromIdentityFile(testdata(t, "age.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_CMD"} {
+		t.Run(source, func(t *testing.T) {
+			mustUnsetenv(t, "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD")
+			value := fixture
+			if source == "SOPS_AGE_KEY_CMD" {
+				value = "cat " + strconv.Quote(testdata(t, "age.txt"))
+			}
+			t.Setenv(source, value)
+			if got := accountForPath("", os.Getenv); !got.HasIdentity || got.PublicKey != want {
+				t.Fatalf("explicit identity was ignored: %+v", got)
+			}
+			backup, err := invokeIdentityBackup(os.Getenv)
+			if err != nil || backup != strings.TrimSpace(fixture) {
+				t.Fatal("backup did not use the Account's explicit identity")
+			}
+		})
+	}
+}
 
 func TestIdentityCreateWithoutBackupConfirmDoesNotPersist(t *testing.T) {
 	state := t.TempDir()

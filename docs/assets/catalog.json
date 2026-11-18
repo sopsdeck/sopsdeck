@@ -21,13 +21,13 @@
     },
     {
       "id": "commit",
-      "title": "Commit",
+      "title": "Saved locally",
       "still": "commit.png",
       "clip": "commit.webm"
     },
     {
       "id": "sync",
-      "title": "Sync",
+      "title": "Configure Secret Sync",
       "still": "sync.png",
       "clip": "sync.webm"
     },
@@ -39,7 +39,7 @@
     },
     {
       "id": "publish",
-      "title": "Publish",
+      "title": "Run Secret Sync",
       "still": "publish.png",
       "clip": "publish.webm"
     }
@@ -55,16 +55,6 @@
       "id": "cli-set",
       "title": "set a value",
       "cast": "cli-set.cast"
-    },
-    {
-      "id": "cli-commit",
-      "title": "commit a Managed File",
-      "cast": "cli-commit.cast"
-    },
-    {
-      "id": "cli-sync",
-      "title": "Sync",
-      "cast": "cli-sync.cast"
     }
   ]
 }

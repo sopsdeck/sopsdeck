@@ -1,9 +1,10 @@
 ---
 import SiteLayout from '../layouts/SiteLayout.astro';
-import { changelogSections } from '../lib/content.mjs';
+import { publishedChangelogSections } from '../../../scripts/changelog-notes.mjs';
 import { typeLabel } from '../../../scripts/changelog-notes.mjs';
+import { changelog } from '../lib/content.mjs';
 
-const sections = changelogSections();
+const sections = publishedChangelogSections(changelog);
 ---
 
 <SiteLayout

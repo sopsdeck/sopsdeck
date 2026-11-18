@@ -1,132 +1,319 @@
 ---
 import SiteLayout from '../layouts/SiteLayout.astro';
+import '../styles/landing.css';
 ---
 
 <SiteLayout
   title="Sopsdeck — a visual browser and editor for your secrets"
-  description="A visual browser and editor for your secrets. Manage SOPS-encrypted dotenv, JSON, and YAML files locally, on your own or with a team."
+  description="A local UI for SOPS-encrypted secrets. Rename keys across your Project, find unused secrets, and browse secret history. Open source, with SOPS and age encryption."
   active="product"
   showDevBanner={true}
 >
-  <section class="hero hero--landing">
-    <div class="hero-copy">
-      <div class="kicker">For individual developers and teams</div>
-      <h1>A visual browser and editor for your secrets.</h1>
-      <p>
-        A simple, flexible way to manage SOPS-encrypted dotenv, JSON, and YAML files. Edit locally,
-        share access with your team, and track changes in Git.
+  <main class="landing">
+    <section class="landing-hero" aria-labelledby="landing-title">
+      <p class="product-label"><span aria-hidden="true"></span> A local interface for SOPS</p>
+      <h1 id="landing-title">A visual browser and editor for <span>your secrets.</span></h1>
+      <p class="hero-description">
+        Manage SOPS-encrypted dotenv, JSON, and YAML in your browser. Rename keys across your
+        Project, find unused secrets, and keep changes in Git.
       </p>
       <div class="actions">
-        <a class="button primary" href="#start">Install with npm</a>
-        <a class="button ghost" href="#features">See how it works</a>
+        <a class="button primary" href="#start"
+          >Install Sopsdeck <span aria-hidden="true">↓</span></a
+        >
+        <a class="button ghost" href="#features">Explore the features</a>
       </div>
-    </div>
-    <figure class="hero-still">
-      <img
-        src="/assets/editor.png"
-        width="1440"
-        height="900"
-        alt="Sopsdeck showing a production secrets file with values hidden"
-      />
-    </figure>
-  </section>
+      <ul class="hero-facts" aria-label="Availability">
+        <li>Free &amp; open source</li>
+        <li>Runs locally</li>
+        <li>macOS, Windows &amp; Linux</li>
+      </ul>
+      <figure class="editor-preview">
+        <img
+          src="/assets/landing-editor.jpg"
+          width="1440"
+          height="550"
+          fetchpriority="high"
+          alt="Sopsdeck's local editor with a Project file tree, three hidden secret values, an unused-secret badge, and access controls"
+        />
+        <figcaption>
+          Your files on disk. A browser to work with them. Fictional demo secrets shown.
+        </figcaption>
+      </figure>
+    </section>
 
-  <section class="features" id="features">
-    <div class="kicker">Features</div>
-    <h2>What you can do</h2>
-    <div class="feature-grid">
-      <a class="card card-link" href="/docs/guide.html#rename-keys">
-        <div class="kicker">Rename</div>
-        <h3>Update references when keys change</h3>
-        <p>
-          Rename a secret and rewrite <code>KEY</code>, <code>$KEY</code>, and
-          <code>${'${KEY}'}</code> across the Project so application code keeps matching.
-        </p>
-      </a>
-      <a class="card card-link" href="/docs/guide.html#lock-files">
-        <div class="kicker">Disk</div>
-        <h3>Lock and unlock files</h3>
-        <p>
-          Unlock writes plaintext for local tools. Lock encrypts again. The editor badge follows
-          that state.
-        </p>
-      </a>
-      <a class="card card-link" href="/docs/guide.html#unused-secrets">
-        <div class="kicker">Scan</div>
-        <h3>Unused secret detection</h3>
-        <p>
-          Keys with zero references in the Project show an unused badge so you can clean up
-          leftovers.
-        </p>
-      </a>
-      <a class="card card-link" href="/docs/guide.html#secret-history">
-        <div class="kicker">Git</div>
-        <h3>View each version of a secret or file</h3>
-        <p>
-          Browse file history and a single key’s revisions. Restore a revision without committing
-          it.
-        </p>
-      </a>
-      <a class="card card-link" href="/docs/guide.html#field-encryption">
-        <div class="kicker">JSON / YAML</div>
-        <h3>Encrypt specific fields</h3>
-        <p>
-          Encrypt only the leaves you choose in <code>package.json</code>, <code>eas.json</code>, or
-          Compose YAML. The rest stays plaintext.
-        </p>
-      </a>
-      <a class="card card-link" href="/docs/guide.html#access">
-        <div class="kicker">Access</div>
-        <h3>Share access with your team</h3>
-        <p>
-          Add a teammate’s Age public key, or copy a request that includes yours. Project owners
-          approve new people.
-        </p>
-      </a>
-    </div>
-  </section>
+    <section class="encryption-adoption" aria-labelledby="adoption-title">
+      <div class="adoption-intro">
+        <h2 id="adoption-title">Built on SOPS and age.</h2>
+        <p>The encryption tools behind real infrastructure workflows.</p>
+      </div>
+      <div class="adoption-examples">
+        <a href="https://getsops.io/docs/security/#operational-requirements">
+          <span class="adoption-name">Mozilla <span aria-hidden="true">↗</span></span>
+          <span>Created SOPS to distribute secrets to EC2 infrastructure.</span>
+        </a>
+        <a href="https://fluxcd.io/flux/guides/mozilla-sops/">
+          <span class="adoption-name">Flux <span aria-hidden="true">↗</span></span>
+          <span>Uses SOPS with age to keep Kubernetes secrets encrypted in Git.</span>
+        </a>
+        <a
+          href="https://indico.cern.ch/event/1106990/contributions/4991268/attachments/2530795/4354383/acat2022.pdf"
+        >
+          <span class="adoption-name">CERN · CMSWEB <span aria-hidden="true">↗</span></span>
+          <span>Documents SOPS and age for managing deployment secrets.</span>
+        </a>
+      </div>
+    </section>
 
-  <section class="split" id="encrypted-in-place">
-    <div>
-      <div class="kicker">SOPS</div>
-      <h2>Keys stay readable. Values encrypt in place.</h2>
-      <p>
-        A locked file is still JSON, YAML, or dotenv. Unencrypted fields and key names are
-        plaintext. Only the values you selected become <code>ENC[…]</code>.
-      </p>
-      <p>
-        <a href="/docs/guide.html#encrypted-in-place">See how a locked file looks</a>
-      </p>
-    </div>
-    <pre
-      class="encrypted-snippet"
-      aria-label="Locked eas.json example"><code>{`{
+    <section class="landing-features" id="features" aria-labelledby="features-title">
+      <div class="section-intro">
+        <h2 id="features-title">
+          SOPS encrypts your files.<br />Sopsdeck helps you work with them.
+        </h2>
+        <p>
+          Keep the SOPS file format and your Git workflow. Add a visual editor that understands the
+          rest of your Project.
+        </p>
+      </div>
+
+      <article class="feature-row">
+        <div class="feature-copy">
+          <h3>Rename the secret.<br />Update the code.</h3>
+          <p>
+            Change a key in the editor and choose to rewrite its references across your Project.
+            Sopsdeck finds whole-word references like <code>KEY</code>, <code>$KEY</code>, and
+            <code>{'${KEY}'}</code>.
+          </p>
+          <p>Review the rename, opt into updating references, then encrypt and save.</p>
+          <a class="text-link" href="/docs/guide.html#rename-keys">
+            See how renaming works <span aria-hidden="true">→</span>
+          </a>
+        </div>
+        <figure class="feature-visual">
+          <img
+            src="/assets/feature-rename.jpg"
+            width="470"
+            height="282"
+            loading="lazy"
+            decoding="async"
+            alt="Sopsdeck's save preview renames STRIPE_SECRET to STRIPE_API_KEY with Rewrite references checked"
+          />
+          <figcaption>A rename, with reference updates you control.</figcaption>
+        </figure>
+      </article>
+
+      <article class="feature-row feature-row--reverse">
+        <div class="feature-copy">
+          <h3>Find the secrets<br />you stopped using.</h3>
+          <p>
+            Old integrations leave keys behind. Sopsdeck scans your Project and marks keys with zero
+            references as unused, right beside the value.
+          </p>
+          <p>
+            Treat the badge as a prompt to investigate. Dynamic references or tools outside the
+            Project may still use a key. Nothing is deleted automatically.
+          </p>
+          <a class="text-link" href="/docs/guide.html#unused-secrets">
+            Understand the scan <span aria-hidden="true">→</span>
+          </a>
+        </div>
+        <figure class="feature-visual unused-visual">
+          <img
+            src="/assets/feature-unused.jpg"
+            width="390"
+            height="210"
+            loading="lazy"
+            decoding="async"
+            alt="STRIPE_SECRET and DATABASE_URL have references, while LEGACY_API_TOKEN has an unused badge. All values are hidden."
+          />
+          <figcaption>Spot a leftover key without revealing its value.</figcaption>
+        </figure>
+      </article>
+
+      <div class="workflow-comparison">
+        <div>
+          <h3>What Sopsdeck adds</h3>
+          <p>
+            SOPS already provides encryption, recipients, and selective field encryption. Sopsdeck
+            adds these Project workflows on top.
+          </p>
+          <a class="text-link" href="/docs/guide.html"
+            >Read the guide <span aria-hidden="true">→</span></a
+          >
+        </div>
+        <div
+          class="comparison-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="SOPS and Sopsdeck feature comparison"
+        >
+          <table>
+            <caption class="visually-hidden">Built-in workflows in SOPS CLI and Sopsdeck</caption>
+            <thead>
+              <tr
+                ><th scope="col">Workflow</th><th scope="col">SOPS CLI</th><th scope="col"
+                  >Sopsdeck</th
+                ></tr
+              >
+            </thead>
+            <tbody>
+              <tr
+                ><th scope="row">Rename + rewrite Project references</th><td>Not built in</td><td
+                  >Review &amp; save</td
+                ></tr
+              >
+              <tr
+                ><th scope="row">Find keys with no Project references</th><td>Not built in</td><td
+                  >Unused badges</td
+                ></tr
+              >
+              <tr
+                ><th scope="row">Browse one secret's Git history</th><td>Manual steps</td><td
+                  ><a href="/docs/guide.html#secret-history">Browse &amp; restore</a></td
+                ></tr
+              >
+              <tr
+                ><th scope="row">Edit secrets in a browser</th><td>External editor</td><td
+                  >Local visual editor</td
+                ></tr
+              >
+              <tr
+                ><th scope="row">Encrypt files + choose recipients</th><td>Built in</td><td
+                  >Uses SOPS</td
+                ></tr
+              >
+              <tr
+                ><th scope="row">Encrypt selected JSON / YAML fields</th><td>Built in</td><td
+                  ><a href="/docs/guide.html#field-encryption">Choose in the UI</a></td
+                ></tr
+              >
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section
+      class="encryption-explainer"
+      id="encrypted-in-place"
+      aria-labelledby="encryption-title"
+    >
+      <div>
+        <h2 id="encryption-title">Your config stays config.</h2>
+        <p>
+          SOPS encrypts selected values in place. Key names and unselected fields stay readable, so
+          a locked file still looks like your dotenv, JSON, or YAML.
+        </p>
+        <p>
+          Keep encrypted files in Git, review changes, and share Access with a teammate's age public
+          key. Each person keeps their own private key.
+        </p>
+        <a class="text-link" href="/docs/guide.html#encrypted-in-place">
+          See encrypted files and Access <span aria-hidden="true">→</span>
+        </a>
+      </div>
+      <figure class="code-visual">
+        <div class="code-toolbar">
+          <span>eas.json</span><span class="encrypted-label">Encrypted on disk</span>
+        </div>
+        <pre
+          aria-label="Illustrative SOPS-encrypted JSON with one encrypted token"><code>{`{
   "cli": { "version": "20.5.1" },
   "build": {
     "env": {
       "EXPO_PUBLIC_API_URL": "https://api.example.com",
-      "EXPO_TOKEN": "ENC[AES256_GCM,data:m4nY8pQ=,type:str]"
+      "EXPO_TOKEN": `}<span class="ciphertext">"ENC[AES256_GCM,…]"</span>{`
     }
   },
-  "sops": {
-    "age": [{ "recipient": "age1…" }]
-  }
+  "sops": { "age": [{ "recipient": "age1…" }] }
 }`}</code></pre>
-  </section>
+        <figcaption>Illustrative ciphertext and metadata, shortened for readability.</figcaption>
+      </figure>
+    </section>
 
-  <section class="start" id="start">
-    <div class="kicker">Install · macOS, Windows, and Linux</div>
-    <h2>Open Sopsdeck in your browser</h2>
-    <p>
-      Install with npm, then open a project folder. SOPS is included; all you need is Node.js and
-      Git.
-    </p>
-    <pre>npm install -D @sopsdeck/sopsdeck
-npx sopsdeck .
+    <section class="landing-security" id="security" aria-labelledby="security-title">
+      <div class="security-intro">
+        <p class="product-label"><span aria-hidden="true"></span> SOPS + age, explained</p>
+        <h2 id="security-title">
+          What encryption protects.<br />And what you still need to protect.
+        </h2>
+        <p>
+          SOPS encrypts values with AES-256-GCM. With age recipients, age encrypts the file's data
+          key so the matching private identities can unlock it. Sopsdeck uses these tools and stores
+          your private age identity in the operating system keychain.
+        </p>
+        <a class="text-link" href="https://getsops.io/docs/security/">
+          Read the SOPS security documentation <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+      <div class="security-details">
+        <details open>
+          <summary>Someone gets a copy of an encrypted file</summary>
+          <p>
+            The encrypted values need an authorized private key to decrypt. Key names, structure,
+            unencrypted fields, and recipient metadata remain visible. Keep encrypted files
+            reasonably private, too.
+          </p>
+        </details>
+        <details>
+          <summary>Your private key or device is compromised</summary>
+          <p>
+            Encryption cannot protect values from someone who has your decryption key or can read
+            them on an unlocked device. Protect your machine and keep a private-key backup in a
+            password manager. Losing every usable key means losing access.
+          </p>
+        </details>
+        <details>
+          <summary>You remove someone from Access</summary>
+          <p>
+            Sopsdeck removes their recipient and rotates the file's SOPS data key. That protects the
+            new version. It cannot take back copied values or old Git revisions they can still
+            decrypt. Rotate the actual API keys or passwords they had access to.
+          </p>
+        </details>
+        <details>
+          <summary>You unlock a file for a local tool</summary>
+          <p>
+            Unlock writes plaintext to disk. That copy is readable by local tools and anyone with
+            access to it. Lock it again when finished, and never commit the unlocked file. Hiding a
+            value in the UI only hides it on screen.
+          </p>
+        </details>
+        <details>
+          <summary>You need to trust a change or an automation</summary>
+          <p>
+            Encryption does not decide who should be trusted. A recipient who can decrypt can also
+            copy or re-encrypt the data. Review recipients and file changes in Git, and protect the
+            identities your automation uses. SOPS also supports cloud KMS access controls;
+            Sopsdeck's team workflow uses age keys.
+          </p>
+        </details>
+        <p class="security-footnote">
+          A practical summary, with Sopsdeck-specific handling covered in
+          <a href="/docs/guide.html#what-sopsdeck-stores">what Sopsdeck stores</a>. See the <a
+            href="https://getsops.io/docs/security/#threat-model">full SOPS threat model</a
+          >
+          and the <a href="https://github.com/FiloSottile/age">age documentation</a> for details.
+        </p>
+      </div>
+    </section>
 
-# global shortcut
-npm install -g @sopsdeck/sopsdeck
-sd .</pre>
-    <p>The npm package downloads the matching local runner on first launch.</p>
-  </section>
+    <section class="landing-start" id="start" aria-labelledby="start-title">
+      <div>
+        <h2 id="start-title">Open your Project.<br />Get to your secrets.</h2>
+        <p>Install with npm, then open a folder. SOPS is included. You need Node.js and Git.</p>
+        <a class="text-link" href="/docs/guide.html#get-started">
+          Follow the setup guide <span aria-hidden="true">→</span>
+        </a>
+      </div>
+      <div class="install-command">
+        <div class="code-toolbar"><span>Terminal</span><span>macOS · Windows · Linux</span></div>
+        <pre
+          aria-label="Install and open Sopsdeck"><code><span class="code-comment"># Install in your Project</span>{`
+npm install -D @sopsdeck/sopsdeck
+npx sopsdeck .`}</code></pre>
+        <p>The package downloads the matching local runner on first launch.</p>
+      </div>
+    </section>
+  </main>
 </SiteLayout>

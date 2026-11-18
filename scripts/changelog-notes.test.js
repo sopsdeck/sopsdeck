@@ -1,6 +1,12 @@
 import { expect, test } from 'bun:test';
 
-import { parseChangelog, parseHeading, platformsOf, typeFromHeading } from './changelog-notes.mjs';
+import {
+  parseChangelog,
+  parseHeading,
+  platformsOf,
+  publishedChangelogSections,
+  typeFromHeading,
+} from './changelog-notes.mjs';
 
 test('parseHeading reads version and date', () => {
   expect(parseHeading('## Unreleased')).toEqual({ heading: 'Unreleased', date: '' });
@@ -48,4 +54,20 @@ test('parseChangelog groups by version and type', () => {
     'performance',
   ]);
   expect(sections[0].notes[1].platforms).toEqual(['macOS']);
+});
+
+test('publishedChangelogSections drops the Unreleased section for the live site', () => {
+  const md = `## Unreleased
+
+### Added
+- Secret Sync
+
+## 0.2.0 - 2026-09-01
+
+### Fixed
+- Multiline dotenv values keep newlines
+`;
+  const published = publishedChangelogSections(md);
+  expect(published.map((section) => section.heading)).toEqual(['0.2.0']);
+  expect(parseChangelog(md)).toHaveLength(2);
 });

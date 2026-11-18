@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"sopsdeck/internal/managed"
 )
 
 // countReferences returns the number of times key appears as a whole word in
@@ -30,9 +32,12 @@ func scanProjectReferences(root string, keys []string, managedRel map[string]boo
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" {
+			if managed.SkipDirectory(path, root) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
 			return nil
 		}
 		rel, relErr := filepath.Rel(root, path)

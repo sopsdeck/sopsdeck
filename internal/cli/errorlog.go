@@ -2,10 +2,9 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 )
@@ -18,13 +17,9 @@ type errorRecord struct {
 	Last    string `json:"last"`
 }
 
-var (
-	errorLogMu      sync.Mutex
-	ageSecretRE     = regexp.MustCompile(`AGE-SECRET-KEY-[A-Z0-9-]+`)
-	encCiphertextRE = regexp.MustCompile(`ENC\[[^\]]*\]`)
-)
+var errorLogMu sync.Mutex
 
-func recordError(getenv func(string) string, raw string) {
+func recordError(getenv func(string) string, code int) {
 	if getenv == nil {
 		return
 	}
@@ -32,10 +27,7 @@ func recordError(getenv func(string) string, raw string) {
 	if dir == "" {
 		return
 	}
-	msg := redactError(strings.TrimSpace(raw))
-	if msg == "" || strings.HasPrefix(msg, "usage:") {
-		return
-	}
+	msg := fmt.Sprintf("command failed (exit %d)", code)
 
 	errorLogMu.Lock()
 	defer errorLogMu.Unlock()
@@ -76,10 +68,4 @@ func readErrorRecords(path string) ([]errorRecord, error) {
 		return nil, err
 	}
 	return records, nil
-}
-
-func redactError(msg string) string {
-	msg = ageSecretRE.ReplaceAllString(msg, "AGE-SECRET-KEY-[redacted]")
-	msg = encCiphertextRE.ReplaceAllString(msg, "ENC[redacted]")
-	return msg
 }

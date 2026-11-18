@@ -24,6 +24,14 @@ _Avoid_: File, project
 An external system such as GitHub Actions or EAS that receives selected values from a Managed File without becoming a competing source of truth.
 _Avoid_: Source of truth, remote vault
 
+**Secret Sync**:
+Reconciling Sync Targets with the selected values in Managed Files, as mapped by the Project Manifest. Secret Sync runs on demand and in CI; it never changes Managed Files or Git state.
+_Avoid_: Publish, deploy, push
+
+**Secret Source**:
+An external system that can mint or generate new secret values for keys in a Managed File, such as a cloud provider issuing service-account keys. A minted value becomes canonical only once written into the Managed File; the source never stores the operative copy.
+_Avoid_: Provider vault, upstream, key store
+
 **User**:
 A named person or automation identity bound to one or more Recipients.
 _Avoid_: Account, seat

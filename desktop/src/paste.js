@@ -63,34 +63,6 @@ export function parseGitIdentity(text) {
   return { name: raw, email: '' };
 }
 
-export function classifyClipboard(text) {
-  const trimmed = String(text ?? '').trim();
-  if (!trimmed) return null;
-  if (!trimmed.includes('\n') && (trimmed.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(trimmed))) {
-    return { kind: 'path', path: trimmed };
-  }
-
-  const age = trimmed.match(/\bage1[0-9a-z]{58}\b/u);
-  if (age && (trimmed === age[0] || /^Name:/mu.test(trimmed) || /Age public key/u.test(trimmed))) {
-    const named = trimmed.match(/^Name:\s*(.+)$/mu);
-    const identity = parseGitIdentity(named?.[1] ?? '');
-    return {
-      kind: 'recipient',
-      publicKey: age[0],
-      name: identity.name,
-      email: identity.email,
-    };
-  }
-
-  try {
-    const pairs = parsePastePayload(text);
-    return { kind: 'bulk', pairs, names: Object.keys(pairs).sort() };
-  } catch (err) {
-    if (err?.code === 'LONE_KEY') return { kind: 'lone', value: String(text) };
-    return null;
-  }
-}
-
 function looksDotenv(text) {
   for (const line of text.split('\n')) {
     const trimmed = line.trim();

@@ -4,8 +4,7 @@ import {
   parsePastePayload,
   pastePreviewText,
 } from './paste.js';
-import { dismissClipboard, resetClipboardSeen, sniffClipboard } from './clipboard.js';
-import { icon, iconButton } from './icons.js';
+import { buttonFeedback, icon, iconButton } from './icons.js';
 import { appendSetupKeyTree, renderKeyRows } from './keys-view.js';
 import { isStructuredFormat, nestLeaves } from './tree.js';
 import { showWhatsNew } from './whatsnew.js';
@@ -18,6 +17,7 @@ const RECENTS_KEY = 'sopsdeck-recents';
 const TREE_FOLDERS_KEY = 'sopsdeck-tree-folders';
 const TREE_PROJECTS_KEY = 'sopsdeck-tree-projects';
 const TREE_LIMIT = 8;
+const PROJECT_REFRESH_MS = 3000;
 let unusedKeys = new Set();
 
 async function invokeOverHTTP(cmd, args = {}) {
@@ -48,7 +48,6 @@ const accessErrorEl = () => document.getElementById('access-error');
 const publishErrorEl = () => document.getElementById('publish-error');
 const badgeEl = () => document.getElementById('badge');
 const saveEl = () => document.getElementById('save');
-const commitEl = () => document.getElementById('commit-message');
 const fileLockEl = () => document.getElementById('file-lock');
 const copyFileEl = () => document.getElementById('copy-file');
 const fileHistoryEl = () => document.getElementById('file-history');
@@ -57,13 +56,10 @@ const projects = [];
 let selected = null;
 let rows = [];
 let revealed = false;
-let commitAuto = true;
-let lastAuto = '';
 let access = [];
 let accessFormOpen = false;
 let focusedProject = false;
-let canGrant = true;
-let projectConfig = { path: '', name: '', owners: [], canGrant: true };
+let projectConfig = { path: '', name: '' };
 let account = {
   name: '',
   email: '',
@@ -82,6 +78,8 @@ let composerFocus = false;
 let pendingPaste = null;
 const treeShowAll = new Set();
 let openFileRequest = 0;
+const refreshingProjects = new Map();
+const projectVersions = new Map();
 
 function setLoading(kind, loading) {
   const element = document.getElementById(`${kind}-skeleton`);
@@ -135,6 +133,7 @@ function withDialog(dialog, setup) {
       resolve(value);
     };
 
+    dialog.addEventListener('close', () => finish(null), { signal });
     setup({ signal, finish });
   });
 }
@@ -143,7 +142,14 @@ function skipBoot() {
   return new URLSearchParams(location.search).has('empty');
 }
 
-async function copyText(text) {
+async function copyText(text, button) {
+  if (!button) return writeClipboard(text);
+  const copied = await withBusy(button, '', () => writeClipboard(text));
+  buttonFeedback(button, copied ? 'Copied' : 'Copy failed', copied);
+  return copied;
+}
+
+async function writeClipboard(text) {
   const value = String(text);
   let nativeError;
   try {
@@ -351,7 +357,7 @@ function refreshUnusedBadge(kind, row) {
     if (existing) return;
     const badge = document.createElement('span');
     badge.className = 'unused';
-    badge.textContent = 'unused';
+    badge.textContent = ' unused';
     kind.append(badge);
   } else if (existing) {
     existing.remove();
@@ -399,13 +405,19 @@ function showProjectError(err) {
   clearProjectError();
   const message = messageOf(err);
   const parsing = message.includes('invalid dotenv input line');
-  document.getElementById('project-error-title').textContent = parsing
-    ? 'Couldn’t read a dotenv file'
-    : 'Couldn’t initialize this project';
-  document.getElementById('project-error-copy').textContent = parsing
-    ? 'One of the selected environment files has a value Sopsdeck can’t parse. Fix the file and try adding the project again.'
-    : 'Sopsdeck couldn’t finish setting up the project. Fix the issue and try again.';
+  const manifest = message.includes('read .sopsdeck.toml:');
+  document.getElementById('project-error-title').textContent = manifest
+    ? 'Couldn’t read the Project Manifest'
+    : parsing
+      ? 'Couldn’t read a dotenv file'
+      : 'Couldn’t open this project';
+  document.getElementById('project-error-copy').textContent = manifest
+    ? 'Fix .sopsdeck.toml on disk, then retry. Your files and local identity have not been reset.'
+    : parsing
+      ? 'One of the selected environment files has a value Sopsdeck can’t parse. Fix the file and try adding the project again.'
+      : 'Sopsdeck couldn’t finish setting up the project. Fix the issue and try again.';
   document.getElementById('project-error-details').textContent = message;
+  document.getElementById('project-error-retry').disabled = !projectConfig.path;
   projectErrorStateEl().hidden = false;
   showEmpty('');
 }
@@ -510,44 +522,6 @@ function dirtyCount() {
   return rows.filter((r) => rowDirty(r)).length;
 }
 
-function defaultCommitMessage(current) {
-  const added = [];
-  const changed = [];
-  const removed = [];
-  for (const row of current) {
-    if (row.deleted) {
-      if (row.origKey) removed.push(row.origKey);
-      continue;
-    }
-
-    if (row.added && row.key) {
-      added.push(row.key);
-      continue;
-    }
-
-    if (row.key !== row.origKey || row.value !== row.origValue) {
-      changed.push(row.key || row.origKey);
-    }
-  }
-
-  const parts = [];
-  if (added.length > 0) parts.push(`add ${added.join(', ')}`);
-  if (changed.length > 0) parts.push(`update ${changed.join(', ')}`);
-  if (removed.length > 0) parts.push(`remove ${removed.join(', ')}`);
-  const file = selected
-    ? `${selected.project?.name || 'project'}/${selected.name || selected.rel || 'managed file'}`
-    : 'managed file';
-  return parts.length > 0 ? `secrets(${file}): ${parts.join('; ')}` : '';
-}
-
-function syncCommitMessage() {
-  if (!commitAuto) return;
-  const next = defaultCommitMessage(rows);
-  if (next === '') return;
-  lastAuto = next;
-  commitEl().value = lastAuto;
-}
-
 function setFileNote(text) {
   const el = document.getElementById('file-note');
   if (!el) return;
@@ -581,7 +555,7 @@ Name: ${who}
 Age public key:
 ${account.publicKey || '(create an Age identity in Sopsdeck first)'}
 
-You can add this key in Sopsdeck (Access → Add recipient) if you are a Project owner.`;
+You can add this key in Sopsdeck (Access → Add recipient) if you have Access to the file.`;
 }
 
 function resetEditorChrome() {
@@ -891,9 +865,6 @@ async function openFile(project, file) {
   accessFormOpen = false;
   renderAccess();
   revealed = false;
-  commitAuto = true;
-  lastAuto = '';
-  commitEl().value = '';
   renderTree();
   crumbEl().textContent = displayPath(project, file);
   headlineEl().textContent = titleOf(file.name);
@@ -927,15 +898,20 @@ async function openFile(project, file) {
     });
     fileLockEl().disabled = false;
     copyFileEl().disabled = false;
-    fileHistoryEl().disabled = false;
+    fileHistoryEl().disabled = project.gitRoot === '';
+    fileHistoryEl().title =
+      project.gitRoot === '' ? 'History requires a Git repository' : 'File history';
     const status = await invoke('get_managed_file_status', { path: file.path });
     if (request !== openFileRequest) return;
     setFileLockState(Boolean(status.locked));
     document.getElementById('meta-enc').textContent = status.locked
       ? 'age + SOPS (locked)'
       : 'plaintext (unlocked)';
-    sublineEl().textContent = `${visibleRows().length} managed fields · never uploaded`;
-    setFileNote(file.name === 'eas.json' ? 'eas.json: EAS CLI will not read SOPS ciphertext' : '');
+    setFileNote(
+      file.name === 'eas.json'
+        ? 'eas.json is supported. Unlock it before running EAS directly, or use sopsdeck run.'
+        : '',
+    );
     renderKeys();
     loadUnusedKeys(file.path, request);
     await Promise.all([
@@ -973,7 +949,7 @@ async function copyFileContents() {
   if (!selected) return;
   try {
     const contents = await invoke('get_managed_file_contents', { path: selected.path });
-    if (await copyText(contents)) setStatus('file', 'Copied unencrypted contents');
+    await copyText(contents, copyFileEl());
   } catch (err) {
     showError(messageOf(err));
   }
@@ -1180,10 +1156,12 @@ function renderKeys() {
   renderPasteChrome(box);
   renderKeyRows(box, visible, structured, {
     revealed,
+    hasHistory: selected?.project.gitRoot !== '',
     toggleReveal,
     rowDirty,
     refreshUnusedBadge,
     copyText,
+    editEncryptedPaths,
     showSecretHistory,
     parseComposerLine,
     deleteRow(row) {
@@ -1197,10 +1175,6 @@ function renderKeys() {
     },
     toggleRowReveal(row) {
       row.revealed = !row.revealed;
-      renderKeys();
-    },
-    toggleEncrypted(row) {
-      row.encrypted = !row.encrypted;
       renderKeys();
     },
     addRow(parsed) {
@@ -1225,13 +1199,11 @@ function renderKeys() {
     },
     onDirty() {
       saveEl().disabled = dirtyCount() === 0;
-      syncCommitMessage();
       renderEncryptedFields();
     },
   });
   saveEl().disabled = dirtyCount() === 0;
-  syncCommitMessage();
-  sublineEl().textContent = `${visible.length} secrets · ${dirtyCount() ? 'edited locally' : 'never uploaded'}`;
+  sublineEl().textContent = `${visible.length} ${visible.length === 1 ? 'secret' : 'secrets'}${dirtyCount() ? ' · unsaved changes' : ''}`;
   renderEncryptedFields();
 }
 
@@ -1242,8 +1214,10 @@ async function addProjectFromPath(path, opts = {}) {
   setLoading('tree', true);
   let state;
   try {
+    if (select) await loadProjectConfig(path);
     state = await invoke('inspect_project', { path });
-    if (select) await ensureAccount(path);
+    path = state.path || path;
+    if (select && !accountComplete()) await openAccountDialog(true, path);
     if (!state.initialized && select) {
       setProjectLoading(false);
       setLoading('tree', false);
@@ -1271,7 +1245,14 @@ async function addProjectFromPath(path, opts = {}) {
     const files = state.managed || [];
     const name = path.split('/').findLast(Boolean) || path;
     const existing = projects.findIndex((p) => p.path === path);
-    const project = { name, path, files };
+    const project = {
+      name,
+      path,
+      files,
+      candidates: state.candidates || [],
+      gitRoot: state.git_root,
+      warnings: state.warnings,
+    };
     rememberRecent(project);
     if (existing === -1) {
       projects.push(project);
@@ -1280,6 +1261,7 @@ async function addProjectFromPath(path, opts = {}) {
     }
 
     renderTree();
+    renderProjectPanel();
     if (files[0] && select) {
       await openFile(project, files[0]);
       return;
@@ -1373,7 +1355,7 @@ async function showAccountBackup() {
   const key = document.getElementById('account-private-key');
   const backup = document.getElementById('account-backup');
   const identity = await invoke('get_user_identity_backup');
-  if (!key || !backup) return;
+  if (!key || !backup || !document.getElementById('account-dialog').open) return;
   key.value = String(identity || '');
   backup.hidden = false;
 }
@@ -1387,7 +1369,9 @@ async function removeAccountIdentity() {
   try {
     await invoke('remove_user_identity');
     account = accountFrom(
-      await invoke('get_account', { path: selected?.project.path || projects[0]?.path || '' }),
+      await invoke('get_account', {
+        path: selected?.project.path || projects[0]?.path || projectConfig.path || '',
+      }),
     );
     clearAccountBackup();
     renderAccount();
@@ -1408,7 +1392,8 @@ async function openAccountDialog(required = false, path = '') {
   const nameInput = document.getElementById('account-name');
   const emailInput = document.getElementById('account-email');
   const error = document.getElementById('account-error');
-  const currentPath = path || selected?.project.path || projects[0]?.path || '';
+  const currentPath =
+    path || selected?.project.path || projects[0]?.path || projectConfig.path || '';
   try {
     account = accountFrom(await invoke('get_account', { path: currentPath }));
   } catch {
@@ -1494,17 +1479,6 @@ async function openAccountDialog(required = false, path = '') {
       { signal },
     );
   });
-}
-
-async function ensureAccount(path) {
-  try {
-    account = accountFrom(await invoke('get_account', { path }));
-  } catch {
-    account = accountFrom();
-  }
-
-  renderAccount();
-  if (!accountComplete()) await openAccountDialog(true, path);
 }
 
 function chosenKeys(keyInputs) {
@@ -1599,6 +1573,8 @@ function chooseProjectFiles(path, candidates, opts = {}) {
         for (const key of selectedKeys) row.selectedKeys.add(key);
       }
 
+      row.syncFolders?.();
+
       const managed = keyInputs.length > 0 ? selectedKeys.length > 0 : input.checked;
       if (managed) fileCount += 1;
       pathCount += selectedKeys.length;
@@ -1644,6 +1620,16 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     const input = document.createElement('input');
     const keys = Array.isArray(file.keys) ? file.keys : [];
     const selectedKeys = new Set(file.selectedKeys || (file.managed || opts.manageAll ? keys : []));
+    const keyInputsByPath = new Map();
+    const folderInputs = new Map();
+    const syncFolders = () => {
+      for (const { input: folderInput, leaves } of folderInputs.values()) {
+        const selectedCount = leaves.filter(({ path }) => selectedKeys.has(path)).length;
+        folderInput.checked = leaves.length > 0 && selectedCount === leaves.length;
+        folderInput.indeterminate = selectedCount > 0 && selectedCount < leaves.length;
+      }
+    };
+
     input.type = 'checkbox';
     input.value = rel;
     input.checked = file.managed === true || opts.manageAll === true || selectedKeys.size > 0;
@@ -1655,9 +1641,10 @@ function chooseProjectFiles(path, candidates, opts = {}) {
     name.title = rel;
     const meta = document.createElement('small');
     meta.textContent =
-      keys.length > 0
+      file.problem ||
+      (keys.length > 0
         ? `${labelFor(file.type)} · ${keys.length} selectable path${keys.length === 1 ? '' : 's'}`
-        : labelFor(file.type);
+        : labelFor(file.type));
     copy.append(name, meta);
     const state = document.createElement('span');
     state.className = 'setup-project-file-state';
@@ -1670,11 +1657,53 @@ function chooseProjectFiles(path, candidates, opts = {}) {
       if (keyList.childElementCount > 0) return;
       appendSetupKeyTree(keyList, nestLeaves(keys), {
         keyInputs,
+        keyInputsByPath,
+        folderInputs,
         depth: 0,
         checked: input.checked,
         selectedKeys,
+        syncFolders,
+        onSelectionChange: updateSelection,
       });
+      syncFolders();
       for (const keyInput of keyInputs) keyInput.addEventListener('change', updateSelection);
+
+      let dragSelection = null;
+      const setDraggedKey = (keyInput, checked) => {
+        keyInput.checked = checked;
+        if (checked) selectedKeys.add(keyInput.value);
+        else selectedKeys.delete(keyInput.value);
+      };
+
+      const keyAt = (event) => {
+        const label = event.target.closest('.setup-project-key');
+        return label && keyList.contains(label) ? label.querySelector('input') : null;
+      };
+
+      const stopDragSelection = () => {
+        if (!dragSelection) return;
+        dragSelection = null;
+        keyList.classList.remove('is-dragging');
+        updateSelection();
+      };
+
+      keyList.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        if (event.target.matches('input')) return;
+        const keyInput = keyAt(event);
+        if (!keyInput) return;
+        dragSelection = { checked: !keyInput.checked };
+        keyList.classList.add('is-dragging');
+        setDraggedKey(keyInput, dragSelection.checked);
+        event.preventDefault();
+      });
+      keyList.addEventListener('pointermove', (event) => {
+        if (!dragSelection) return;
+        const keyInput = keyAt(event);
+        if (keyInput) setDraggedKey(keyInput, dragSelection.checked);
+      });
+      keyList.addEventListener('pointerup', stopDragSelection);
+      keyList.addEventListener('pointercancel', stopDragSelection);
     };
 
     const setFileSelection = (checked) => {
@@ -1722,6 +1751,7 @@ function chooseProjectFiles(path, candidates, opts = {}) {
       keyInputs,
       allKeys: keys,
       selectedKeys,
+      syncFolders,
       entry,
       fileType: file.type,
       searchText: rel.toLowerCase(),
@@ -1840,7 +1870,7 @@ function chooseProjectFiles(path, candidates, opts = {}) {
   dialog.querySelector('.kicker').textContent = opts.kicker || 'New Project';
   dialog.querySelector('.setup-project-copy').textContent =
     opts.copy ||
-    'Choose the files and fields Sopsdeck should manage. Unchecked paths stay untouched.';
+    'Choose the files and fields Sopsdeck should manage. Drag across fields to select several at once. Unchecked paths stay untouched.';
   document.getElementById('setup-project-skip').textContent =
     opts.skipLabel || 'Open without initializing';
   document.getElementById('setup-project-init').textContent = opts.action || 'Initialize Project';
@@ -1903,17 +1933,6 @@ function chooseProjectFiles(path, candidates, opts = {}) {
   });
 }
 
-async function addProject() {
-  showError('');
-  try {
-    const selectedPath = pickProjectFolder();
-    if (!selectedPath) return;
-    await addProjectFromPath(selectedPath);
-  } catch (err) {
-    showProjectError(err);
-  }
-}
-
 function pickProjectFolder() {
   // eslint-disable-next-line no-alert -- browsers have no native path picker for local servers.
   return window.prompt('Project folder path', '')?.trim() || null;
@@ -1937,7 +1956,6 @@ function decorateChrome() {
   decorateButton('add-file', 'file');
   decorateButton('whats-new', 'spark');
   decorateButton('docs-link', 'book');
-  decorateButton('add-project', 'folder');
   decorateButton('save', 'save');
   decorateButton('grant-access', 'grant');
   for (const [id, kind] of [
@@ -1947,6 +1965,8 @@ function decorateChrome() {
     ['create-robot', 'robot'],
     ['project-copy-key', 'copy'],
     ['project-account', 'grant'],
+    ['edit-project-files', 'edit'],
+    ['refresh-project', 'sync'],
   ]) {
     const button = document.getElementById(id);
     if (button) button.append(icon(kind));
@@ -1955,20 +1975,26 @@ function decorateChrome() {
   document.querySelector('#github-integration .integration-logo')?.append(icon('github'));
 }
 
-async function withBusy(el, label, fn) {
+async function withBusy(el, label, fn, successLabel = '') {
+  el.querySelector('.button-feedback')?.remove();
+  delete el.dataset.feedback;
   const textEl = buttonLabel(el);
-  const origText = textEl.textContent;
+  const origNodes = label ? [...textEl.childNodes] : [];
   const origDisabled = el.disabled;
   el.setAttribute('aria-busy', 'true');
   el.disabled = true;
   if (label) textEl.textContent = label;
+  let result;
   try {
-    return await fn();
+    result = await fn();
   } finally {
     el.removeAttribute('aria-busy');
-    textEl.textContent = origText;
+    if (label) textEl.replaceChildren(...origNodes);
     el.disabled = origDisabled;
   }
+
+  if (successLabel) buttonFeedback(el, successLabel);
+  return result;
 }
 
 function changePreview(current) {
@@ -1999,7 +2025,7 @@ function confirmSave(current) {
   }
 
   document.getElementById('save-preview-copy').textContent =
-    `${selected?.name || 'Managed file'} will be encrypted and committed to Git.`;
+    `${selected?.name || 'Managed file'} will be encrypted locally.`;
   document.getElementById('save-preview').textContent = changePreview(current);
   dialog.showModal();
   return withDialog(dialog, ({ signal, finish }) => {
@@ -2022,71 +2048,75 @@ function confirmSave(current) {
 
 async function saveFile() {
   if (!selected) return;
+  const file = selected;
   showError('');
   const current = rows;
   if (dirtyCount() === 0) return;
   const decision = await confirmSave(current);
   if (!decision) return;
-  const toDelete = rows.filter((r) => r.deleted && r.origKey);
-  const live = rows.filter((r) => !r.deleted);
+  const toDelete = current.filter((r) => r.deleted && r.origKey);
+  const live = current.filter((r) => !r.deleted);
   const toSet = live.filter(
     (r) => r.key && (r.key !== r.origKey || r.value !== r.origValue || r.added),
   );
-  const message = defaultCommitMessage(current);
   try {
-    await withBusy(saveEl(), 'Saving…', async () => {
-      for (const row of toDelete) {
-        await invoke('del_managed_key', { path: selected.path, key: row.origKey });
-      }
+    await withBusy(
+      saveEl(),
+      'Saving…',
+      async () => {
+        setLoading('file', true);
+        for (const row of toDelete) {
+          await invoke('del_managed_key', { path: file.path, key: row.origKey });
+        }
 
-      for (const row of toSet) {
-        const renamed = Boolean(row.origKey) && row.key !== row.origKey;
-        if (renamed && decision.rewriteRefs.has(row.origKey)) {
-          await invoke('rename_key', {
-            path: selected.path,
-            key: row.origKey,
-            value: row.key,
-            yes: true,
-          });
-        } else {
-          if (renamed) {
-            await invoke('del_managed_key', { path: selected.path, key: row.origKey });
+        for (const row of toSet) {
+          const renamed = Boolean(row.origKey) && row.key !== row.origKey;
+          if (renamed && decision.rewriteRefs.has(row.origKey)) {
+            await invoke('rename_key', {
+              path: file.path,
+              key: row.origKey,
+              value: row.key,
+              yes: true,
+            });
+          } else {
+            if (renamed) {
+              await invoke('del_managed_key', { path: file.path, key: row.origKey });
+            }
+
+            await invoke('set_managed_key', { path: file.path, key: row.key, value: row.value });
           }
-
-          await invoke('set_managed_key', { path: selected.path, key: row.key, value: row.value });
         }
 
-        row.origKey = row.key;
-        row.origValue = row.value;
-        row.added = false;
-      }
-
-      rows = live;
-      if (isStructuredFormat(formatOf(selected.path))) {
-        const nextKeys = live.filter((row) => row.encrypted).map((row) => row.key);
-        const prevKeys = live
-          .filter((row) => row.origEncrypted)
-          .map((row) => row.origKey || row.key);
-        if ([...nextKeys].sort().join('\0') !== [...prevKeys].sort().join('\0')) {
-          await invoke('set_encrypted_keys', { path: selected.path, keys: nextKeys });
+        if (isStructuredFormat(formatOf(file.path))) {
+          const nextKeys = live.filter((row) => row.encrypted).map((row) => row.key);
+          const prevKeys = live
+            .filter((row) => row.origEncrypted)
+            .map((row) => row.origKey || row.key);
+          if ([...nextKeys].sort().join('\0') !== [...prevKeys].sort().join('\0')) {
+            await invoke('set_encrypted_keys', { path: file.path, keys: nextKeys });
+          }
         }
 
-        for (const row of live) row.origEncrypted = row.encrypted;
-      }
+        const status = await invoke('get_managed_file_status', { path: file.path });
+        if (!status.locked) await invoke('lock_managed_file', { path: file.path });
+        if (selected?.path === file.path) await openFile(file.project, file);
+      },
+      'Saved',
+    );
 
-      await invoke('commit_managed_file', { path: selected.path, message });
-    });
-
-    renderKeys();
-    await loadUnusedKeys(selected.path);
+    if (selected?.path === file.path) renderKeys();
   } catch (err) {
+    if (selected?.path === file.path) setLoading('file', false);
     showError(messageOf(err), 'save');
     saveEl().disabled = dirtyCount() === 0;
   }
 }
 
 function currentProject() {
-  return selected?.project ?? projects[0];
+  const selectedPath = selected?.project?.path;
+  return (
+    projects.find((project) => project.path === selectedPath) ?? selected?.project ?? projects[0]
+  );
 }
 
 async function addManagedFile() {
@@ -2097,6 +2127,7 @@ async function addManagedFile() {
     return;
   }
 
+  projectVersions.set(project.path, (projectVersions.get(project.path) || 0) + 1);
   const name = document.getElementById('add-file-name').value;
   try {
     const rel = String(name || '')
@@ -2122,6 +2153,8 @@ async function addManagedFile() {
     await invoke('add_project_file', { path: project.path, file: rel, keys });
     const state = await invoke('inspect_project', { path: project.path });
     project.files = state.managed || [];
+    project.candidates = state.candidates || [];
+    project.warnings = state.warnings;
     const idx = projects.findIndex((item) => item.path === project.path);
     if (idx !== -1) projects[idx] = project;
     renderTree();
@@ -2136,6 +2169,41 @@ async function addManagedFile() {
   }
 }
 
+async function refreshProject(project, announce = false) {
+  if (!project) return;
+  const { path } = project;
+  const inFlight = refreshingProjects.get(path);
+  if (inFlight) {
+    if (!announce) return;
+    await inFlight;
+    return refreshProject(project, true);
+  }
+
+  const version = projectVersions.get(path) || 0;
+  const work = (async () => {
+    try {
+      const state = await invoke('inspect_project', { path });
+      if ((projectVersions.get(path) || 0) !== version) return;
+      const current = projects.find((item) => item.path === path);
+      if (!current) return;
+      current.files = state.managed || [];
+      current.candidates = state.candidates || [];
+      current.gitRoot = state.git_root;
+      current.warnings = state.warnings || [];
+      renderTree();
+      renderProjectPanel();
+    } catch (err) {
+      if (announce) throw err;
+    }
+  })();
+  refreshingProjects.set(path, work);
+  try {
+    await work;
+  } finally {
+    if (refreshingProjects.get(path) === work) refreshingProjects.delete(path);
+  }
+}
+
 async function editProjectFiles() {
   const project = currentProject();
   if (!project) return;
@@ -2143,9 +2211,18 @@ async function editProjectFiles() {
   const selectedRel =
     selected?.project.path === projectPath ? safeRel(selected.rel, selected.name) : '';
   showError('');
+  projectVersions.set(projectPath, (projectVersions.get(projectPath) || 0) + 1);
   try {
     const state = await invoke('inspect_project', { path: projectPath });
-    const managed = state.managed || [];
+    const managed = [
+      ...(state.managed || []),
+      ...(state.warnings || []).map(({ path, message }) => ({
+        path,
+        rel: path,
+        name: path.split('/').at(-1),
+        problem: message,
+      })),
+    ];
     const candidates = [
       ...managed.map((file) => ({
         ...file,
@@ -2177,6 +2254,8 @@ async function editProjectFiles() {
 
     const next = await invoke('inspect_project', { path: projectPath });
     project.files = next.managed || [];
+    project.candidates = next.candidates || [];
+    project.warnings = next.warnings;
     const index = projects.findIndex((item) => item.path === projectPath);
     projects[index] = project;
     const stillSelected =
@@ -2188,10 +2267,9 @@ async function editProjectFiles() {
         resetEditorChrome();
         renderWorkspace();
       }
-    } else {
-      renderProjectPanel();
     }
 
+    renderProjectPanel();
     if (selected) setStatus('file', 'Managed files updated');
   } catch (err) {
     showError(messageOf(err));
@@ -2221,7 +2299,7 @@ function renderIntegrationSummary() {
 
 async function loadPublishMapping(path) {
   try {
-    const mapping = await invoke('get_publish_mapping', { path });
+    const mapping = await invoke('get_sync_mapping', { path });
     integration = {
       scope: mapping?.scope || (mapping?.environment ? 'environment' : 'repo'),
       repo: mapping?.repo || '',
@@ -2251,9 +2329,9 @@ function syncAccessChrome(empty, fileOpen) {
   const list = document.getElementById('access-list');
   const count = document.getElementById('access-count');
   if (!emptyActions || !toolbar || !form || !list || !count) return false;
-  emptyActions.hidden = !(empty && !accessFormOpen && canGrant && fileOpen);
+  emptyActions.hidden = !(empty && !accessFormOpen && fileOpen);
   toolbar.hidden = empty;
-  form.hidden = !canGrant || (empty && !accessFormOpen);
+  form.hidden = !fileOpen || (empty && !accessFormOpen);
   list.hidden = empty;
   if (empty && !accessFormOpen) {
     list.replaceChildren();
@@ -2307,16 +2385,14 @@ function renderAccess() {
     }
 
     row.append(avatar, details);
-    if (canGrant) {
-      const remove = iconButton(
-        'remove-recipient',
-        `Remove access for ${name.textContent}`,
-        'trash',
-        () => removeRecipient(recipient),
-      );
-      remove.classList.add('danger');
-      row.append(remove);
-    }
+    const remove = iconButton(
+      'remove-recipient',
+      `Remove access for ${name.textContent}`,
+      'trash',
+      () => removeRecipient(recipient),
+    );
+    remove.classList.add('danger');
+    row.append(remove);
 
     list.append(row);
   }
@@ -2333,59 +2409,61 @@ async function loadAccess(path) {
   renderAccess();
 }
 
-function jsonFlag(obj, key, fallback = true) {
-  if (!obj || !Object.hasOwn(obj, key)) return fallback;
-  return Boolean(obj[key]);
-}
-
 async function loadProjectConfig(path) {
   const target = path || selected?.project.path || projects[0]?.path || '';
-  if (!target) return;
   try {
     const next = await invoke('get_account', { path: target });
     projectConfig = {
       path: target,
       name: '',
-      owners: next.owners || [],
-      canGrant: jsonFlag(next, 'can_grant'),
     };
     account = accountFrom(next);
   } catch {
-    projectConfig = { path: target, name: '', owners: [], canGrant: true };
+    projectConfig = { path: target, name: '' };
   }
 
-  canGrant = projectConfig.canGrant !== false;
-  renderProjectPanel();
+  renderAccount();
   renderAccess();
 }
 
+function renderProjectWarnings(project) {
+  const warningBox = document.getElementById('project-warnings');
+  const warnings = project?.warnings || [];
+  warningBox.hidden = warnings.length === 0;
+  const warningList = document.getElementById('project-warning-list');
+  warningList.replaceChildren();
+  for (const warning of warnings) {
+    const item = document.createElement('li');
+    item.textContent = `${warning.path}: ${warning.message}`;
+    warningList.append(item);
+  }
+}
+
 function renderProjectPanel() {
-  const project = selected?.project || projects[0];
+  const project = currentProject();
+  renderProjectWarnings(project);
   const nameEl = document.getElementById('project-panel-name');
   const pathEl = document.getElementById('project-panel-path');
   const identityEl = document.getElementById('project-panel-identity');
-  const ownersEl = document.getElementById('project-owners');
   const copyKey = document.getElementById('project-copy-key');
+  const refreshStatus = document.getElementById('project-refresh-status');
   if (nameEl) nameEl.textContent = project?.name || '—';
-  if (pathEl) pathEl.textContent = project ? parentLabel(project.path) : projectConfig.path || '—';
+  if (pathEl) pathEl.textContent = project?.path || projectConfig.path || '—';
   if (identityEl) {
     identityEl.textContent = account.name || account.email || 'Not configured';
   }
 
-  if (copyKey) copyKey.disabled = !account.publicKey;
-  renderEncryptedFields();
-  if (!ownersEl) return;
-  const owners = Array.isArray(projectConfig.owners) ? projectConfig.owners : [];
-  if (owners.length === 0) {
-    ownersEl.textContent =
-      'No Project owners listed yet. Anyone with Access can manage people until owners are recorded in .sopsdeck.toml.';
-    return;
+  if (refreshStatus) {
+    const count = project?.candidates?.length || 0;
+    refreshStatus.hidden = count === 0;
+    refreshStatus.textContent =
+      count === 1
+        ? '1 unmanaged file found. Use Edit managed files to add it.'
+        : `${count} unmanaged files found. Use Edit managed files to add them.`;
   }
 
-  const names = owners.map((owner) => owner.name || owner.key).join(', ');
-  ownersEl.textContent = canGrant
-    ? `Owners: ${names}. You can manage Access on this Project.`
-    : `Owners: ${names}. Ask an owner to add people, or copy a request.`;
+  if (copyKey) copyKey.disabled = !account.publicKey;
+  renderEncryptedFields();
 }
 
 function renderEncryptedFields() {
@@ -2445,35 +2523,26 @@ async function editEncryptedPaths() {
   }
 }
 
-async function copyPublicKey(statusKind = 'account') {
+async function copyPublicKey(event) {
   if (!account.publicKey) {
     showError('Create an Age identity first');
     return;
   }
 
-  if (await copyText(account.publicKey)) {
-    setStatus(statusKind, 'Copied your Age public key');
-  }
+  await copyText(account.publicKey, event.currentTarget);
 }
 
-async function requestAccess() {
+async function requestAccess(event) {
   if (!account.publicKey) {
     setStatus('account', 'Create an Age identity first, then copy a request');
     return;
   }
 
-  if (await copyText(accessRequestMessage())) {
-    setStatus('account', 'Copied an access request including your public key');
-  }
+  await copyText(accessRequestMessage(), event.currentTarget);
 }
 
 async function addRecipient() {
   if (!selected) return;
-  if (!canGrant) {
-    showError('Only a Project owner can add Access. Copy a request instead.', 'access');
-    return;
-  }
-
   const entered = document.getElementById('recipient-name').value.trim();
   const key = document.getElementById('recipient-key').value.trim();
   const { name, email } = parseGitIdentity(entered);
@@ -2483,14 +2552,18 @@ async function addRecipient() {
   }
 
   try {
-    await withBusy(document.getElementById('grant-access'), '', () =>
-      invoke('add_recipient', {
-        path: selected.path,
-        publicKey: key,
-        name,
-        email,
-        kind: 'person',
-      }),
+    await withBusy(
+      document.getElementById('grant-access'),
+      '',
+      () =>
+        invoke('add_recipient', {
+          path: selected.path,
+          publicKey: key,
+          name,
+          email,
+          kind: 'person',
+        }),
+      'Added',
     );
     document.getElementById('recipient-name').value = '';
     document.getElementById('recipient-key').value = '';
@@ -2583,7 +2656,7 @@ async function saveIntegrationConfig() {
   if (next.scope !== 'org' && !next.repo) throw new Error('Enter a GitHub repository');
   if (next.scope === 'environment' && !next.environment)
     throw new Error('Enter a repository environment');
-  await invoke('configure_integration', { path: selected.path, ...next });
+  await invoke('configure_sync_target', { path: selected.path, ...next });
   integration = next;
   renderIntegrationSummary();
   return true;
@@ -2593,14 +2666,20 @@ async function syncIntegration() {
   const dialog = document.getElementById('integration-dialog');
   const error = document.getElementById('integration-dialog-error');
   try {
-    await saveIntegrationConfig();
-    const values = integrationValues();
-    const result = await invoke('publish_managed_file', {
-      path: selected.path,
-      ...values,
-      yes: true,
-      prune: document.getElementById('integration-prune').checked,
-    });
+    const result = await withBusy(
+      document.getElementById('integration-sync'),
+      'Syncing…',
+      async () => {
+        await saveIntegrationConfig();
+        const values = integrationValues();
+        return invoke('sync_managed_file', {
+          path: selected.path,
+          ...values,
+          prune: document.getElementById('integration-prune').checked,
+        });
+      },
+      'Synced',
+    );
     document.getElementById('integration-dialog-status').hidden = false;
     document.getElementById('integration-dialog-status').textContent = String(result || 'Synced');
     setStatus('publish', 'Synced to GitHub');
@@ -2683,50 +2762,10 @@ async function loadDemoHints() {
   }
 }
 
-const clipboardActions = {
-  async path(folderPath) {
-    try {
-      await addProjectFromPath(folderPath, { select: true });
-    } catch (err) {
-      showProjectError(err);
-    }
-  },
-  recipient(item) {
-    const keyInput = document.getElementById('recipient-key');
-    const nameInput = document.getElementById('recipient-name');
-    if (keyInput) keyInput.value = item.publicKey;
-    if (nameInput && item.name) {
-      nameInput.value = item.email ? `${item.name} <${item.email}>` : item.name;
-    }
-
-    accessFormOpen = true;
-    renderAccess();
-    if (item.name) {
-      document.getElementById('grant-access').click();
-      return;
-    }
-
-    nameInput?.focus();
-  },
-  bulk(pairs) {
-    if (!selected) return;
-    const { adds, changes } = classifyPasteKeys(currentPasteKeys(), pairs);
-    pendingPaste = { kind: 'bulk', pairs, adds, changes };
-    renderKeys();
-  },
-  lone(raw) {
-    if (!selected) return;
-    pendingPaste = { kind: 'lone', value: raw };
-    renderKeys();
-  },
-  onError(err) {
-    showError(messageOf(err));
-  },
-};
-
 if (typeof window !== 'undefined')
   window.addEventListener('DOMContentLoaded', async () => {
     decorateChrome();
+    document.getElementById('account-dialog').addEventListener('close', clearAccountBackup);
     initInspector();
     renderAccount();
     document.addEventListener('paste', onEditorPaste);
@@ -2743,9 +2782,16 @@ if (typeof window !== 'undefined')
     document.getElementById('account').addEventListener('click', () => openAccountDialog());
     document.getElementById('project-account').addEventListener('click', () => openAccountDialog());
     document.getElementById('edit-project-files').addEventListener('click', editProjectFiles);
-    document
-      .getElementById('account-copy-key')
-      .addEventListener('click', () => copyPublicKey('account'));
+    document.getElementById('refresh-project').addEventListener('click', async () => {
+      const button = document.getElementById('refresh-project');
+      try {
+        await withBusy(button, '', () => refreshProject(currentProject(), true));
+        buttonFeedback(button, 'Refreshed');
+      } catch (err) {
+        showError(messageOf(err));
+      }
+    });
+    document.getElementById('account-copy-key').addEventListener('click', copyPublicKey);
     document.getElementById('account-backup-identity').addEventListener('click', async () => {
       try {
         await showAccountBackup();
@@ -2754,29 +2800,36 @@ if (typeof window !== 'undefined')
         showError(messageOf(err));
       }
     });
-    document.getElementById('account-copy-private-key').addEventListener('click', async () => {
+    document.getElementById('account-copy-private-key').addEventListener('click', async (event) => {
       const key = document.getElementById('account-private-key').value;
-      if (key && (await copyText(key))) setStatus('account', 'Private key copied');
+      if (key) await copyText(key, event.currentTarget);
     });
     document
       .getElementById('account-remove-identity')
       .addEventListener('click', removeAccountIdentity);
-    document
-      .getElementById('project-copy-key')
-      .addEventListener('click', () => copyPublicKey('file'));
+    document.getElementById('project-copy-key').addEventListener('click', copyPublicKey);
     document.getElementById('account-copy-request').addEventListener('click', requestAccess);
     document
       .getElementById('access-gate-account')
       .addEventListener('click', () => openAccountDialog());
-    document.getElementById('edit-encrypted-paths').addEventListener('click', editEncryptedPaths);
-    document.getElementById('add-project').addEventListener('click', addProject);
     document.getElementById('project-error-dismiss').addEventListener('click', clearProjectError);
+    document.getElementById('project-error-retry').addEventListener('click', async () => {
+      try {
+        await addProjectFromPath(projectConfig.path);
+      } catch (err) {
+        showProjectError(err);
+      }
+    });
     document.getElementById('add-file').addEventListener('click', addManagedFile);
     document.getElementById('add-file-name').addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
       addManagedFile();
     });
+    setInterval(() => {
+      if (document.hidden) return;
+      for (const project of projects) refreshProject(project);
+    }, PROJECT_REFRESH_MS);
     saveEl().addEventListener('click', saveFile);
     fileLockEl().addEventListener('click', toggleFileLock);
     copyFileEl().addEventListener('click', copyFileContents);
@@ -2794,7 +2847,12 @@ if (typeof window !== 'undefined')
       .addEventListener('click', () => document.getElementById('integration-dialog').close());
     document.getElementById('integration-save').addEventListener('click', async () => {
       try {
-        await saveIntegrationConfig();
+        await withBusy(
+          document.getElementById('integration-save'),
+          'Saving…',
+          saveIntegrationConfig,
+          'Saved',
+        );
         document.getElementById('integration-dialog-status').hidden = false;
         document.getElementById('integration-dialog-status').textContent = 'Configuration saved';
       } catch (err) {
@@ -2808,13 +2866,8 @@ if (typeof window !== 'undefined')
       .getElementById('robot-cancel')
       .addEventListener('click', () => document.getElementById('robot-dialog').close());
     document.getElementById('robot-create').addEventListener('click', createRobotAccount);
-    document.getElementById('robot-copy-key').addEventListener('click', async () => {
-      const copied = await copyText(document.getElementById('robot-private-key').value);
-      const status = document.getElementById('robot-status');
-      status.hidden = false;
-      status.textContent = copied
-        ? 'Private key copied to the clipboard'
-        : 'Could not copy the private key';
+    document.getElementById('robot-copy-key').addEventListener('click', async (event) => {
+      await copyText(document.getElementById('robot-private-key').value, event.currentTarget);
     });
     document
       .getElementById('file-history-close')
@@ -2822,17 +2875,6 @@ if (typeof window !== 'undefined')
     document
       .getElementById('secret-history-close')
       .addEventListener('click', () => document.getElementById('secret-history-dialog').close());
-    document.getElementById('clipboard-dismiss').addEventListener('click', () => {
-      const dialog = document.getElementById('clipboard-dialog');
-      dismissClipboard(dialog.dataset.clipboardText || '');
-      dialog.close();
-    });
-    window.addEventListener('focus', () => {
-      setTimeout(() => sniffClipboard(clipboardActions), 200);
-    });
-    window.addEventListener('blur', () => {
-      resetClipboardSeen();
-    });
     renderWorkspace();
     if (skipBoot()) return;
     setProjectLoading(true, '', 'Loading your recent project…');
@@ -2849,7 +2891,7 @@ if (typeof window !== 'undefined')
 
       focusedProject = Boolean(boot) && !demo;
       document.body.classList.toggle('focused-project', focusedProject);
-      if (boot) await addProjectFromPath(boot);
+      await (boot ? addProjectFromPath(boot) : loadProjectConfig(''));
       if (!focusedProject) await loadDemoHints();
     } catch (err) {
       showProjectError(err);

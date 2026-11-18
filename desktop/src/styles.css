@@ -887,7 +887,7 @@ h1 {
 }
 .key-head-tree,
 .json-leaf {
-  grid-template-columns: 28px minmax(100px, 0.7fr) minmax(160px, 1.4fr) auto;
+  grid-template-columns: minmax(100px, 0.7fr) minmax(160px, 1.4fr) auto;
 }
 .key-head {
   height: 31px;
@@ -1015,13 +1015,18 @@ h1 {
   gap: 0;
 }
 .json-folder,
-.json-leaf,
+.json-leaf {
+  padding-left: calc(10px + (var(--tree-depth, 0) * 14px));
+}
 .setup-project-folder,
 .setup-project-key {
-  padding-left: calc(10px + (var(--tree-depth, 0) * 14px));
+  padding-left: calc(10px + (var(--tree-depth, 0) * 24px));
 }
 .json-folder,
 .setup-project-folder {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
   font:
     600 10px 'IBM Plex Mono',
@@ -1032,13 +1037,21 @@ h1 {
   padding-top: 8px;
   padding-bottom: 4px;
 }
+.setup-project-folder {
+  cursor: pointer;
+}
+.setup-project-folder input {
+  accent-color: var(--blue);
+}
 .json-key {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.encrypt-toggle.is-on {
-  color: var(--encrypted-fg);
+.path-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .docs-link {
   display: inline-flex;
@@ -1052,10 +1065,6 @@ h1 {
 }
 .encrypted-path-summary {
   margin: 0 0 8px;
-}
-.file-fields > .tool {
-  justify-content: flex-start;
-  width: 100%;
 }
 .account-request,
 .account-backup {
@@ -1104,6 +1113,9 @@ h1 {
   border-top: 1px solid var(--line-soft);
 }
 .inspect-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 11px;
   font-size: 11px;
 }
@@ -1114,7 +1126,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
+  flex: 1;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1128,6 +1140,10 @@ h1 {
 .inspect-toggle svg {
   flex: none;
   transition: transform 0.12s ease;
+}
+.section-actions {
+  display: flex;
+  gap: 4px;
 }
 .inspect-section.collapsed .inspect-toggle svg {
   transform: rotate(-90deg);
@@ -1251,13 +1267,6 @@ h1 {
 }
 .compact-actions {
   margin-top: 13px;
-}
-.project-file-actions {
-  margin-top: 10px;
-}
-.project-file-actions .tool {
-  width: 100%;
-  justify-content: flex-start;
 }
 .access-empty-actions {
   display: grid;
@@ -1519,7 +1528,6 @@ h1 {
   flex: 1;
   min-width: 0;
 }
-body.focused-project #add-project,
 body.focused-project .recents,
 body.focused-project .project-actions {
   display: none;
@@ -1575,36 +1583,8 @@ html[data-theme='dark'] .save {
   flex: 0 0 auto;
   margin: 1px 0 0;
 }
-.kind.unused {
+.kind .unused {
   color: var(--signal);
-}
-.clipboard-dialog {
-  width: min(420px, 92vw);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 22px 22px 18px;
-  background: var(--paper);
-  color: var(--ink);
-}
-.clipboard-dialog::backdrop {
-  background: rgba(16, 24, 40, 0.32);
-}
-.clipboard-dialog .kicker {
-  margin: 0 0 4px;
-}
-.clipboard-summary {
-  margin: 0 0 14px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-.clipboard-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.clipboard-actions button {
-  text-align: left;
 }
 .project-loading-dialog {
   width: min(380px, calc(100vw - 32px));
@@ -1788,12 +1768,15 @@ html[data-theme='dark'] .save {
   padding: 3px 0 3px 12px;
   border-left: 1px solid var(--line);
 }
+.setup-project-keys.is-dragging {
+  user-select: none;
+}
 .setup-project-key {
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
-  padding: 4px 6px;
+  padding: 4px 6px 4px calc(10px + (var(--tree-depth, 0) * 24px));
   color: var(--muted);
   cursor: pointer;
 }
@@ -1905,6 +1888,62 @@ html[data-theme='dark'] .save {
   gap: 8px;
   flex-wrap: wrap;
 }
+dialog:has(> .dialog-content) {
+  padding: 0;
+  overflow: hidden;
+}
+.dialog-content {
+  max-height: inherit;
+  padding: 22px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+button {
+  position: relative;
+}
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+button[data-feedback] > :not(.button-feedback) {
+  opacity: 0;
+}
+button[data-feedback] {
+  color: transparent;
+}
+.button-feedback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: inherit;
+  background: var(--encrypted-bg);
+  color: var(--encrypted-fg);
+  animation: button-confirm 180ms ease-out;
+}
+.icon-button .button-feedback {
+  gap: 0;
+  font-size: 0;
+}
+[data-feedback='error'] .button-feedback {
+  color: var(--changed-kind-fg);
+  background: var(--changed-kind-bg);
+}
+[aria-busy='true'] > svg {
+  animation: loading-spin 1s linear infinite;
+}
+@keyframes button-confirm {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .file-actions {
   display: flex;
   gap: 6px;
@@ -1912,6 +1951,11 @@ html[data-theme='dark'] .save {
   margin-top: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
+  .button-feedback,
+  [aria-busy='true'] > svg,
+  .whats-new-dialog[open] {
+    animation: none;
+  }
   .skeleton-line,
   .project-loading-icon span {
     animation: none;

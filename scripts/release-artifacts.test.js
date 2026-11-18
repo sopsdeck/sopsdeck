@@ -9,6 +9,16 @@ const landing = readFileSync(join(root, 'site/src/pages/index.astro'), 'utf8');
 const astroConfig = readFileSync(join(root, 'site/astro.config.mjs'), 'utf8');
 const wrangler = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
 
+test('Playwright cleanup is isolated from the persistent team studio', () => {
+  const config = readFileSync(join(root, 'playwright.config.js'), 'utf8');
+  expect(config).toContain("outputDir: './test-results/playwright'");
+});
+
+test('homepage navigation links to the GitHub repository', () => {
+  const layout = readFileSync(join(root, 'site/src/layouts/SiteLayout.astro'), 'utf8');
+  expect(layout).toContain('href="https://github.com/sopsdeck/sopsdeck"');
+});
+
 test('release workflow attaches native CLI binaries', () => {
   expect(yaml).toContain('sopsdeck-darwin-amd64');
   expect(yaml).toContain('sopsdeck-darwin-arm64');
@@ -31,7 +41,7 @@ test('npm package exposes browser launcher aliases', () => {
 });
 
 test('landing page documents the npm browser install', () => {
-  expect(landing).toContain('/assets/editor.png');
+  expect(landing).toContain('/assets/landing-editor.jpg');
   expect(landing).toContain('npm install -D @sopsdeck/sopsdeck');
   expect(landing).toContain('npx sopsdeck .');
   expect(landing).toContain('/docs/guide.html#rename-keys');

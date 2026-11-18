@@ -4,21 +4,26 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestDevScriptBuildOnlyWritesCLI(t *testing.T) {
 	root := filepath.Join("..", "..")
-	cmd := exec.Command("./scripts/dev", "--build-only")
+	cmd := exec.Command("bash", "./scripts/dev", "--build-only")
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("dev --build-only: %v %s", err, out)
 	}
 	bin := strings.TrimSpace(string(out))
-	if filepath.Base(bin) != "sopsdeck" {
-		t.Fatalf("stdout=%q, want path to sopsdeck", bin)
+	wantName := "sopsdeck"
+	if runtime.GOOS == "windows" {
+		wantName += ".exe"
+	}
+	if filepath.Base(bin) != wantName {
+		t.Fatalf("stdout=%q, want path to %s", bin, wantName)
 	}
 	if _, err := os.Stat(bin); err != nil {
 		t.Fatal(err)
