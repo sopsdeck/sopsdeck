@@ -1,31 +1,223 @@
 {
-  "version": "0.2.0",
-  "heading": "0.2.0",
-  "date": "2026-09-01",
+  "version": "0.3.0",
+  "heading": "0.3.0",
+  "date": "2026-11-18",
   "notes": [
     {
-      "text": "Project setup now has loading and recovery states, file filtering, and per-field JSON/YAML selection. Managed files can be added or removed from a Project without deleting the underlying file, and encrypted paths can be edited after setup.",
+      "text": "Standard SOPS commands, flags, and file arguments pass through to the installed `sops` CLI on PATH. Encryption, decryption, editing, key updates, and command execution preserve arguments, stdin, output, and exit codes. `sopsdeck sops ...` exposes upstream help and version commands; Sopsdeck's own commands and browser editor continue using embedded SOPS.",
       "type": "feature",
       "platforms": []
     },
     {
-      "text": "Account shows a copyable Age private-key backup and can remove the local identity. The CLI adds `identity remove --yes`, and identity creation/import no longer require `SOPSDECK_STATE_DIR`.",
+      "text": "`sopsdeck agent-hook` adapts Claude Code and Cursor pre-read events to deny reads of Managed Files. Opt-in host recipes and a VS Code task run applications through `sopsdeck run`, so captured output is redacted before the task terminal receives it.",
       "type": "feature",
       "platforms": []
     },
     {
-      "text": "Multiline dotenv values now retain their embedded newlines.",
+      "text": "Dotenv values support `$VAR` and `${VAR}` references. Values resolve in file order, using file keys before the process environment; missing references become empty strings. Escaped dollar signs and single-quoted values stay literal.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Dotenv values support `$(command)` substitution through POSIX `sh`, with earlier file keys available to the command. Each command has a 30-second limit; failures stop resolution. Windows requires a compatible `sh.exe` on `PATH`. Resolving values can execute stored commands when reading a key, opening the editor, running a command, or syncing secrets. Escape the dollar sign or single-quote the value to keep it literal.",
+      "type": "feature",
+      "platforms": [
+        "Windows"
+      ]
+    },
+    {
+      "text": "`sopsdeck run` injects dotenv values into the child environment. For locked structured Managed Files such as `eas.json` and Compose YAML, it temporarily writes plaintext at the file's real path and restores the original encrypted bytes and permissions after the child exits or after SIGINT/SIGTERM. Sopsdeck writes and another run of the same file are refused while active. If the child changes the file, run exits unsuccessfully and leaves the change for inspection and recovery. SIGKILL and system crashes cannot run cleanup.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Child stdout and stderr from `sopsdeck run` mask nonempty protected values as `[sopsdeck:KEY]`, including short values. A Managed File's `public_keys` list opts values out of output redaction; `--no-redact` disables masking and also allows running without a Managed File.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "`scan` blocks staged Age identities and plaintext protected values from Managed Files. Its hook installer resolves Git's active hooks path, preserves existing hooks, and supports removing an unchanged Sopsdeck hook with `scan --uninstall`.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Project file lists refresh automatically while the browser tab is visible. Refresh files checks immediately, and the Project panel reports unmanaged files created outside Sopsdeck.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "JSON/YAML path pickers support dragging across fields and selecting nested object groups, with partial-selection indicators. The same picker is used during Project setup and when editing encryption paths.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "The npm launcher streams native runner downloads to disk, shows size and progress, stops downloads that receive no data for 30 seconds, and removes incomplete downloads.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "`bun run site:screenshots` regenerates the landing page's editor, rename, and unused-secret screenshots from a fresh fictional demo.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "GitHub links are available on the website and in the local workspace.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "The repository includes the Apache License 2.0.",
+      "type": "feature",
+      "platforms": []
+    },
+    {
+      "text": "Missing or unsafe manifest entries show recoverable warnings without blocking valid files. Stale entries can be removed without deleting files, and Projects with only missing files remain open for recovery. Manifest saves are atomic; malformed manifests can be fixed on disk and retried without reinitializing the Project or replacing its identity.",
       "type": "bugfix",
       "platforms": []
     },
     {
-      "text": "Project owners now control both adding and removing Recipients. Recipient removal re-encrypts the current file while clearly preserving the limits of revocation.",
+      "text": "Encrypt & save refreshes the lock and saved state immediately, clears unsaved changes, and relocks plaintext files.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Changing encryption paths preserves existing SOPS recipients and key groups. Unlocking records Age recipients for relocking and refuses operations that cannot preserve non-Age, grouped, or unmanaged multi-recipient Access.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Account details and private-key backups respect explicit `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` identities before falling back to the OS keychain. Account also loads without an open Project or when a missing file prevents the Project from opening.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Project folders resolve to canonical paths. Initialized monorepo subfolders reopen their Project; discovery, reference scans, and renames keep nested repositories and independent Projects isolated. Files outside the Project and symlinked files cannot be imported.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Git history and restore resolve nested Managed Files relative to the repository root. Folders outside Git remain editable, with history controls disabled.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Nested JSON/YAML path selections include all descendant fields and keep parent checkbox states in sync. The Path header renders its encryption control correctly.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Dialogs dismiss on outside clicks and Escape and scroll within their rounded edges. Dismissing a save preview cancels the pending save; closing Account clears its private-key backup, including delayed responses.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Copy and other button actions confirm inside the clicked button with a brief check animation and report failed copies there.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Site text preserves spaces around links split across source lines. Documentation keeps inline code and link URLs literal instead of treating underscores or Markdown characters inside them as formatting.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "The npm launcher lists supported CLI commands, accepts `version`, reports unknown commands or missing Project folders clearly, and rejects occupied browser ports before starting the runner. Upstream SOPS stderr is passed through without saving it to Sopsdeck's error log.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Team startup refuses occupied ports before seeding or resetting identities, waits for both instances, and stops its servers on exit. `./scripts/dev --team --reset` refuses workspace roots, home directories, symlinks, and unrecognized studios.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "The local browser API rejects mismatched Host and Origin headers, non-JSON commands, and browser preflights. Same-origin UI requests and local clients without an Origin header remain supported.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Failed CLI and API diagnostics now store only an exit summary. Child stderr is streamed to the caller and is not retained in `errors.json`.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Dotenv references resolve in file order, so forward and self references no longer see unresolved values. A command's generated `$(...)` text is not executed as a second expansion, and failed or timed-out substitutions now stop reads instead of returning the original expression.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Playwright test output is isolated from the persistent Alice/Bob studio, so browser tests no longer remove its keys and checkouts.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "Changed and unused labels have a space between them.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "The website and development tooling use patched Astro, Vite, undici, sharp, smol-toml, markdown-it, source-map-js, and KaTeX releases.",
+      "type": "bugfix",
+      "platforms": []
+    },
+    {
+      "text": "`sopsdeck sync -f FILE` replaces Sopsdeck's former `publish` workflow and writes selected values to configured GitHub Actions targets immediately. The dry-run step and `--yes` flag are gone; `--mapping` prints target configuration without sending secrets. `sopsdeck publish` now selects the upstream SOPS command.",
       "type": "changed",
       "platforms": []
     },
     {
-      "text": "The landing page development banner and product layout now share one consistent treatment.",
+      "text": "Secret Sync tracks previously synced names in the manifest's `synced` field instead of `published`. Rename existing `published` lists to `synced` to retain pruning history.",
       "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "Managed File selection accepts regular files inside the Project regardless of filename, including `.en` and `eas.json`. Sopsdeck detects the content format when possible and records it in the manifest. Unlock `eas.json` before running EAS directly, or use `sopsdeck run`.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "The structured editor shows encrypted fields only. Choose encryption paths in the picker beside the Path heading; file actions use compact header icons, and per-row padlocks and Add folder path are removed.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "The landing page highlights key renaming and unused secrets with focused product screenshots, compares Sopsdeck's workflows with SOPS, and explains encryption's protections and limits with primary sources. The layout adapts to small screens and respects reduced-motion settings.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "The public changelog shows published releases only. Work in progress remains under Unreleased in this file.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "CLI, Access, and Secret Sync documentation reflects the current commands and recipient labels. Product recordings match the current browser workflow.",
+      "type": "changed",
+      "platforms": []
+    },
+    {
+      "text": "Project owner roles and owner-only Access restrictions. Anyone who can decrypt a Managed File can manage its Recipients; names from older owner entries remain as recipient labels.",
+      "type": "removed",
+      "platforms": []
+    },
+    {
+      "text": "Automatic clipboard reads and prompts when the browser regains focus. Explicit paste and copy still work.",
+      "type": "removed",
+      "platforms": []
+    },
+    {
+      "text": "The MCP server and AI tools, including `sopsdeck mcp` and the `sopsdeck-mcp` skill.",
+      "type": "removed",
+      "platforms": []
+    },
+    {
+      "text": "Sopsdeck's Git commit, pull, and push actions, including `sopsdeck commit` and the old Git `sopsdeck sync`. Saving encrypts locally; use Git directly to share changes. `review`, `history`, and `restore` remain available.",
+      "type": "removed",
+      "platforms": []
+    },
+    {
+      "text": "Obsolete npm command routing and recordings of the removed CLI Git actions.",
+      "type": "removed",
       "platforms": []
     }
   ]

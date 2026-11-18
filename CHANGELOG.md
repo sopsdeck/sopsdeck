@@ -4,6 +4,8 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+## 0.3.0 - 2026-11-18
+
 ### Added
 
 - Standard SOPS commands, flags, and file arguments pass through to the installed `sops` CLI on PATH. Encryption, decryption, editing, key updates, and command execution preserve arguments, stdin, output, and exit codes. `sopsdeck sops ...` exposes upstream help and version commands; Sopsdeck's own commands and browser editor continue using embedded SOPS.
