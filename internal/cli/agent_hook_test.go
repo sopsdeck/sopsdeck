@@ -101,7 +101,14 @@ func TestClaudeAgentHookRequiresReadEvent(t *testing.T) {
 }
 
 func TestAgentProtectionExamplesAreFailClosedAndUseRun(t *testing.T) {
-	root := repoRoot(t)
+	examples := filepath.Join(repoRoot(t), "examples", "agent-protection")
+	assertClaudeProtectionExample(t, filepath.Join(examples, ".claude", "settings.json"))
+	assertCursorProtectionExample(t, filepath.Join(examples, ".cursor", "hooks.json"))
+	assertVSCodeTaskExample(t, filepath.Join(examples, ".vscode", "tasks.json"))
+}
+
+func assertClaudeProtectionExample(t *testing.T, path string) {
+	t.Helper()
 	var claude struct {
 		Hooks struct {
 			PreToolUse []struct {
@@ -117,14 +124,17 @@ func TestAgentProtectionExamplesAreFailClosedAndUseRun(t *testing.T) {
 			AllowUnsandboxedCommands bool `json:"allowUnsandboxedCommands"`
 		} `json:"sandbox"`
 	}
-	readAgentExampleJSON(t, filepath.Join(root, "examples", "agent-protection", ".claude", "settings.json"), &claude)
+	readAgentExampleJSON(t, path, &claude)
 	if len(claude.Hooks.PreToolUse) != 1 || claude.Hooks.PreToolUse[0].Matcher != "Read" ||
 		len(claude.Hooks.PreToolUse[0].Hooks) != 1 || claude.Hooks.PreToolUse[0].Hooks[0].Timeout == 0 ||
 		!strings.Contains(claude.Hooks.PreToolUse[0].Hooks[0].Command, "|| exit 2") ||
 		!claude.Sandbox.Enabled || claude.Sandbox.AllowUnsandboxedCommands {
 		t.Fatalf("Claude protection example is incomplete: %+v", claude)
 	}
+}
 
+func assertCursorProtectionExample(t *testing.T, path string) {
+	t.Helper()
 	var cursor struct {
 		Version int `json:"version"`
 		Hooks   struct {
@@ -138,13 +148,16 @@ func TestAgentProtectionExamplesAreFailClosedAndUseRun(t *testing.T) {
 			} `json:"beforeTabFileRead"`
 		} `json:"hooks"`
 	}
-	readAgentExampleJSON(t, filepath.Join(root, "examples", "agent-protection", ".cursor", "hooks.json"), &cursor)
+	readAgentExampleJSON(t, path, &cursor)
 	if cursor.Version != 1 || len(cursor.Hooks.BeforeReadFile) != 1 || len(cursor.Hooks.BeforeTabFileRead) != 1 ||
 		!cursor.Hooks.BeforeReadFile[0].FailClosed || !cursor.Hooks.BeforeTabFileRead[0].FailClosed ||
 		cursor.Hooks.BeforeReadFile[0].Timeout == 0 || cursor.Hooks.BeforeTabFileRead[0].Timeout == 0 {
 		t.Fatalf("Cursor protection example is incomplete: %+v", cursor)
 	}
+}
 
+func assertVSCodeTaskExample(t *testing.T, path string) {
+	t.Helper()
 	var task struct {
 		Tasks []struct {
 			Type    string   `json:"type"`
@@ -152,7 +165,7 @@ func TestAgentProtectionExamplesAreFailClosedAndUseRun(t *testing.T) {
 			Args    []string `json:"args"`
 		} `json:"tasks"`
 	}
-	readAgentExampleJSON(t, filepath.Join(root, "examples", "agent-protection", ".vscode", "tasks.json"), &task)
+	readAgentExampleJSON(t, path, &task)
 	if len(task.Tasks) != 1 || task.Tasks[0].Type != "process" || task.Tasks[0].Command != "sopsdeck" ||
 		len(task.Tasks[0].Args) < 5 || task.Tasks[0].Args[0] != "run" || task.Tasks[0].Args[1] != "-f" {
 		t.Fatalf("application task does not use process arguments through run: %+v", task.Tasks)

@@ -27,4 +27,24 @@ elif [ "$govuln_code" -ne 0 ]; then
 fi
 
 printf '== bun audit (root) ==\n'
-bun audit
+# Advisories with no fix that Bun can apply. Remove an entry once it can be patched.
+# GHSA-fc5q-39xc-vjpf picomatch: no patched release yet.
+# GHSA-g3hv-75wg-m249 minimatch 10 under typescript-eslint: the fix is minimatch 11,
+#   and Bun overrides cannot target one dependent without breaking ESLint's minimatch 3.
+audit_ignore='GHSA-fc5q-39xc-vjpf GHSA-g3hv-75wg-m249'
+if ! bun audit; then
+  bun audit --json | AUDIT_IGNORE="$audit_ignore" bun -e '
+const ignored = new Set(process.env.AUDIT_IGNORE.split(/\s+/).filter(Boolean));
+const report = await new Response(Bun.stdin.stream()).json();
+const remaining = Object.entries(report).flatMap(([name, advisories]) =>
+  advisories
+    .filter((advisory) => !ignored.has(advisory.url.split("/").pop()))
+    .map((advisory) => `${name}: ${advisory.url}`),
+);
+if (remaining.length > 0) {
+  console.error(`bun audit: ${remaining.length} advisories are not allowlisted:\n${remaining.join("\n")}`);
+  process.exit(1);
+}
+console.log(`bun audit: only allowlisted advisories remain (${[...ignored].join(", ")})`);
+'
+fi

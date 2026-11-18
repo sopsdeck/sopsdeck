@@ -33,7 +33,7 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create parent PTY: %v", err)
 	}
-	defer pty.Close()
+	defer func() { _ = pty.Close() }()
 
 	cmd := exec.Command(mustExecutable(t), "-test.run=^TestHelperProcess$")
 	cmd.Env = os.Environ()
@@ -41,37 +41,13 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 		t.Fatalf("start sopsdeck under parent PTY: %v", err)
 	}
 
-	chunks := make(chan []byte, 256)
-	readDone := make(chan error, 1)
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := pty.Read(buf)
-			if n > 0 {
-				chunks <- append([]byte(nil), buf[:n]...)
-			}
-			if err != nil {
-				readDone <- err
-				return
-			}
-		}
-	}()
-
-	var output strings.Builder
-	deadline := time.NewTimer(10 * time.Second)
-	defer deadline.Stop()
-	for !strings.Contains(output.String(), "TTY prompt:") && !strings.Contains(output.String(), "TTY=false") {
-		select {
-		case chunk := <-chunks:
-			output.Write(chunk)
-		case err := <-readDone:
-			t.Fatalf("parent PTY closed before interactive prompt (read error %v), output=%q", err, outputSummary(output.String()))
-		case <-deadline.C:
-			_ = cmd.Process.Kill()
-			_ = xpty.WaitProcess(context.Background(), cmd)
-			t.Fatalf("timed out waiting for interactive prompt, output=%q", outputSummary(output.String()))
-		}
-	}
+	output := readPTYOutput(pty)
+	output.waitFor(t, "interactive prompt", func(text string) bool {
+		return strings.Contains(text, "TTY prompt:") || strings.Contains(text, "TTY=false")
+	}, func() {
+		_ = cmd.Process.Kill()
+		_ = xpty.WaitProcess(context.Background(), cmd)
+	})
 	if strings.Contains(output.String(), "TTY=false") {
 		_ = xpty.WaitProcess(context.Background(), cmd)
 		t.Fatalf("redacted child did not receive a terminal: %q", outputSummary(output.String()))
@@ -91,37 +67,12 @@ func TestRunInteractiveRedactedCommandUsesPTY(t *testing.T) {
 	}
 
 	tail := "TAIL=" + strings.Repeat("x", 64*1024) + ":END"
-	outputDeadline := time.NewTimer(10 * time.Second)
-	defer outputDeadline.Stop()
-	for !interactiveOutputComplete(output.String(), tail) {
-		select {
-		case chunk := <-chunks:
-			output.Write(chunk)
-		case err := <-readDone:
-			t.Fatalf("parent PTY closed before final output (read error %v), output=%q", err, outputSummary(output.String()))
-		case <-outputDeadline.C:
-			t.Fatalf("timed out waiting for final output: %q", outputSummary(output.String()))
-		}
-	}
+	output.waitFor(t, "final output", func(text string) bool {
+		return interactiveOutputComplete(text, tail)
+	}, nil)
 	_ = pty.Close()
+	output.drain(t)
 
-	drainDeadline := time.NewTimer(10 * time.Second)
-	defer drainDeadline.Stop()
-	for {
-		select {
-		case chunk := <-chunks:
-			output.Write(chunk)
-		case err := <-readDone:
-			if err == nil || isPTYClosedError(err) || strings.Contains(strings.ToLower(err.Error()), "input/output error") || strings.Contains(strings.ToLower(err.Error()), "closed") {
-				goto readComplete
-			}
-			t.Fatalf("read parent PTY: %v", err)
-		case <-drainDeadline.C:
-			t.Fatalf("timed out draining interactive output: %q", outputSummary(output.String()))
-		}
-	}
-
-readComplete:
 	got := stripTerminalSequences(output.String())
 	if !strings.Contains(got, "TTY prompt:") || !strings.Contains(got, "RESPONSE=answer") {
 		t.Fatalf("interactive prompt/response missing: %q", got)
@@ -132,6 +83,82 @@ readComplete:
 	if !interactiveOutputComplete(got, tail) {
 		t.Fatal("interactive PTY truncated the child's final output")
 	}
+}
+
+// ptyOutput collects bytes read from a parent PTY on a background goroutine.
+type ptyOutput struct {
+	chunks   chan []byte
+	readDone chan error
+	text     strings.Builder
+}
+
+func readPTYOutput(pty io.Reader) *ptyOutput {
+	o := &ptyOutput{chunks: make(chan []byte, 256), readDone: make(chan error, 1)}
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := pty.Read(buf)
+			if n > 0 {
+				o.chunks <- append([]byte(nil), buf[:n]...)
+			}
+			if err != nil {
+				o.readDone <- err
+				return
+			}
+		}
+	}()
+	return o
+}
+
+func (o *ptyOutput) String() string { return o.text.String() }
+
+// waitFor reads until done reports true. onTimeout runs before the test fails
+// on timeout, so callers can stop the child.
+func (o *ptyOutput) waitFor(t *testing.T, what string, done func(string) bool, onTimeout func()) {
+	t.Helper()
+	deadline := time.NewTimer(10 * time.Second)
+	defer deadline.Stop()
+	for !done(o.String()) {
+		select {
+		case chunk := <-o.chunks:
+			o.text.Write(chunk)
+		case err := <-o.readDone:
+			t.Fatalf("parent PTY closed before %s (read error %v), output=%q", what, err, outputSummary(o.String()))
+		case <-deadline.C:
+			if onTimeout != nil {
+				onTimeout()
+			}
+			t.Fatalf("timed out waiting for %s, output=%q", what, outputSummary(o.String()))
+		}
+	}
+}
+
+// drain reads until the parent PTY reports that it closed.
+func (o *ptyOutput) drain(t *testing.T) {
+	t.Helper()
+	deadline := time.NewTimer(10 * time.Second)
+	defer deadline.Stop()
+	for {
+		select {
+		case chunk := <-o.chunks:
+			o.text.Write(chunk)
+		case err := <-o.readDone:
+			if !isExpectedPTYCloseError(err) {
+				t.Fatalf("read parent PTY: %v", err)
+			}
+			return
+		case <-deadline.C:
+			t.Fatalf("timed out draining interactive output: %q", outputSummary(o.String()))
+		}
+	}
+}
+
+func isExpectedPTYCloseError(err error) bool {
+	if err == nil || isPTYClosedError(err) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "input/output error") || strings.Contains(msg, "closed")
 }
 
 func interactiveOutputComplete(output, tail string) bool {
