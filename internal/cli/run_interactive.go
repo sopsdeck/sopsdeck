@@ -79,25 +79,27 @@ func (r childRunner) runInteractive(argv []string) int {
 	}
 	terminalRestored := false
 	restoreTerminal := func() error {
-		if !terminalRestored {
-			err := term.Restore(int(in.Fd()), state)
-			terminalRestored = true
-			return err
+		if terminalRestored {
+			return nil
 		}
-		return nil
+		terminalRestored = true
+		return term.Restore(int(in.Fd()), state)
 	}
-	defer restoreTerminal()
+	defer func() { _ = restoreTerminal() }()
+	fail := func(format string, args ...any) int {
+		restoreErr := restoreTerminal()
+		fmt.Fprintf(r.stderr, format, args...)
+		if restoreErr != nil {
+			fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", restoreErr)
+		}
+		return 1
+	}
 
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = r.env
 	configureInteractiveChildCommand(cmd)
 	if err := pty.Start(cmd); err != nil {
-		restoreErr := restoreTerminal()
-		fmt.Fprintf(r.stderr, "run: %v\n", err)
-		if restoreErr != nil {
-			fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", restoreErr)
-		}
-		return 1
+		return fail("run: %v\n", err)
 	}
 	closePTYParentSlave(pty)
 
@@ -108,12 +110,49 @@ func (r childRunner) runInteractive(argv []string) int {
 
 	done := make(chan error, 1)
 	go func() { done <- xpty.WaitProcess(context.Background(), cmd) }()
+
+	result := r.waitInteractive(cmd, pty, out, outputDone, done)
+
+	// Closing the PTY ends the output relay even if a descendant kept a slave
+	// handle open. The Unix parent slave was closed after start so its master can
+	// drain normally when the last child exits.
+	closeErr := pty.Close()
+	ptyClosed = true
+	if result.outputPending {
+		result.outputErr = <-outputDone
+	}
+	if result.outputFailure == nil && unexpectedPTYOutputError(result.outputErr) {
+		result.outputFailure = result.outputErr
+	}
+	if msg := interactiveFinishError(result.outputFailure, output, closeErr); msg != "" {
+		return fail("%s\n", msg)
+	}
+	if err := restoreTerminal(); err != nil {
+		fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", err)
+		return 1
+	}
+	if result.waitErr == nil {
+		return 0
+	}
+	return childExitCode(result.waitErr, r.stderr)
+}
+
+type interactiveWaitResult struct {
+	waitErr       error
+	outputErr     error
+	outputFailure error
+	outputPending bool
+}
+
+// waitInteractive forwards signals and resizes until the child exits. An
+// output relay failure cancels the child unless it is the expected read error
+// after the child has already exited.
+func (r childRunner) waitInteractive(cmd *exec.Cmd, pty xpty.Pty, out *os.File, outputDone, done <-chan error) interactiveWaitResult {
 	resizeSignals, stopResize := interactiveResizeSignals()
 	defer stopResize()
 
-	var waitErr, outputErr, outputFailure error
-	waiting := true
-	for waiting {
+	result := interactiveWaitResult{outputPending: true}
+	for {
 		select {
 		case sig, ok := <-r.signals:
 			if ok && sig != nil {
@@ -123,68 +162,45 @@ func (r childRunner) runInteractive(argv []string) int {
 			if w, h, sizeErr := term.GetSize(int(out.Fd())); sizeErr == nil && w > 0 && h > 0 {
 				_ = pty.Resize(w, h)
 			}
-		case outputErr = <-outputDone:
+		case result.outputErr = <-outputDone:
 			outputDone = nil
-			if outputErr != nil && !isPTYClosedError(outputErr) {
-				var readErr ptyReadError
-				if !errors.As(outputErr, &readErr) || cmd.ProcessState == nil {
-					outputFailure = outputErr
-					_ = cancelChildCommand(cmd)
-				}
+			result.outputPending = false
+			if result.outputErr == nil || isPTYClosedError(result.outputErr) {
+				continue
 			}
-		case waitErr = <-done:
-			waiting = false
+			if unexpectedPTYOutputError(result.outputErr) || cmd.ProcessState == nil {
+				result.outputFailure = result.outputErr
+				_ = cancelChildCommand(cmd)
+			}
+		case result.waitErr = <-done:
+			return result
 		}
 	}
+}
 
-	// Closing the PTY ends the output relay even if a descendant kept a slave
-	// handle open. The Unix parent slave was closed after start so its master can
-	// drain normally when the last child exits.
-	closeErr := pty.Close()
-	ptyClosed = true
-	if outputDone != nil {
-		outputErr = <-outputDone
+// unexpectedPTYOutputError reports output relay errors other than a closed PTY
+// or a read error from the PTY master.
+func unexpectedPTYOutputError(err error) bool {
+	if err == nil || isPTYClosedError(err) {
+		return false
 	}
-	if outputFailure == nil && outputErr != nil && !isPTYClosedError(outputErr) {
-		var readErr ptyReadError
-		if !errors.As(outputErr, &readErr) {
-			outputFailure = outputErr
-		}
-	}
+	var readErr ptyReadError
+	return !errors.As(err, &readErr)
+}
+
+func interactiveFinishError(outputFailure error, output io.Writer, closeErr error) string {
 	if outputFailure != nil {
-		restoreErr := restoreTerminal()
-		fmt.Fprintf(r.stderr, "run: could not relay interactive command output: %v\n", outputFailure)
-		if restoreErr != nil {
-			fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", restoreErr)
-		}
-		return 1
+		return fmt.Sprintf("run: could not relay interactive command output: %v", outputFailure)
 	}
 	if f, ok := output.(interface{ Flush() error }); ok {
 		if err := f.Flush(); err != nil {
-			restoreErr := restoreTerminal()
-			fmt.Fprintln(r.stderr, "run: could not write redacted command output")
-			if restoreErr != nil {
-				fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", restoreErr)
-			}
-			return 1
+			return "run: could not write redacted command output"
 		}
 	}
 	if closeErr != nil && !errors.Is(closeErr, os.ErrClosed) {
-		restoreErr := restoreTerminal()
-		fmt.Fprintf(r.stderr, "run: could not close interactive terminal: %v\n", closeErr)
-		if restoreErr != nil {
-			fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", restoreErr)
-		}
-		return 1
+		return fmt.Sprintf("run: could not close interactive terminal: %v", closeErr)
 	}
-	if err := restoreTerminal(); err != nil {
-		fmt.Fprintf(r.stderr, "run: could not restore interactive terminal: %v\n", err)
-		return 1
-	}
-	if waitErr == nil {
-		return 0
-	}
-	return childExitCode(waitErr, r.stderr)
+	return ""
 }
 
 func relayPTYOutput(input io.Reader, output io.Writer) error {
