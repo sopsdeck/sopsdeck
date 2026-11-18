@@ -122,7 +122,7 @@ func TestRunRelocksWhenInteractiveChildReceivesInterrupt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create parent PTY: %v", err)
 	}
-	defer pty.Close()
+	defer func() { _ = pty.Close() }()
 
 	cmd := exec.Command(bin, "run", "-f", file, "--", child, "-test.run=^TestHelperProcess$")
 	cmd.Env = append(os.Environ(),
