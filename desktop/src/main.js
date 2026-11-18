@@ -1210,7 +1210,8 @@ function renderKeys() {
 async function addProjectFromPath(path, opts = {}) {
   clearProjectError();
   const select = opts.select !== false;
-  setProjectLoading(true, path);
+  // Background loads must not block the editor behind the modal.
+  if (select) setProjectLoading(true, path);
   setLoading('tree', true);
   let state;
   try {
@@ -1263,6 +1264,9 @@ async function addProjectFromPath(path, opts = {}) {
     renderTree();
     renderProjectPanel();
     if (files[0] && select) {
+      // The file view has its own skeleton; keep the modal from blocking input
+      // once the editor is visible.
+      setProjectLoading(false);
       await openFile(project, files[0]);
       return;
     }
@@ -1274,7 +1278,7 @@ async function addProjectFromPath(path, opts = {}) {
 
     if (select) await loadProjectConfig(path);
   } finally {
-    setProjectLoading(false);
+    if (select) setProjectLoading(false);
     setLoading('tree', false);
   }
 }
@@ -2892,6 +2896,7 @@ if (typeof window !== 'undefined')
       focusedProject = Boolean(boot) && !demo;
       document.body.classList.toggle('focused-project', focusedProject);
       await (boot ? addProjectFromPath(boot) : loadProjectConfig(''));
+      setProjectLoading(false);
       if (!focusedProject) await loadDemoHints();
     } catch (err) {
       showProjectError(err);

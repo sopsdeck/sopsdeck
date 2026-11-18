@@ -7,6 +7,7 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 ### Fixed
 
 - Long secret names wrap instead of being cut off in the editor. Key badges sit under the name, narrow editor panes stack the value below the key, and the side panels shrink on smaller windows so the editor and Environment panel stay visible.
+- The "Opening project" dialog closes as soon as the file is shown and no longer appears for background project loads, so it cannot block typing into the editor.
 
 ## 0.3.0 - 2026-11-18
 
