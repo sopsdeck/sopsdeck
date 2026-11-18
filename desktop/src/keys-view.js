@@ -11,19 +11,62 @@ function valueInput(row, mark) {
   input.readOnly = !shown;
   input.autocomplete = 'off';
   input.spellcheck = false;
-  const autosize = () => {
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(Math.max(input.scrollHeight, 22), 240)}px`;
-  };
-
   input.addEventListener('input', () => {
     if (!shown) return;
     row.value = input.value;
     mark();
-    autosize();
+    autosize(input);
   });
-  queueMicrotask(autosize);
+  watchSize(input);
   return input;
+}
+
+function autosize(input, max = 240) {
+  input.style.height = 'auto';
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 22), max)}px`;
+}
+
+// Wrapped text changes height when the column width changes, so resize
+// observers keep key and value fields fitted as the window or panes resize.
+let resizeObserver = null;
+if (typeof ResizeObserver !== 'undefined') {
+  resizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const input = entry.target;
+      const width = String(Math.round(entry.contentRect.width));
+      if (input.dataset.fitWidth === width) continue;
+      input.dataset.fitWidth = width;
+      autosize(input);
+    }
+  });
+}
+
+function watchSize(input) {
+  queueMicrotask(() => autosize(input));
+  resizeObserver?.observe(input);
+}
+
+function keyNameInput(row, onChange) {
+  const name = document.createElement('textarea');
+  name.rows = 1;
+  name.className = 'key-name';
+  name.dataset.testid = 'key-name';
+  name.value = row.key;
+  name.title = row.key;
+  name.autocomplete = 'off';
+  name.spellcheck = false;
+  name.setAttribute('aria-label', 'Key name');
+  name.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') event.preventDefault();
+  });
+  name.addEventListener('input', () => {
+    if (/[\r\n]/.test(name.value)) name.value = name.value.replaceAll(/[\r\n]+/g, '');
+    name.title = name.value;
+    onChange(name.value);
+    autosize(name);
+  });
+  watchSize(name);
+  return name;
 }
 
 function rowActions(row, shown, ui) {
@@ -125,28 +168,24 @@ function renderDotenvRow(box, row, ui) {
   line.dataset.testid = 'key-row';
   const keyCell = document.createElement('div');
   keyCell.className = 'key-cell';
-  const name = document.createElement('input');
-  name.className = 'key-name';
-  name.dataset.testid = 'key-name';
-  name.value = row.key;
-  name.autocomplete = 'off';
-  name.spellcheck = false;
   const kind = document.createElement('span');
   kind.className = 'kind';
   kind.textContent = changed ? 'changed' : 'secret';
   ui.refreshUnusedBadge(kind, row);
   const mark = () => markRow(line, row, kind, ui);
-  name.addEventListener('input', () => {
-    row.key = name.value;
+  const name = keyNameInput(row, (value) => {
+    row.key = value;
     mark();
   });
-  keyCell.append(
-    name,
+  const meta = document.createElement('div');
+  meta.className = 'key-meta';
+  meta.append(
     kind,
     iconButton('copy-key', 'Copy key', 'copy', (event) =>
       ui.copyText(row.key, event.currentTarget),
     ),
   );
+  keyCell.append(name, meta);
   const valueCell = document.createElement('div');
   valueCell.className = 'value-cell';
   valueCell.append(valueInput(row, mark));
