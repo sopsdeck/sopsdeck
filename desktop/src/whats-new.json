@@ -1,17 +1,15 @@
 {
-  "version": "0.3.1",
-  "heading": "0.3.1",
-  "date": "2026-11-18",
+  "version": "0.3.2",
+  "heading": "0.3.2",
+  "date": "2026-11-22",
   "notes": [
     {
-      "text": "Long secret names wrap instead of being cut off in the editor. Key badges sit under the name, narrow editor panes stack the value below the key, and the side panels shrink on smaller windows so the editor and Environment panel stay visible.",
+      "text": "Project initialization makes fully encrypted managed files committable when Git ignores them and warns when ignore rules still block them. Keep these files encrypted before committing.",
       "type": "bugfix",
-      "platforms": [
-        "Windows"
-      ]
+      "platforms": []
     },
     {
-      "text": "The \"Opening project\" dialog closes as soon as the file is shown and no longer appears for background project loads, so it cannot block typing into the editor.",
+      "text": "`get`, `set`, and `run` use the project's only managed dotenv file by default, or the root `.env` when several are managed.",
       "type": "bugfix",
       "platforms": []
     }
