@@ -87,6 +87,9 @@ func parsePasteFlags(args []string) (pasteFlags, string) {
 		}
 	}
 	if flags.file == "" {
+		flags.file = defaultDotenvFile()
+	}
+	if flags.file == "" {
 		return pasteFlags{}, "usage: sopsdeck set [KEY] -f FILE [--yes]"
 	}
 	if len(positionals) > 1 {

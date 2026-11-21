@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/getsops/sops/v3/cmd/sops/formats"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -225,4 +226,29 @@ func setSynced(path, rel string, names []string) error {
 		}
 	}
 	return nil
+}
+
+// defaultDotenvFile returns an unambiguous project dotenv file.
+func defaultDotenvFile() string {
+	root, path := findManifest(".")
+	if path == "" {
+		return ""
+	}
+	m, err := loadManifest(path)
+	if err != nil {
+		return ""
+	}
+	var files []string
+	for _, entry := range m.ManagedFile {
+		if (entry.Format != "" && formats.FormatFromString(entry.Format) == formats.Dotenv) || (entry.Format == "" && fileFormat(filepath.Join(root, entry.Path)) == formats.Dotenv) {
+			if filepath.Clean(entry.Path) == ".env" {
+				return filepath.Join(root, entry.Path)
+			}
+			files = append(files, entry.Path)
+		}
+	}
+	if len(files) == 1 {
+		return filepath.Join(root, files[0])
+	}
+	return ""
 }
