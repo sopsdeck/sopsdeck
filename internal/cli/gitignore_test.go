@@ -27,7 +27,7 @@ func TestUnignoreManagedFile(t *testing.T) {
 		t.Fatalf("second run: changed=%v err=%v", changed, err)
 	}
 	mustWriteFile(t, filepath.Join(root, ".gitignore"), "private/\n")
-	if err := os.Mkdir(filepath.Join(root, "private"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(root, "private"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := unignoreManagedFile(root, "private/.env"); err == nil {

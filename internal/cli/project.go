@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -394,6 +395,11 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 		return 1
 	}
 	fmt.Fprintln(stdout, "project initialized")
+	reportIgnoreChanges(root, entries, stdout)
+	return 0
+}
+
+func reportIgnoreChanges(root string, entries []manifestFile, stdout io.Writer) {
 	for _, entry := range entries {
 		if len(entry.EncryptedKeys) > 0 {
 			fmt.Fprintf(stdout, "warning: %s is partially encrypted; check Git ignore rules before committing it\n", entry.Path)
@@ -407,7 +413,6 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 			fmt.Fprintf(stdout, "warning: %s may be ignored by Git: %v; check with git check-ignore and add the encrypted file to your commit\n", entry.Path, err)
 		}
 	}
-	return 0
 }
 
 func unignoreManagedFile(root, rel string) (bool, error) {
@@ -425,7 +430,8 @@ func unignoreManagedFile(root, rel string) (bool, error) {
 		return false, nil
 	}
 	if err := check(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() == 1 {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
 			return false, nil
 		}
 		return false, err
@@ -444,7 +450,7 @@ func unignoreManagedFile(root, rel string) (bool, error) {
 	if len(old) > 0 && old[len(old)-1] != '\n' {
 		line = "\n" + line
 	}
-	f, err := os.OpenFile(ignore, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(ignore, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return false, err
 	}
@@ -457,7 +463,8 @@ func unignoreManagedFile(root, rel string) (bool, error) {
 		return false, closeErr
 	}
 	if err := check(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() == 1 {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
 			return true, nil
 		}
 		return true, err

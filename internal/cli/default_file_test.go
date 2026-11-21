@@ -14,7 +14,7 @@ func TestDefaultDotenvFile(t *testing.T) {
 	}
 	mustWriteFile(t, filepath.Join(root, ".sopsdeck.toml"), "[[managed_file]]\npath = '.env.production'\nformat = 'dotenv'\n")
 	sub := filepath.Join(root, "sub")
-	if err := os.Mkdir(sub, 0755); err != nil {
+	if err := os.Mkdir(sub, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(sub)

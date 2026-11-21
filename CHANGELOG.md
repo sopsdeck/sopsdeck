@@ -4,6 +4,13 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+## 0.3.2 - 2026-11-22
+
+### Fixed
+
+- Project initialization makes fully encrypted managed files committable when Git ignores them and warns when ignore rules still block them. Keep these files encrypted before committing.
+- `get`, `set`, and `run` use the project's only managed dotenv file by default, or the root `.env` when several are managed.
+
 ## 0.3.1 - 2026-11-18
 
 ### Fixed
