@@ -183,7 +183,10 @@ func parseGetFlags(args []string) (getFlags, string) {
 		}
 	}
 	if flags.file == "" {
-		return getFlags{}, "usage: sopsdeck get [KEY] -f FILE"
+		flags.file = defaultDotenvFile()
+		if flags.file == "" {
+			return getFlags{}, "usage: sopsdeck get [KEY] -f FILE"
+		}
 	}
 	if flags.output != "" && flags.output != "json" {
 		return getFlags{}, fmt.Sprintf("get: unknown --output %s", flags.output)
@@ -286,6 +289,9 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv fun
 			}
 			positionals = append(positionals, args[i])
 		}
+	}
+	if file == "" {
+		file = defaultDotenvFile()
 	}
 	if file == "" {
 		fmt.Fprintln(stderr, "usage: sopsdeck set [KEY VALUE] -f FILE")
@@ -562,6 +568,9 @@ func parseRunFlags(args []string) (file string, noRedact bool, argv []string, us
 		default:
 			return "", false, nil, true
 		}
+	}
+	if file == "" {
+		file = defaultDotenvFile()
 	}
 	if dash < 0 || dash+1 >= len(args) || (file == "" && !noRedact) {
 		return "", false, nil, true

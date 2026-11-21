@@ -76,6 +76,9 @@ In the browser, **Account → Back up private key** shows the same Age identity 
 ./sopsdeck restore -f path/to/.env.production --at REV
 ```
 
+In a project with one managed dotenv file, `get`, `set`, and `run` can omit `-f`. If there are several, they use the project-root `.env` when present; otherwise specify `-f`. Project initialization adds a `.gitignore` exception for an ignored fully encrypted managed file when possible. Keep the file encrypted before committing it; Git will no longer ignore it.
+
+
 ```bash
 ./sopsdeck recipient add AGE1... -f path/to/.env.production
 ./sopsdeck recipient remove AGE1... -f path/to/.env.production

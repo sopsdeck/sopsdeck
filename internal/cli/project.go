@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -393,7 +394,75 @@ func initProject(args []string, stdout, stderr io.Writer, getenv func(string) st
 		return 1
 	}
 	fmt.Fprintln(stdout, "project initialized")
+	for _, entry := range entries {
+		if len(entry.EncryptedKeys) > 0 {
+			fmt.Fprintf(stdout, "warning: %s is partially encrypted; check Git ignore rules before committing it\n", entry.Path)
+			continue
+		}
+		changed, err := unignoreManagedFile(root, entry.Path)
+		if changed {
+			fmt.Fprintf(stdout, "updated .gitignore for %s; keep it encrypted before committing\n", entry.Path)
+		}
+		if err != nil {
+			fmt.Fprintf(stdout, "warning: %s may be ignored by Git: %v; check with git check-ignore and add the encrypted file to your commit\n", entry.Path, err)
+		}
+	}
 	return 0
+}
+
+func unignoreManagedFile(root, rel string) (bool, error) {
+	check := func() error {
+		cmd := exec.Command("git", "check-ignore", "--no-index", "--quiet", "--", rel)
+		cmd.Dir = root
+		return cmd.Run()
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		return false, nil
+	}
+	repo := exec.Command("git", "rev-parse", "--show-toplevel")
+	repo.Dir = root
+	if err := repo.Run(); err != nil {
+		return false, nil
+	}
+	if err := check(); err != nil {
+		if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() == 1 {
+			return false, nil
+		}
+		return false, err
+	}
+	// A root-level exception cannot unignore a file inside an ignored directory.
+	if strings.ContainsAny(rel, "\r\n") {
+		return false, fmt.Errorf("file name cannot be represented in .gitignore")
+	}
+	ignore := filepath.Join(root, ".gitignore")
+	old, err := os.ReadFile(ignore)
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	escaped := strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`, `[`, `\[`, ` `, `\ `).Replace(filepath.ToSlash(rel))
+	line := "!/" + escaped + "\n"
+	if len(old) > 0 && old[len(old)-1] != '\n' {
+		line = "\n" + line
+	}
+	f, err := os.OpenFile(ignore, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return false, err
+	}
+	_, writeErr := f.WriteString(line)
+	closeErr := f.Close()
+	if writeErr != nil {
+		return false, writeErr
+	}
+	if closeErr != nil {
+		return false, closeErr
+	}
+	if err := check(); err != nil {
+		if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() == 1 {
+			return true, nil
+		}
+		return true, err
+	}
+	return true, fmt.Errorf("an ignored parent directory or another ignore rule still blocks it")
 }
 
 func splitKeys(raw string) []string {
