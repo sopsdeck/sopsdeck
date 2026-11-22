@@ -19,6 +19,16 @@ SOPS is bundled. You need Node.js and Git. On first launch, create an Age identi
 
 Projects also work outside Git repositories; Git history is unavailable there. Opening a subfolder of an initialized Project reopens its root. Monorepo files can share one root manifest, or use independent manifests in package folders. Nested Git repositories and nested Projects are excluded from their parent's scans. Project paths resolve symlinks, but managed files must be regular files inside that Project, without symlinks.
 
+To initialize an existing dotenv project from the terminal, run:
+
+```bash
+npx sopsdeck init
+```
+
+The command lists root-level `.env` files and asks before encrypting them. It excludes files whose names contain `example`, `sample`, or `template`. Use `--file PATH` to choose a file explicitly (repeat the flag for multiple files). With an existing identity, `--yes` accepts the encryption prompt; creating an identity still requires an interactive private-key backup confirmation. Follow the command's final instructions to configure CLI decryption and start your app through `sopsdeck run -- <command>`.
+
+Initialization can add Git ignore exceptions for encrypted files. Keep managed files encrypted when committing. Install the optional protection hook with `sopsdeck scan --install`.
+
 ## Edit secrets
 
 Open a Managed File, edit keys and values, then **Encrypt & save**. Values stay hidden until you reveal them. Saving encrypts the file on disk; commit and push with Git when you are ready.

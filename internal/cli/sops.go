@@ -19,7 +19,7 @@ func isSOPSInvocation(args []string) bool {
 	case "encrypt", "decrypt", "edit", "rotate", "updatekeys", "unset", "exec-env", "exec-file", "filestatus", "groups", "keyservice", "publish", "completion", "help", "h":
 		return true
 	case "set":
-		return len(args) > 1 && !slices.Contains(args, "-f") && !slices.Contains(args, "--env-file")
+		return len(args) > 1 && !slices.Contains(args, "-f") && !slices.Contains(args, "--env-file") && defaultDotenvFile() == ""
 	default:
 		info, err := os.Stat(args[0])
 		return err == nil && info.Mode().IsRegular()

@@ -10,7 +10,7 @@ import (
 	"golang.org/x/term"
 )
 
-const usageLine = "usage: sopsdeck <get|set|del|lock|unlock|status|copy|run|agent-hook|identity|account|robot|review|history|restore|recipient|sync|files|project|references|unused|rename|drive|team|scan> ...\n       sopsdeck <SOPS command or flags> ... (uses installed sops)\n       sopsdeck sops [ARGS] (includes upstream --help)"
+const usageLine = "usage: sopsdeck <init|get|set|del|lock|unlock|status|copy|run|agent-hook|identity|account|robot|review|history|restore|recipient|sync|files|project|references|unused|rename|drive|team|scan> ...\n       sopsdeck <SOPS command or flags> ... (uses installed sops)\n       sopsdeck sops [ARGS] (includes upstream --help)"
 
 var (
 	brandStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{
@@ -42,7 +42,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, headingStyle.Render("Usage"))
 	fmt.Fprintf(w, "  %s %s\n\n", commandStyle.Render("sopsdeck"), commandStyle.Render("<command> [args]"))
 	fmt.Fprintln(w, headingStyle.Render("Commands"))
-	fmt.Fprintln(w, "  "+commandStyle.Render("get set del lock unlock status copy run"), mutedStyle.Render("read, write, lock, or inject secrets"))
+	fmt.Fprintln(w, "  "+commandStyle.Render("init get set del lock unlock status copy run"), mutedStyle.Render("read, write, lock, or inject secrets"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("agent-hook"), mutedStyle.Render("protect managed-file reads in supported agent hosts"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("review history restore"), mutedStyle.Render("move through Secret History"))
 	fmt.Fprintln(w, "  "+commandStyle.Render("identity account robot recipient"), mutedStyle.Render("manage Users and Access"))

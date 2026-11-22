@@ -17,6 +17,7 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
 const defaultPort = 4174;
 const cliCommands = new Set([
+  'init',
   'get',
   'set',
   'del',
