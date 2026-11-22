@@ -93,6 +93,7 @@ test('launcher routes native SOPS commands, flags, and files to the runner', () 
   writeFileSync(path.join(cwd, 'config.json'), '{}');
   try {
     for (const args of [
+      ['init', '--yes'],
       ['decrypt', 'config.json'],
       ['--decrypt', 'config.json'],
       ['sops', '--help'],

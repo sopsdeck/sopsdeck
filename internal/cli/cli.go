@@ -71,6 +71,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(s
 
 func runLocal(args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) (int, bool) {
 	switch args[0] {
+	case "init":
+		return cmdInit(args[1:], stdin, stdout, stderr, getenv), true
 	case "get":
 		return cmdGet(args[1:], stdout, stderr, getenv), true
 	case "lock":

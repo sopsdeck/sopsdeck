@@ -4,6 +4,14 @@ All notable user-facing changes are listed here. Versioning is [Epoch SemVer](do
 
 ## Unreleased
 
+### Added
+
+- `sopsdeck init` discovers dotenv files, guides identity backup, and initializes a project from the terminal.
+
+### Fixed
+
+- `set KEY VALUE` uses the project’s default dotenv file instead of passing the command to upstream SOPS.
+
 ## 0.3.2 - 2026-11-22
 
 ### Fixed
